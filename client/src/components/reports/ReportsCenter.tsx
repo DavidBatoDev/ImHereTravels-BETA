@@ -11,14 +11,12 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
-  Download,
   Banknote,
   TrendingUp,
   Users,
   AlertCircle,
   XCircle,
   RefreshCw,
-  FileText,
   Calendar,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -116,14 +114,14 @@ export default function ReportsCenter() {
     `/reports/cancellations?start=${dateRange.startDate}&end=${dateRange.endDate}`;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-start justify-between gap-4 flex-wrap">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">
+          <h1 className="text-xl font-bold text-gray-900">
             Reports & Analytics
           </h1>
-          <p className="text-gray-600">
+          <p className="text-sm text-gray-600">
             Comprehensive insights into your business performance
           </p>
         </div>
@@ -140,18 +138,14 @@ export default function ReportsCenter() {
               className={`h-4 w-4 ${isLoadingFinancial ? "animate-spin" : ""}`}
             />
           </Button>
-          <Button size="sm" className="h-[34px]">
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
         </div>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         {/* Loading / Error states */}
         {isLoadingFinancial && (
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {Array.from({ length: 6 }).map((_, idx) => (
                 <Card key={idx}>
                   <CardHeader className="space-y-2 pb-2">
@@ -172,7 +166,7 @@ export default function ReportsCenter() {
                 <Skeleton className="h-4 w-64" />
               </CardHeader>
               <CardContent>
-                <Skeleton className="h-[320px] w-full" />
+                <Skeleton className="h-[280px] w-full" />
               </CardContent>
             </Card>
 
@@ -182,7 +176,7 @@ export default function ReportsCenter() {
                 <Skeleton className="h-4 w-56" />
               </CardHeader>
               <CardContent>
-                <Skeleton className="h-[280px] w-full" />
+                <Skeleton className="h-[240px] w-full" />
               </CardContent>
             </Card>
           </div>
@@ -197,7 +191,7 @@ export default function ReportsCenter() {
         {!isLoadingFinancial && (
           <>
             {/* 7 Financial Metric Cards */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {/* Net Revenue */}
               <Card
                 className="cursor-pointer hover:shadow-md transition-shadow"
@@ -218,7 +212,7 @@ export default function ReportsCenter() {
                   <Banknote className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
+                  <div className="text-xl font-bold">
                     {metrics ? formatCurrency(metrics.totalNetRevenue) : "—"}
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -247,7 +241,7 @@ export default function ReportsCenter() {
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
+                  <div className="text-xl font-bold">
                     {metrics ? formatCurrency(metrics.totalGrossRevenue) : "—"}
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -276,7 +270,7 @@ export default function ReportsCenter() {
                   <AlertCircle className="h-4 w-4 text-orange-500" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-orange-600">
+                  <div className="text-xl font-bold text-orange-600">
                     {metrics
                       ? metrics.totalOverdueUnpaid > 0
                         ? formatCurrency(metrics.totalOverdueUnpaid)
@@ -311,7 +305,7 @@ export default function ReportsCenter() {
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
+                  <div className="text-xl font-bold">
                     {metrics
                       ? formatCurrency(metrics.totalExpectedRevenue)
                       : "—"}
@@ -342,7 +336,7 @@ export default function ReportsCenter() {
                   <XCircle className="h-4 w-4 text-red-400" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold text-red-600">
+                  <div className="text-xl font-bold text-red-600">
                     {metrics
                       ? metrics.totalRefunded > 0
                         ? `−${formatCurrency(metrics.totalRefunded)}`
@@ -375,7 +369,7 @@ export default function ReportsCenter() {
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                  <div className="text-2xl font-bold">
+                  <div className="text-xl font-bold">
                     {metrics ? metrics.cancelledBookingsCount : "—"}
                   </div>
                   <p className="text-xs text-muted-foreground">
@@ -395,7 +389,7 @@ export default function ReportsCenter() {
               </CardHeader>
               <CardContent>
                 {metrics && metrics.revenueTrend.length > 0 ? (
-                  <ResponsiveContainer width="100%" height={320}>
+                  <ResponsiveContainer width="100%" height={280}>
                     <LineChart
                       data={metrics.revenueTrend}
                       margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
@@ -483,7 +477,7 @@ export default function ReportsCenter() {
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
-                  <div className="h-48 flex items-center justify-center bg-gray-50 rounded-lg">
+                  <div className="h-40 flex items-center justify-center bg-gray-50 rounded-lg">
                     <div className="text-center">
                       <TrendingUp className="h-10 w-10 text-gray-400 mx-auto mb-2" />
                       <p className="text-gray-400 text-sm">
@@ -512,7 +506,7 @@ export default function ReportsCenter() {
                   <ResponsiveContainer
                     width="100%"
                     height={Math.max(
-                      250,
+                      220,
                       metrics.revenueByTour.length * 52 + 60,
                     )}
                   >
@@ -586,30 +580,6 @@ export default function ReportsCenter() {
           </>
         )}
       </div>
-
-      {/* Export Options */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Export Reports</CardTitle>
-          <CardDescription>Download reports in various formats</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-            <Button variant="outline" className="w-full">
-              <FileText className="mr-2 h-4 w-4" />
-              Export as PDF
-            </Button>
-            <Button variant="outline" className="w-full">
-              <Download className="mr-2 h-4 w-4" />
-              Export as Excel
-            </Button>
-            <Button variant="outline" className="w-full">
-              <Calendar className="mr-2 h-4 w-4" />
-              Schedule Report
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   );
 }
