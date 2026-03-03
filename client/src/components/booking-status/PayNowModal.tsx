@@ -240,11 +240,11 @@ export default function PayNowModal({
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="revolut" className="flex items-center gap-1.5">
               <Building2 className="h-4 w-4" />
-              Revolut
+              Bank Transfer (Revolut)
             </TabsTrigger>
             <TabsTrigger value="stripe" className="flex items-center gap-1.5">
               <CreditCard className="h-4 w-4" />
-              Stripe
+              Debit/Credit Card (Stripe)
             </TabsTrigger>
           </TabsList>
 

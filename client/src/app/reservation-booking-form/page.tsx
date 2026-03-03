@@ -3553,8 +3553,14 @@ const Page = () => {
         : null;
 
       // Find the payment document by bookingId or paymentDocId
-      const { collection, query, where, getDocs } =
-        await import("firebase/firestore");
+      const {
+        collection,
+        query,
+        where,
+        getDocs,
+        doc: firestoreDoc,
+        getDoc,
+      } = await import("firebase/firestore");
 
       const paymentsRef = collection(db, "stripePayments");
       let q: any;
@@ -3584,35 +3590,74 @@ const Page = () => {
           throw new Error("Payment document ID not found");
         }
 
-        console.log(
-          "📝 Updating booking with payment plan via API:",
-          paymentDocIdToUse,
+        // Fetch the stripePayments document to get the booking document IDs
+        const paymentDocSnap = await getDoc(
+          firestoreDoc(db, "stripePayments", paymentDocIdToUse),
         );
+        if (!paymentDocSnap.exists()) {
+          throw new Error("Payment document not found in Firestore");
+        }
+        const paymentDocData = paymentDocSnap.data();
 
-        // Call the select-plan API to update both stripePayments and bookings
-        const response = await fetch("/api/stripe-payments/select-plan", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            paymentDocId: paymentDocIdToUse,
-            paymentPlans: paymentPlansToSend,
-            paymentPlanDetails: selectedPlan || null,
-          }),
-        });
+        // For group bookings, use bookingDocumentIds array; fall back to single booking.documentId
+        const bookingDocumentIds: string[] =
+          paymentDocData.bookingDocumentIds?.length > 0
+            ? paymentDocData.bookingDocumentIds
+            : paymentDocData.booking?.documentId
+              ? [paymentDocData.booking.documentId]
+              : [];
 
-        const result = await response.json();
-
-        if (!response.ok) {
-          console.error("❌ Select plan API error:", result.error);
-          alert(
-            result.error || "Error confirming your booking. Please try again.",
+        if (bookingDocumentIds.length === 0) {
+          throw new Error(
+            "Booking has not been created yet. Please wait a moment and try again.",
           );
-          return;
         }
 
-        console.log("✅ Booking confirmed successfully!", result);
+        console.log(
+          "📝 Updating bookings with payment plan via API:",
+          bookingDocumentIds,
+        );
+
+        // Call select-plan API once per booking document (one per person)
+        let firstSuccessfulResult: any = null;
+        for (let i = 0; i < bookingDocumentIds.length; i++) {
+          const bookingDocumentId = bookingDocumentIds[i];
+          const personPlan = paymentPlansToSend[i] ?? paymentPlansToSend[0];
+          const paymentPlanId = personPlan?.plan || "full_payment";
+
+          const response = await fetch("/api/stripe-payments/select-plan", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              bookingDocumentId,
+              paymentPlanId,
+              paymentPlanDetails: selectedPlan || null,
+            }),
+          });
+
+          const result = await response.json();
+
+          if (!response.ok) {
+            console.error(
+              `❌ Select plan API error for booking ${bookingDocumentId}:`,
+              result.error,
+            );
+            alert(
+              result.error ||
+                "Error confirming your booking. Please try again.",
+            );
+            return;
+          }
+
+          console.log(`✅ Booking ${bookingDocumentId} confirmed!`, result);
+          if (!firstSuccessfulResult) firstSuccessfulResult = result;
+        }
+
+        const result = firstSuccessfulResult;
+
+        console.log("✅ All bookings confirmed successfully!");
 
         if (selectedPlan?.label) {
           setFetchedPaymentPlanLabel(selectedPlan.label);
@@ -3621,6 +3666,8 @@ const Page = () => {
         // Send booking status confirmation email with QR code
         try {
           console.log("📧 Sending booking status confirmation email...");
+          const mainBookingDocumentId =
+            result?.bookingDocumentId || bookingDocumentIds[0];
           const emailResponse = await fetch(
             "/api/send-booking-status-confirmation",
             {
@@ -3629,7 +3676,7 @@ const Page = () => {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                bookingDocumentId: result.bookingDocumentId,
+                bookingDocumentId: mainBookingDocumentId,
                 email: email,
               }),
             },
