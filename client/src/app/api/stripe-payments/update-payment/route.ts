@@ -83,6 +83,7 @@ export async function POST(req: NextRequest) {
     // Update the payment intent
     const updatedIntent = await stripe.paymentIntents.update(stripeIntentId, {
       amount: amountPence,
+      payment_method_types: ["card"],
       description: `Reservation fee for ${tourPackageName || "tour"}${numberOfGuests && numberOfGuests > 1 ? ` (${numberOfGuests} guests)` : ""}`,
       metadata: {
         ...existingIntent.metadata,

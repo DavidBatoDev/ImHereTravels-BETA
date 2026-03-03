@@ -835,12 +835,7 @@ function PaymentForm({
         <PaymentElement
           options={{
             layout: "tabs" as const,
-            paymentMethodOrder: [
-              "card",
-              "revolut_pay",
-              "apple_pay",
-              "google_pay",
-            ],
+            paymentMethodOrder: ["card", "apple_pay", "google_pay"],
           }}
           onChange={(event: any) => {
             try {

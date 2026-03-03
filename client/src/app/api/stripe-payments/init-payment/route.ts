@@ -155,9 +155,7 @@ export async function POST(req: NextRequest) {
         amount: amountPence,
         currency: "gbp",
         receipt_email: email,
-        automatic_payment_methods: {
-          enabled: true,
-        },
+        payment_method_types: ["card"],
         description: `Reservation fee for ${tourPackageName || tourPackage}${numberOfGuests && numberOfGuests > 1 ? ` (${numberOfGuests} guests)` : ''}`,
         metadata: {
           ...meta,
