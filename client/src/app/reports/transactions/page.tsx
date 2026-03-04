@@ -49,7 +49,7 @@ interface DetailRow {
   paidDate: string | null;
   lastPaidDate: string | null; // most recent paid date across the booking (for pending/overdue context)
   amount: number;
-  status: "paid" | "pending" | "overdue";
+  status: "paid" | "pending" | "overdue" | "refunded";
   grossRevenue: number;
   expectedRevenue: number;
   outstanding: number;
@@ -186,6 +186,30 @@ function buildDetailRows(report: FinancialReport, startDate: string, endDate: st
         netRevenue: isPaid ? amount : 0,
       });
     }
+
+    const cancellationEvents = events.filter(
+      (e) => e.eventType === "cancellation" && e.refundedAmount < 0
+    );
+
+    for (const refundEv of cancellationEvents) {
+      if (refundEv.date < startDate || refundEv.date > endDate) continue;
+
+      rows.push({
+        bookingId: summary.bookingId,
+        bookingCode: summary.bookingCode,
+        tourName: summary.tourName,
+        installment: "Refund",
+        dueDate: refundEv.date,
+        paidDate: null,
+        lastPaidDate: bookingLastPaidDate,
+        amount: Math.abs(refundEv.refundedAmount),
+        status: "refunded",
+        grossRevenue: 0,
+        expectedRevenue: 0,
+        outstanding: 0,
+        netRevenue: refundEv.refundedAmount,
+      });
+    }
   }
 
   // Sort by the display date (paid date for paid rows, due date otherwise)
@@ -237,6 +261,8 @@ function StatusBadge({ status }: { status: DetailRow["status"] }) {
     return <Badge className="bg-green-100 text-green-800 hover:bg-green-100 border-green-200">Paid</Badge>;
   if (status === "overdue")
     return <Badge className="bg-red-100 text-red-800 hover:bg-red-100 border-red-200">Overdue</Badge>;
+  if (status === "refunded")
+    return <Badge className="bg-rose-100 text-rose-800 hover:bg-rose-100 border-rose-200">Refunded</Badge>;
   return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100 border-blue-200">Pending</Badge>;
 }
 
@@ -458,6 +484,7 @@ function TransactionsDetailPageContent() {
   const paidCount = allRows.filter((r) => r.status === "paid").length;
   const pendingCount = allRows.filter((r) => r.status === "pending").length;
   const overdueCount = allRows.filter((r) => r.status === "overdue").length;
+  const refundedCount = allRows.filter((r) => r.status === "refunded").length;
 
   const periodLabel =
     dateRange.startDate && dateRange.endDate
@@ -722,6 +749,7 @@ function TransactionsDetailPageContent() {
                     { key: "paid", label: `Paid (${paidCount})` },
                     { key: "pending", label: `Pending (${pendingCount})` },
                     { key: "overdue", label: `Overdue (${overdueCount})` },
+                    { key: "refunded", label: `Refunded (${refundedCount})` },
                   ] as const
                 ).map(({ key, label }) => (
                   <button
@@ -825,6 +853,7 @@ function TransactionsDetailPageContent() {
                       <option value="paid">Paid</option>
                       <option value="pending">Pending</option>
                       <option value="overdue">Overdue</option>
+                      <option value="refunded">Refunded</option>
                     </select>
                   </div>
 
@@ -895,7 +924,13 @@ function TransactionsDetailPageContent() {
                         {fmt(filteredRows.reduce((s, r) => s + r.grossRevenue, 0))}
                       </td>
                       <td className="px-2 py-2 text-right text-xs font-bold text-purple-700">
-                        {fmt(filteredRows.reduce((s, r) => s + r.netRevenue, 0))}
+                        {(() => {
+                          const totalNet = filteredRows.reduce((s, r) => s + r.netRevenue, 0);
+                          if (totalNet < 0) {
+                            return <span className="text-red-600">−{fmt(Math.abs(totalNet))}</span>;
+                          }
+                          return fmt(totalNet);
+                        })()}
                       </td>
                       <td className="px-2 py-2 text-right text-xs font-bold text-blue-600">
                         {fmt(filteredRows.reduce((s, r) => s + r.expectedRevenue, 0))}
@@ -920,13 +955,13 @@ function TransactionsDetailPageContent() {
                         className="hover:bg-gray-50 transition-colors"
                       >
                         <td className="px-2 py-3 pl-3 whitespace-nowrap">
-                          <button
-                            onClick={() => router.push(`/bookings?bookingId=${row.bookingId}`)}
+                          <a
+                            href={`/bookings?bookingId=${row.bookingId}`}
                             className="font-mono text-xs text-blue-700 font-semibold hover:underline hover:text-blue-900 text-left"
                             title={`Open booking ${row.bookingId}`}
                           >
                             {row.bookingId}
-                          </button>
+                          </a>
                           {row.bookingCode && row.bookingCode !== row.bookingId && (
                             <span className="block text-gray-400 font-normal text-xs">{row.bookingCode}</span>
                           )}
@@ -946,6 +981,13 @@ function TransactionsDetailPageContent() {
                                   Due: {fmtDate(row.dueDate)}
                                 </span>
                               )}
+                            </>
+                          ) : row.status === "refunded" ? (
+                            <>
+                              <span className="text-rose-700 font-medium">{fmtDate(row.dueDate)}</span>
+                              <span className="block text-xs text-gray-400">
+                                Refund Date
+                              </span>
                             </>
                           ) : (
                             <>
@@ -970,7 +1012,13 @@ function TransactionsDetailPageContent() {
                           {row.grossRevenue > 0 ? fmt(row.grossRevenue) : "—"}
                         </td>
                         <td className="px-2 py-3 text-right text-purple-700 font-medium whitespace-nowrap">
-                          {row.netRevenue > 0 ? fmt(row.netRevenue) : "—"}
+                          {row.status === "refunded"
+                            ? <span className="text-red-600">−{fmt(Math.abs(row.netRevenue))}</span>
+                            : row.netRevenue > 0
+                            ? fmt(row.netRevenue)
+                            : row.netRevenue < 0
+                            ? <span className="text-red-600">−{fmt(Math.abs(row.netRevenue))}</span>
+                            : "—"}
                         </td>
                         <td className="px-2 py-3 text-right text-blue-600 whitespace-nowrap">
                           {row.expectedRevenue > 0 ? fmt(row.expectedRevenue) : "—"}

@@ -11,6 +11,20 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Banknote,
   TrendingUp,
   Users,
@@ -18,6 +32,7 @@ import {
   XCircle,
   RefreshCw,
   Calendar,
+  Download,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +52,81 @@ import {
   CartesianGrid,
   Legend,
 } from "recharts";
+
+function parseIsoDate(value: string): Date {
+  return new Date(`${value}T00:00:00`);
+}
+
+function formatDisplayDate(value: string): string {
+  return parseIsoDate(value).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function toIsoDate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+function getPreviousPeriodRange(range: DateRangeFilter): DateRangeFilter | null {
+  if (!range.startDate || !range.endDate || range.preset === "all_time") return null;
+
+  const start = parseIsoDate(range.startDate);
+  const end = parseIsoDate(range.endDate);
+  const diffDays = Math.max(0, Math.round((end.getTime() - start.getTime()) / 86_400_000));
+
+  const prevEnd = new Date(start);
+  prevEnd.setDate(prevEnd.getDate() - 1);
+
+  const prevStart = new Date(prevEnd);
+  prevStart.setDate(prevStart.getDate() - diffDays);
+
+  return {
+    preset: "custom",
+    startDate: toIsoDate(prevStart),
+    endDate: toIsoDate(prevEnd),
+  };
+}
+
+function pctDelta(current: number, previous: number): string {
+  if (!previous) return "—";
+  const delta = ((current - previous) / Math.abs(previous)) * 100;
+  const sign = delta > 0 ? "+" : "";
+  return `${sign}${delta.toFixed(1)}%`;
+}
+
+function pctDeltaForCsv(current: number, previous: number): string {
+  if (!previous) return "N/A";
+  const delta = ((current - previous) / Math.abs(previous)) * 100;
+  const sign = delta > 0 ? "+" : "";
+  return `${sign}${delta.toFixed(2)}%`;
+}
+
+function deltaPercent(current: number, previous: number): number | null {
+  if (!previous) return null;
+  return ((current - previous) / Math.abs(previous)) * 100;
+}
+
+function exportTextFile(filename: string, content: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  document.body.appendChild(anchor);
+  anchor.click();
+  document.body.removeChild(anchor);
+  URL.revokeObjectURL(url);
+}
+
+function csvEscape(value: string | number): string {
+  const raw = String(value ?? "");
+  return /[",\n]/.test(raw) ? `"${raw.replace(/"/g, '""')}"` : raw;
+}
 
 /** Format a currency amount with a symbol prefix */
 function formatCurrency(amount: number, currency = "£"): string {
@@ -66,10 +156,17 @@ const METRIC_DEFINITIONS: Record<string, string> = {
 
 export default function ReportsCenter() {
   const [dateRange, setDateRange] = useSessionDateRange();
+  const [comparisonMode, setComparisonMode] = useState<"none" | "previous_period" | "custom">("previous_period");
+  const [comparisonCustomRange, setComparisonCustomRange] = useState<DateRangeFilter>(() => {
+    const previous = getPreviousPeriodRange(dateRange);
+    return previous ?? { preset: "custom", startDate: dateRange.startDate, endDate: dateRange.endDate };
+  });
 
   // Financial report state
   const [financialReport, setFinancialReport] =
     useState<FinancialReport | null>(null);
+  const [comparisonReport, setComparisonReport] = useState<FinancialReport | null>(null);
+  const [comparisonRange, setComparisonRange] = useState<DateRangeFilter | null>(null);
   const [isLoadingFinancial, setIsLoadingFinancial] = useState(false);
   const [financialError, setFinancialError] = useState<string | null>(null);
 
@@ -77,12 +174,31 @@ export default function ReportsCenter() {
 
   // Load financial report
   const loadFinancialReport = useCallback(
-    async (range: DateRangeFilter) => {
+    async (
+      range: DateRangeFilter,
+      mode: "none" | "previous_period" | "custom",
+      customRange: DateRangeFilter
+    ) => {
       setIsLoadingFinancial(true);
       setFinancialError(null);
       try {
         const report = await financialReportsService.generateReport(range);
         setFinancialReport(report);
+
+        const resolvedComparisonRange =
+          mode === "none"
+            ? null
+            : mode === "previous_period"
+            ? getPreviousPeriodRange(range)
+            : customRange;
+
+        setComparisonRange(resolvedComparisonRange);
+        if (resolvedComparisonRange) {
+          const previousReport = await financialReportsService.generateReport(resolvedComparisonRange);
+          setComparisonReport(previousReport);
+        } else {
+          setComparisonReport(null);
+        }
       } catch (err) {
         const msg =
           err instanceof Error
@@ -99,10 +215,11 @@ export default function ReportsCenter() {
 
   // Load financial report whenever date range changes
   useEffect(() => {
-    loadFinancialReport(dateRange);
-  }, [dateRange, loadFinancialReport]);
+    loadFinancialReport(dateRange, comparisonMode, comparisonCustomRange);
+  }, [dateRange, comparisonMode, comparisonCustomRange, loadFinancialReport]);
 
   const metrics = financialReport?.metrics;
+  const previousMetrics = comparisonReport?.metrics;
   const router = useRouter();
 
   const toTransactionsUrl = (status?: "paid" | "overdue" | "pending") => {
@@ -112,6 +229,202 @@ export default function ReportsCenter() {
   };
   const toCancellationsUrl = () =>
     `/reports/cancellations?start=${dateRange.startDate}&end=${dateRange.endDate}`;
+
+  const hasComparison = comparisonMode !== "none" && !!previousMetrics;
+
+  const comparisonLabel = comparisonMode === "none"
+    ? "No comparison"
+    : comparisonMode === "previous_period"
+    ? `vs previous period (${comparisonRange?.startDate ? formatDisplayDate(comparisonRange.startDate) : "—"} → ${comparisonRange?.endDate ? formatDisplayDate(comparisonRange.endDate) : "—"})`
+    : `vs custom comparison (${comparisonRange?.startDate ? formatDisplayDate(comparisonRange.startDate) : "—"} → ${comparisonRange?.endDate ? formatDisplayDate(comparisonRange.endDate) : "—"})`;
+
+  const comparisonSelectorLabel =
+    comparisonMode === "none"
+      ? "No comparison"
+      : comparisonMode === "previous_period"
+      ? "Previous period"
+      : "Custom comparison";
+
+  const scorecardDelta = (
+    current: number,
+    previous: number | undefined,
+    options?: { higherIsBetter?: boolean }
+  ) => {
+    const higherIsBetter = options?.higherIsBetter ?? true;
+
+    if (comparisonMode === "none") {
+      return { text: "No comparison", className: "text-muted-foreground" };
+    }
+    if (previous === undefined || previous === null) {
+      return { text: "No comparison data", className: "text-muted-foreground" };
+    }
+    const delta = deltaPercent(current, previous);
+    if (delta === null) {
+      return { text: "— vs comparison", className: "text-muted-foreground" };
+    }
+
+    const isPositiveTrend = delta > 0;
+    const isGoodTrend = higherIsBetter ? isPositiveTrend : !isPositiveTrend;
+
+    if (delta > 0) {
+      return {
+        text: `↑ ${delta.toFixed(1)}% vs comparison`,
+        className: isGoodTrend ? "text-emerald-600" : "text-red-600",
+      };
+    }
+    if (delta < 0) {
+      return {
+        text: `↓ ${Math.abs(delta).toFixed(1)}% vs comparison`,
+        className: isGoodTrend ? "text-emerald-600" : "text-red-600",
+      };
+    }
+    return { text: "→ 0.0% vs comparison", className: "text-muted-foreground" };
+  };
+
+  const comparisonRangeText = comparisonRange
+    ? `${formatDisplayDate(comparisonRange.startDate)} → ${formatDisplayDate(comparisonRange.endDate)}`
+    : "—";
+
+  const renderComparisonIndicator = (
+    metricLabel: string,
+    current: number,
+    previous: number | undefined,
+    formatValue: (value: number) => string,
+    options?: { higherIsBetter?: boolean }
+  ) => {
+    const delta = scorecardDelta(current, previous, options);
+
+    if (!hasComparison || previous === undefined || previous === null) {
+      return <p className={`text-[11px] mt-1 ${delta.className}`}>{delta.text}</p>;
+    }
+
+    return (
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <p className={`text-[11px] mt-1 cursor-help underline decoration-dotted underline-offset-2 ${delta.className}`}>
+              {delta.text}
+            </p>
+          </TooltipTrigger>
+          <TooltipContent className="max-w-xs text-xs leading-relaxed space-y-1.5">
+            <p className="font-semibold">{metricLabel}</p>
+            <p>Current: {formatValue(current)}</p>
+            <p>Comparison: {formatValue(previous)}</p>
+            <p>Range: {comparisonRangeText}</p>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    );
+  };
+
+  const trendWithComparison = metrics?.revenueTrend.map((bucket, index) => ({
+    ...bucket,
+    prevLabel: previousMetrics?.revenueTrend[index]?.label ?? "—",
+    prevGrossRevenue: previousMetrics?.revenueTrend[index]?.grossRevenue ?? 0,
+    prevExpectedRevenue: previousMetrics?.revenueTrend[index]?.expectedRevenue ?? 0,
+    prevRefundedAmount: previousMetrics?.revenueTrend[index]?.refundedAmount ?? 0,
+  })) ?? [];
+
+  const tourWithComparison = (() => {
+    const currentTours = metrics?.revenueByTour ?? [];
+    const previousTours = previousMetrics?.revenueByTour ?? [];
+    const prevMap = new Map(previousTours.map((tour) => [tour.tourName, tour]));
+    return currentTours.map((tour) => ({
+      ...tour,
+      previousNetRevenue: prevMap.get(tour.tourName)?.netRevenue ?? 0,
+      previousBookingCount: prevMap.get(tour.tourName)?.bookingCount ?? 0,
+    }));
+  })();
+
+  const handleExport = (type: "summary-csv" | "trend-csv" | "tour-csv" | "full-json") => {
+    if (!financialReport) return;
+    const stamp = `${dateRange.startDate}_to_${dateRange.endDate}`;
+
+    const currentRangeText = `${formatDisplayDate(dateRange.startDate)} to ${formatDisplayDate(dateRange.endDate)}`;
+    const comparisonRangeCsvText = comparisonRange
+      ? `${formatDisplayDate(comparisonRange.startDate)} to ${formatDisplayDate(comparisonRange.endDate)}`
+      : "No comparison";
+    const comparisonModeText =
+      comparisonMode === "none"
+        ? "none"
+        : comparisonMode === "previous_period"
+        ? "previous_period"
+        : "custom";
+
+    const csvMetaRows = [
+      ["Date Range", currentRangeText],
+      ["Comparison Mode", comparisonModeText],
+      ["Comparison Date Range", comparisonRangeCsvText],
+      [],
+    ];
+
+    if (type === "summary-csv") {
+      const rows = [
+        ...csvMetaRows,
+        ["Metric", "Current", "Previous", "Delta %"],
+        ["Net Revenue", metrics?.totalNetRevenue ?? 0, previousMetrics?.totalNetRevenue ?? 0, pctDeltaForCsv(metrics?.totalNetRevenue ?? 0, previousMetrics?.totalNetRevenue ?? 0)],
+        ["Gross Revenue", metrics?.totalGrossRevenue ?? 0, previousMetrics?.totalGrossRevenue ?? 0, pctDeltaForCsv(metrics?.totalGrossRevenue ?? 0, previousMetrics?.totalGrossRevenue ?? 0)],
+        ["Outstanding Balances", metrics?.totalOverdueUnpaid ?? 0, previousMetrics?.totalOverdueUnpaid ?? 0, pctDeltaForCsv(metrics?.totalOverdueUnpaid ?? 0, previousMetrics?.totalOverdueUnpaid ?? 0)],
+        ["Expected Revenue", metrics?.totalExpectedRevenue ?? 0, previousMetrics?.totalExpectedRevenue ?? 0, pctDeltaForCsv(metrics?.totalExpectedRevenue ?? 0, previousMetrics?.totalExpectedRevenue ?? 0)],
+        ["Total Refunded", metrics?.totalRefunded ?? 0, previousMetrics?.totalRefunded ?? 0, pctDeltaForCsv(metrics?.totalRefunded ?? 0, previousMetrics?.totalRefunded ?? 0)],
+        ["Cancelled Bookings", metrics?.cancelledBookingsCount ?? 0, previousMetrics?.cancelledBookingsCount ?? 0, pctDeltaForCsv(metrics?.cancelledBookingsCount ?? 0, previousMetrics?.cancelledBookingsCount ?? 0)],
+      ];
+      const csv = rows.map((r) => r.map(csvEscape).join(",")).join("\n");
+      exportTextFile(`financial_summary_${stamp}.csv`, csv, "text/csv;charset=utf-8;");
+      return;
+    }
+
+    if (type === "trend-csv") {
+      const rows = [
+        ...csvMetaRows,
+        ["Label", "Comparison Label", "Gross Revenue", "Expected Revenue", "Refunded", "Prev Gross", "Prev Expected", "Prev Refunded"],
+        ...trendWithComparison.map((b) => [
+          b.label,
+          b.prevLabel,
+          b.grossRevenue,
+          b.expectedRevenue,
+          b.refundedAmount,
+          b.prevGrossRevenue,
+          b.prevExpectedRevenue,
+          b.prevRefundedAmount,
+        ]),
+      ];
+      const csv = rows.map((r) => r.map(csvEscape).join(",")).join("\n");
+      exportTextFile(`revenue_trends_${stamp}.csv`, csv, "text/csv;charset=utf-8;");
+      return;
+    }
+
+    if (type === "tour-csv") {
+      const rows = [
+        ...csvMetaRows,
+        ["Tour", "Net Revenue", "Gross Revenue", "Booking Count", "Share %", "Prev Net Revenue", "Prev Booking Count"],
+        ...tourWithComparison.map((tour) => [
+          tour.tourName,
+          tour.netRevenue,
+          tour.grossRevenue,
+          tour.bookingCount,
+          tour.percentage,
+          tour.previousNetRevenue,
+          tour.previousBookingCount,
+        ]),
+      ];
+      const csv = rows.map((r) => r.map(csvEscape).join(",")).join("\n");
+      exportTextFile(`revenue_by_tour_${stamp}.csv`, csv, "text/csv;charset=utf-8;");
+      return;
+    }
+
+    const payload = {
+      currentRange: dateRange,
+      previousRange: comparisonRange,
+      current: financialReport,
+      previous: comparisonReport,
+    };
+    exportTextFile(
+      `financial_report_${stamp}.json`,
+      JSON.stringify(payload, null, 2),
+      "application/json;charset=utf-8;"
+    );
+  };
 
   return (
     <div className="space-y-4">
@@ -127,10 +440,58 @@ export default function ReportsCenter() {
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <DateRangePicker value={dateRange} onChange={setDateRange} />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-[34px]">
+                {comparisonSelectorLabel}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Comparison</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setComparisonMode("none")}>
+                No comparison
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setComparisonMode("previous_period")}>
+                Previous period
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  if (!comparisonCustomRange?.startDate || !comparisonCustomRange?.endDate) {
+                    const previous = getPreviousPeriodRange(dateRange);
+                    if (previous) setComparisonCustomRange(previous);
+                  }
+                  setComparisonMode("custom");
+                }}
+              >
+                Custom date range
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          {comparisonMode === "custom" && (
+            <DateRangePicker value={comparisonCustomRange} onChange={setComparisonCustomRange} />
+          )}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-[34px] gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700">
+                <Download className="h-4 w-4" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Export options</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleExport("summary-csv")}>Summary (CSV)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("trend-csv")}>Revenue Trends (CSV)</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport("tour-csv")}>Revenue by Tour (CSV)</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleExport("full-json")}>Full Report (JSON)</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => loadFinancialReport(dateRange)}
+            onClick={() => loadFinancialReport(dateRange, comparisonMode, comparisonCustomRange)}
             disabled={isLoadingFinancial}
             className="h-[34px]"
           >
@@ -202,12 +563,23 @@ export default function ReportsCenter() {
                     <CardTitle className="text-sm font-medium">
                       Net Revenue
                     </CardTitle>
-                    <span
-                      title={METRIC_DEFINITIONS["Net Revenue"]}
-                      className="text-gray-400 cursor-help text-xs select-none"
-                    >
-                      ⓘ
-                    </span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-muted-foreground cursor-help text-xs select-none"
+                            aria-label="Net Revenue info"
+                          >
+                            ⓘ
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                          {METRIC_DEFINITIONS["Net Revenue"]}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   <Banknote className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
@@ -218,6 +590,12 @@ export default function ReportsCenter() {
                   <p className="text-xs text-muted-foreground">
                     Gross minus refunds
                   </p>
+                  {renderComparisonIndicator(
+                    "Net Revenue",
+                    metrics?.totalNetRevenue ?? 0,
+                    previousMetrics?.totalNetRevenue,
+                    (value) => formatCurrency(value)
+                  )}
                 </CardContent>
               </Card>
 
@@ -231,12 +609,23 @@ export default function ReportsCenter() {
                     <CardTitle className="text-sm font-medium">
                       Gross Revenue
                     </CardTitle>
-                    <span
-                      title={METRIC_DEFINITIONS["Gross Revenue"]}
-                      className="text-gray-400 cursor-help text-xs select-none"
-                    >
-                      ⓘ
-                    </span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-muted-foreground cursor-help text-xs select-none"
+                            aria-label="Gross Revenue info"
+                          >
+                            ⓘ
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                          {METRIC_DEFINITIONS["Gross Revenue"]}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
@@ -247,6 +636,12 @@ export default function ReportsCenter() {
                   <p className="text-xs text-muted-foreground">
                     All payments received
                   </p>
+                  {renderComparisonIndicator(
+                    "Gross Revenue",
+                    metrics?.totalGrossRevenue ?? 0,
+                    previousMetrics?.totalGrossRevenue,
+                    (value) => formatCurrency(value)
+                  )}
                 </CardContent>
               </Card>
 
@@ -260,12 +655,23 @@ export default function ReportsCenter() {
                     <CardTitle className="text-sm font-medium">
                       Outstanding Balances
                     </CardTitle>
-                    <span
-                      title={METRIC_DEFINITIONS["Outstanding Balances"]}
-                      className="text-gray-400 cursor-help text-xs select-none"
-                    >
-                      ⓘ
-                    </span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-muted-foreground cursor-help text-xs select-none"
+                            aria-label="Outstanding Balances info"
+                          >
+                            ⓘ
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                          {METRIC_DEFINITIONS["Outstanding Balances"]}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   <AlertCircle className="h-4 w-4 text-orange-500" />
                 </CardHeader>
@@ -282,6 +688,13 @@ export default function ReportsCenter() {
                       ? "Requires attention"
                       : "All payments current"}
                   </p>
+                  {renderComparisonIndicator(
+                    "Outstanding Balances",
+                    metrics?.totalOverdueUnpaid ?? 0,
+                    previousMetrics?.totalOverdueUnpaid,
+                    (value) => formatCurrency(value),
+                    { higherIsBetter: false }
+                  )}
                 </CardContent>
               </Card>
 
@@ -295,12 +708,23 @@ export default function ReportsCenter() {
                     <CardTitle className="text-sm font-medium">
                       Expected Revenue
                     </CardTitle>
-                    <span
-                      title={METRIC_DEFINITIONS["Expected Revenue"]}
-                      className="text-gray-400 cursor-help text-xs select-none"
-                    >
-                      ⓘ
-                    </span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-muted-foreground cursor-help text-xs select-none"
+                            aria-label="Expected Revenue info"
+                          >
+                            ⓘ
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                          {METRIC_DEFINITIONS["Expected Revenue"]}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
@@ -313,6 +737,12 @@ export default function ReportsCenter() {
                   <p className="text-xs text-muted-foreground">
                     Scheduled future payments
                   </p>
+                  {renderComparisonIndicator(
+                    "Expected Revenue",
+                    metrics?.totalExpectedRevenue ?? 0,
+                    previousMetrics?.totalExpectedRevenue,
+                    (value) => formatCurrency(value)
+                  )}
                 </CardContent>
               </Card>
 
@@ -326,12 +756,23 @@ export default function ReportsCenter() {
                     <CardTitle className="text-sm font-medium">
                       Total Refunded
                     </CardTitle>
-                    <span
-                      title={METRIC_DEFINITIONS["Total Refunded"]}
-                      className="text-gray-400 cursor-help text-xs select-none"
-                    >
-                      ⓘ
-                    </span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-muted-foreground cursor-help text-xs select-none"
+                            aria-label="Total Refunded info"
+                          >
+                            ⓘ
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                          {METRIC_DEFINITIONS["Total Refunded"]}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   <XCircle className="h-4 w-4 text-red-400" />
                 </CardHeader>
@@ -346,6 +787,13 @@ export default function ReportsCenter() {
                   <p className="text-xs text-muted-foreground">
                     Cancellation refunds
                   </p>
+                  {renderComparisonIndicator(
+                    "Total Refunded",
+                    metrics?.totalRefunded ?? 0,
+                    previousMetrics?.totalRefunded,
+                    (value) => `−${formatCurrency(value)}`,
+                    { higherIsBetter: false }
+                  )}
                 </CardContent>
               </Card>
 
@@ -359,12 +807,23 @@ export default function ReportsCenter() {
                     <CardTitle className="text-sm font-medium">
                       Cancelled Bookings
                     </CardTitle>
-                    <span
-                      title={METRIC_DEFINITIONS["Cancelled Bookings"]}
-                      className="text-gray-400 cursor-help text-xs select-none"
-                    >
-                      ⓘ
-                    </span>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <button
+                            type="button"
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-muted-foreground cursor-help text-xs select-none"
+                            aria-label="Cancelled Bookings info"
+                          >
+                            ⓘ
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent className="max-w-xs text-xs leading-relaxed">
+                          {METRIC_DEFINITIONS["Cancelled Bookings"]}
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
                   </div>
                   <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
@@ -375,6 +834,13 @@ export default function ReportsCenter() {
                   <p className="text-xs text-muted-foreground">
                     Within date range
                   </p>
+                  {renderComparisonIndicator(
+                    "Cancelled Bookings",
+                    metrics?.cancelledBookingsCount ?? 0,
+                    previousMetrics?.cancelledBookingsCount,
+                    (value) => `${value}`,
+                    { higherIsBetter: false }
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -384,14 +850,14 @@ export default function ReportsCenter() {
               <CardHeader>
                 <CardTitle>Revenue Trends</CardTitle>
                 <CardDescription>
-                  Revenue over time — hover for details
+                  Revenue over time — hover for details{hasComparison ? ` (${comparisonLabel})` : ""}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {metrics && metrics.revenueTrend.length > 0 ? (
+                {metrics && trendWithComparison.length > 0 ? (
                   <ResponsiveContainer width="100%" height={280}>
                     <LineChart
-                      data={metrics.revenueTrend}
+                      data={trendWithComparison}
                       margin={{ top: 5, right: 20, left: 10, bottom: 5 }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -416,27 +882,45 @@ export default function ReportsCenter() {
                         content={(props: any) => {
                           const { active, payload, label } = props;
                           if (!active || !payload?.length) return null;
+                          const point = payload[0]?.payload;
                           return (
-                            <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm">
-                              <p className="font-semibold text-gray-700 mb-2">
-                                {label}
-                              </p>
-                              {payload.map((entry: any) => (
-                                <div
-                                  key={entry.name}
-                                  className="flex items-center gap-3 justify-between"
-                                >
-                                  <span
-                                    style={{ color: entry.color }}
-                                    className="font-medium"
-                                  >
-                                    {entry.name}:
-                                  </span>
-                                  <span className="font-bold">
-                                    {formatCurrency(entry.value as number)}
-                                  </span>
+                            <div className="flex gap-2 items-start">
+                              <div className="bg-popover border border-border rounded-lg shadow-md p-3 text-sm text-popover-foreground min-w-[200px]">
+                                <p className="font-semibold mb-2">Current: {label}</p>
+                                <div className="space-y-0.5">
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span className="font-medium text-[#22c55e]">Gross Revenue:</span>
+                                    <span className="font-bold">{formatCurrency(point.grossRevenue as number)}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span className="font-medium text-[#3b82f6]">Expected Revenue:</span>
+                                    <span className="font-bold">{formatCurrency(point.expectedRevenue as number)}</span>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <span className="font-medium text-[#ef4444]">Refunded:</span>
+                                    <span className="font-bold">{formatCurrency(point.refundedAmount as number)}</span>
+                                  </div>
                                 </div>
-                              ))}
+                              </div>
+                              {hasComparison && (
+                                <div className="bg-popover border border-border rounded-lg shadow-md p-3 text-sm text-popover-foreground min-w-[220px]">
+                                  <p className="font-semibold mb-2">Comparison: {point.prevLabel}</p>
+                                  <div className="space-y-0.5">
+                                    <div className="flex items-center justify-between gap-3">
+                                      <span className="font-medium text-[#22c55e]">Prev Gross Revenue:</span>
+                                      <span className="font-bold">{formatCurrency(point.prevGrossRevenue as number)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-3">
+                                      <span className="font-medium text-[#3b82f6]">Prev Expected Revenue:</span>
+                                      <span className="font-bold">{formatCurrency(point.prevExpectedRevenue as number)}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between gap-3">
+                                      <span className="font-medium text-[#ef4444]">Prev Refunded:</span>
+                                      <span className="font-bold">{formatCurrency(point.prevRefundedAmount as number)}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           );
                         }}
@@ -455,6 +939,18 @@ export default function ReportsCenter() {
                         dot={false}
                         activeDot={{ r: 5 }}
                       />
+                      {hasComparison && (
+                        <Line
+                          type="monotone"
+                          dataKey="prevGrossRevenue"
+                          name="Prev Gross Revenue"
+                          stroke="#22c55e"
+                          strokeOpacity={0.45}
+                          strokeWidth={2}
+                          strokeDasharray="5 3"
+                          dot={false}
+                        />
+                      )}
                       <Line
                         type="monotone"
                         dataKey="expectedRevenue"
@@ -464,6 +960,18 @@ export default function ReportsCenter() {
                         dot={false}
                         activeDot={{ r: 5 }}
                       />
+                      {hasComparison && (
+                        <Line
+                          type="monotone"
+                          dataKey="prevExpectedRevenue"
+                          name="Prev Expected Revenue"
+                          stroke="#3b82f6"
+                          strokeOpacity={0.45}
+                          strokeWidth={2}
+                          strokeDasharray="5 3"
+                          dot={false}
+                        />
+                      )}
                       <Line
                         type="monotone"
                         dataKey="refundedAmount"
@@ -474,6 +982,18 @@ export default function ReportsCenter() {
                         dot={false}
                         activeDot={{ r: 5 }}
                       />
+                      {hasComparison && (
+                        <Line
+                          type="monotone"
+                          dataKey="prevRefundedAmount"
+                          name="Prev Refunded"
+                          stroke="#ef4444"
+                          strokeOpacity={0.45}
+                          strokeWidth={2}
+                          strokeDasharray="5 3"
+                          dot={false}
+                        />
+                      )}
                     </LineChart>
                   </ResponsiveContainer>
                 ) : (
@@ -494,11 +1014,11 @@ export default function ReportsCenter() {
               <CardHeader>
                 <CardTitle>Revenue by Tour Package</CardTitle>
                 <CardDescription>
-                  Net revenue and booking count per tour
+                  Net revenue and booking count per tour{hasComparison ? ` (${comparisonLabel})` : ""}
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {!metrics || metrics.revenueByTour.length === 0 ? (
+                {!metrics || tourWithComparison.length === 0 ? (
                   <p className="text-sm text-gray-400">
                     No revenue data for this period.
                   </p>
@@ -507,11 +1027,11 @@ export default function ReportsCenter() {
                     width="100%"
                     height={Math.max(
                       220,
-                      metrics.revenueByTour.length * 52 + 60,
+                      tourWithComparison.length * 52 + 60,
                     )}
                   >
                     <BarChart
-                      data={metrics.revenueByTour}
+                      data={tourWithComparison}
                       layout="vertical"
                       margin={{ top: 5, right: 80, left: 10, bottom: 5 }}
                       barCategoryGap="35%"
@@ -547,21 +1067,39 @@ export default function ReportsCenter() {
                           if (!active || !payload?.length) return null;
                           const d = payload[0].payload;
                           return (
-                            <div className="bg-white border border-gray-200 rounded-lg shadow-lg p-3 text-sm">
-                              <p className="font-semibold text-gray-700 mb-1 max-w-[200px] break-words">
-                                {d.tourName}
-                              </p>
-                              <p className="text-blue-600 font-bold">
-                                Net: {formatCurrency(d.netRevenue)}
-                              </p>
-                              <p className="text-gray-500">
-                                Gross: {formatCurrency(d.grossRevenue)}
-                              </p>
-                              <p className="text-gray-500">
-                                {d.bookingCount} booking
-                                {d.bookingCount !== 1 ? "s" : ""} &middot;{" "}
-                                {d.percentage}%
-                              </p>
+                            <div className="flex gap-2 items-start">
+                              <div className="bg-popover border border-border rounded-lg shadow-md p-3 text-sm text-popover-foreground min-w-[210px]">
+                                <p className="font-semibold mb-1 max-w-[200px] break-words">
+                                  Current: {d.tourName}
+                                </p>
+                                <p className="text-blue-600 font-bold">
+                                  Net: {formatCurrency(d.netRevenue)}
+                                </p>
+                                <p className="text-gray-500">
+                                  Gross: {formatCurrency(d.grossRevenue)}
+                                </p>
+                                <p className="text-gray-500">
+                                  {d.bookingCount} booking
+                                  {d.bookingCount !== 1 ? "s" : ""} &middot;{" "}
+                                  {d.percentage}%
+                                </p>
+                              </div>
+                              {hasComparison && (
+                                <div className="bg-popover border border-border rounded-lg shadow-md p-3 text-sm text-popover-foreground min-w-[210px]">
+                                  <p className="font-semibold mb-1 max-w-[200px] break-words">
+                                    Comparison: {d.tourName}
+                                  </p>
+                                  <p className="text-slate-600 font-bold">
+                                    Prev Net: {formatCurrency(d.previousNetRevenue)}
+                                  </p>
+                                  <p className="text-gray-500">
+                                    Prev bookings: {d.previousBookingCount}
+                                  </p>
+                                  <p className="text-gray-500">
+                                    Range: {comparisonRangeText}
+                                  </p>
+                                </div>
+                              )}
                             </div>
                           );
                         }}
@@ -572,6 +1110,14 @@ export default function ReportsCenter() {
                         fill="#3b82f6"
                         radius={[0, 4, 4, 0]}
                       />
+                      {hasComparison && (
+                        <Bar
+                          dataKey="previousNetRevenue"
+                          name="Prev Net Revenue"
+                          fill="#94a3b8"
+                          radius={[0, 4, 4, 0]}
+                        />
+                      )}
                     </BarChart>
                   </ResponsiveContainer>
                 )}

@@ -18,6 +18,9 @@ import {
   ArrowDown,
   RefreshCw,
   XCircle,
+  Search,
+  X,
+  SlidersHorizontal,
 } from "lucide-react";
 import {
   LineChart,
@@ -256,10 +259,13 @@ function CancellationsDetailPageContent() {
 
   const [sortKey, setSortKey] = useState<SortKey>("cancellationDate");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [searchText, setSearchText] = useState("");
+  const [tourFilter, setTourFilter] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
 
   // Which lines are currently visible in the chart
   const [activeLines, setActiveLines] = useState<Set<ChartLine>>(
-    new Set<ChartLine>(["kept", "refunded"])
+    () => new Set<ChartLine>(LINE_ORDER)
   );
 
   const toggleLine = (key: ChartLine) =>
@@ -305,6 +311,46 @@ function CancellationsDetailPageContent() {
       return sortDir === "asc" ? cmp : -cmp;
     });
   }, [allRows, sortKey, sortDir]);
+
+  const uniqueTours = useMemo(
+    () => Array.from(new Set(allRows.map((r) => r.tourName))).sort(),
+    [allRows]
+  );
+
+  const filteredRows = useMemo(() => {
+    let rows = allRows;
+
+    if (searchText.trim()) {
+      const q = searchText.trim().toLowerCase();
+      rows = rows.filter(
+        (r) =>
+          r.bookingId.toLowerCase().includes(q) ||
+          r.bookingCode.toLowerCase().includes(q) ||
+          r.tourName.toLowerCase().includes(q)
+      );
+    }
+
+    if (tourFilter) {
+      rows = rows.filter((r) => r.tourName === tourFilter);
+    }
+
+    return [...rows].sort((a, b) => {
+      const av = a[sortKey];
+      const bv = b[sortKey];
+      const cmp =
+        typeof av === "number" && typeof bv === "number"
+          ? av - bv
+          : String(av).localeCompare(String(bv));
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+  }, [allRows, searchText, tourFilter, sortKey, sortDir]);
+
+  const activeFilterCount = [searchText.trim() !== "", tourFilter !== ""].filter(Boolean).length;
+
+  const clearAllFilters = () => {
+    setSearchText("");
+    setTourFilter("");
+  };
 
   const handleSort = (col: SortKey) => {
     if (sortKey === col) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
@@ -690,11 +736,108 @@ function CancellationsDetailPageContent() {
         {/* Table */}
         <Card>
           <CardHeader>
-            <CardTitle>Cancellation Details</CardTitle>
-            <CardDescription>
-              {sortedRows.length} cancelled booking
-              {sortedRows.length !== 1 ? "s" : ""} — click column headers to sort
-            </CardDescription>
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div>
+                <CardTitle>Cancellation Details</CardTitle>
+                <CardDescription>
+                  {filteredRows.length} cancelled booking
+                  {filteredRows.length !== 1 ? "s" : ""}
+                  {activeFilterCount > 0 && (
+                    <span className="ml-1 text-orange-600 font-medium">
+                      (filtered from {allRows.length})
+                    </span>
+                  )}
+                  {" — click column headers to sort"}
+                </CardDescription>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowFilters((v) => !v)}
+                  className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+                    showFilters || activeFilterCount > 0
+                      ? "bg-blue-600 text-white border-blue-600"
+                      : "bg-white text-gray-600 border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  <SlidersHorizontal className="h-3 w-3" />
+                  Filters
+                  {activeFilterCount > 0 && (
+                    <span className="ml-0.5 bg-white text-blue-700 rounded-full px-1.5 text-[10px] font-bold">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {showFilters && (
+              <div className="mt-3 pt-3 border-t border-gray-100 space-y-3">
+                <div className="flex flex-wrap gap-3 items-end">
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">Search</label>
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
+                      <input
+                        type="text"
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
+                        placeholder="Booking ID, tour name…"
+                        className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                      {searchText && (
+                        <button
+                          onClick={() => setSearchText("")}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="min-w-[220px]">
+                    <label className="text-xs font-medium text-gray-500 mb-1 block">Tour Name</label>
+                    <select
+                      value={tourFilter}
+                      onChange={(e) => setTourFilter(e.target.value)}
+                      className="w-full px-2.5 py-1.5 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                    >
+                      <option value="">All tours</option>
+                      {uniqueTours.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {activeFilterCount > 0 && (
+                    <button
+                      onClick={clearAllFilters}
+                      className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 border border-red-200 rounded-md hover:bg-red-50 transition-colors"
+                    >
+                      <X className="h-3 w-3" />
+                      Clear all
+                    </button>
+                  )}
+                </div>
+
+                {activeFilterCount > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {searchText.trim() && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs">
+                        Search: &ldquo;{searchText.trim()}&rdquo;
+                        <button onClick={() => setSearchText("")}><X className="h-2.5 w-2.5" /></button>
+                      </span>
+                    )}
+                    {tourFilter && (
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs">
+                        Tour: {tourFilter}
+                        <button onClick={() => setTourFilter("")}><X className="h-2.5 w-2.5" /></button>
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -711,23 +854,23 @@ function CancellationsDetailPageContent() {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {/* Totals summary row – pinned just below headers */}
-                  {sortedRows.length > 0 && (
+                  {filteredRows.length > 0 && (
                     <tr className="bg-gray-50 border-b-2 border-gray-300">
                       <td colSpan={3} className="px-3 py-2 pl-4 text-xs font-semibold text-gray-600 uppercase tracking-wide">
-                        Totals ({sortedRows.length} booking{sortedRows.length !== 1 ? "s" : ""})
+                        Totals ({filteredRows.length} booking{filteredRows.length !== 1 ? "s" : ""})
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-bold text-gray-700">
-                        {fmt(sortedRows.reduce((s, r) => s + r.totalPaid, 0))}
+                        {fmt(filteredRows.reduce((s, r) => s + r.totalPaid, 0))}
                       </td>
                       <td className="px-3 py-2 text-right text-sm font-bold text-red-600">
-                        −{fmt(sortedRows.reduce((s, r) => s + r.refunded, 0))}
+                        −{fmt(filteredRows.reduce((s, r) => s + r.refunded, 0))}
                       </td>
                       <td className="px-3 py-2 pr-4 text-right text-sm font-bold text-green-700">
-                        {fmt(sortedRows.reduce((s, r) => s + r.kept, 0))}
+                        {fmt(filteredRows.reduce((s, r) => s + r.kept, 0))}
                       </td>
                     </tr>
                   )}
-                  {sortedRows.length === 0 ? (
+                  {filteredRows.length === 0 ? (
                     <tr>
                       <td
                         colSpan={6}
@@ -737,19 +880,19 @@ function CancellationsDetailPageContent() {
                       </td>
                     </tr>
                   ) : (
-                    sortedRows.map((row, i) => (
+                    filteredRows.map((row, i) => (
                       <tr
                         key={`${row.bookingId}-${i}`}
                         className="hover:bg-gray-50 transition-colors"
                       >
                         <td className="px-3 py-3 pl-4 whitespace-nowrap">
-                          <button
-                            onClick={() => router.push(`/bookings?bookingId=${row.bookingId}`)}
+                          <a
+                            href={`/bookings?bookingId=${row.bookingId}`}
                             title={`Open booking ${row.bookingId}`}
                             className="font-mono text-xs text-blue-600 hover:text-blue-800 hover:underline font-semibold text-left leading-tight"
                           >
                             {row.bookingId}
-                          </button>
+                          </a>
                           {row.bookingCode && row.bookingCode !== row.bookingId && (
                             <div className="text-[10px] text-gray-400 font-mono leading-tight mt-0.5">
                               {row.bookingCode}
