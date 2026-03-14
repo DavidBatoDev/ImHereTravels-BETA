@@ -35,6 +35,7 @@ export { onPaymentReminderEnabled } from "./payment-reminder-trigger";
 export { cleanupAbandonedPayments } from "./scheduled-cleanup-abandoned-payments";
 // Export price history tracking function
 export { onTourPackagePriceUpdate } from "./on-tour-package-price-update";
+export { onRevolutPaymentStatusEmail } from "./on-revolut-payment-status-email";
 
 // export { telegramBot } from "./telegram-bot";
 // export {
