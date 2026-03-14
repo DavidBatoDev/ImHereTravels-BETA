@@ -3737,11 +3737,6 @@ const Page = () => {
         overflow: showTourModal ? "hidden" : "auto",
       }}
     >
-      {/* Animated gradient background */}
-      <div className="absolute inset-0 z-0">
-        <div className="absolute inset-0 bg-gradient-to-br from-crimson-red/5 via-sunglow-yellow/5 to-spring-green/5 dark:from-crimson-red/20 dark:via-creative-midnight/30 dark:to-spring-green/20 animate-gradient-shift bg-[length:200%_200%]" />
-      </div>
-
       {/* Theme Toggle Button */}
       <div className="fixed top-6 right-6 z-50">
         <ThemeToggle />
@@ -4183,7 +4178,7 @@ const Page = () => {
             </div>
 
             {/* How it works Card */}
-            <div className="mt-6 rounded-2xl bg-background dark:bg-card/80 dark:backdrop-blur-md border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl overflow-hidden transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
+            <div className="mt-6 rounded-2xl bg-card border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl overflow-hidden transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
               <button
                 onClick={() => setHowItWorksExpanded(!howItWorksExpanded)}
                 className="w-full p-6 flex items-center gap-4 hover:bg-muted/50 dark:hover:bg-white/5 transition-colors duration-200"
@@ -4300,7 +4295,7 @@ const Page = () => {
           <div className="space-y-6">
             {/* STEP 1 - Personal & Reservation Details */}
             {step === 1 && (
-              <div className="rounded-2xl bg-background dark:bg-card/80 dark:backdrop-blur-md p-6 sm:p-8 border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
+              <div className="rounded-2xl bg-card p-6 sm:p-8 border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
                 {/* Show locked message if payment confirmed */}
                 {paymentConfirmed && (
                   <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-md mb-4">
@@ -5826,7 +5821,7 @@ const Page = () => {
                 </div>
 
                 {/* Choose Payment Plan Card */}
-                <div className="rounded-2xl bg-white dark:bg-card/80 dark:backdrop-blur-md border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl overflow-hidden transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
+                <div className="rounded-2xl bg-card border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl overflow-hidden transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
                   <div className="p-6">
                     {/* Per-Person Payment Plan Selection */}
                     <div className="space-y-6">
@@ -6445,11 +6440,6 @@ const Page = () => {
 
               {step === 3 && bookingConfirmed && (
                 <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
-                  {/* Animated gradient background */}
-                  <div className="absolute inset-0 z-0">
-                    <div className="absolute inset-0 bg-gradient-to-br from-crimson-red/5 via-sunglow-yellow/5 to-spring-green/5 dark:from-crimson-red/20 dark:via-creative-midnight/30 dark:to-spring-green/20 animate-gradient-shift bg-[length:200%_200%]" />
-                  </div>
-
                   {/* Offscreen: Document for PDF generation (must be renderable, not display:none) */}
                   <div
                     id="booking-confirmation-doc"

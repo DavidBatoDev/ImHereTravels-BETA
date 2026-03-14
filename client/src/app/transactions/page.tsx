@@ -425,7 +425,7 @@ export default function TransactionsPage() {
       },
       refunded: {
         label: "Refunded",
-        color: "bg-gray-100 text-gray-800",
+        color: "bg-muted text-muted-foreground",
         icon: RefreshCcw,
       },
       approved: {
@@ -896,7 +896,7 @@ export default function TransactionsPage() {
                       <div
                         className={`p-4 rounded-full rounded-br-none ${stat.bgColor}`}
                       >
-                        <Icon className="h-6 w-6 text-black" />
+                        <Icon className="h-6 w-6 text-foreground" />
                       </div>
                     </CardContent>
                   </Card>
@@ -982,7 +982,7 @@ export default function TransactionsPage() {
                     <div className="flex items-center gap-1.5 mt-2 md:mt-0 shrink-0">
                       <Button
                         variant="outline"
-                        className="bg-white hover:bg-amber-50 border-amber-200 text-amber-700 h-7 px-2.5 text-[11px] flex-1 md:flex-none w-full md:w-auto shadow-none"
+                        className="bg-background hover:bg-amber-50 dark:hover:bg-amber-950/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 h-7 px-2.5 text-[11px] flex-1 md:flex-none w-full md:w-auto shadow-none"
                         onClick={() => {
                           setSelectedRevolutPayment(rp);
                           setScreenshotDialogOpen(true);
@@ -1023,25 +1023,25 @@ export default function TransactionsPage() {
         {/* Filters Toolbar */}
         <div className="flex items-center gap-2">
           <div className="relative flex-1 max-w-sm">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder="Search..."
-              className="pl-9 bg-white"
+              className="pl-9 bg-background"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
-            <div className="hidden sm:flex items-center p-1 bg-gray-100/80 rounded-lg border border-gray-200">
+            <div className="hidden sm:flex items-center p-1 bg-muted rounded-lg border border-border">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setActiveMethodFilter("all")}
                 className={`h-7 px-3 text-xs rounded-md font-medium transition-all ${
                   activeMethodFilter === "all"
-                    ? "bg-white text-gray-900 shadow-sm border border-gray-200/50"
-                    : "text-gray-500 hover:text-gray-900 hover:bg-gray-200/50"
+                    ? "bg-background text-foreground shadow-sm border border-border"
+                    : "text-muted-foreground hover:text-foreground hover:bg-background/80"
                 }`}
               >
                 All
@@ -1052,8 +1052,8 @@ export default function TransactionsPage() {
                 onClick={() => setActiveMethodFilter("stripe")}
                 className={`h-7 px-3 text-xs rounded-md font-medium transition-all ${
                   activeMethodFilter === "stripe"
-                    ? "bg-white text-indigo-700 shadow-sm border border-gray-200/50"
-                    : "text-gray-500 hover:text-indigo-700 hover:bg-gray-200/50"
+                    ? "bg-background text-indigo-700 dark:text-indigo-300 shadow-sm border border-border"
+                    : "text-muted-foreground hover:text-indigo-700 dark:hover:text-indigo-300 hover:bg-background/80"
                 }`}
               >
                 Stripe
@@ -1064,8 +1064,8 @@ export default function TransactionsPage() {
                 onClick={() => setActiveMethodFilter("revolut")}
                 className={`h-7 px-3 text-xs rounded-md font-medium transition-all ${
                   activeMethodFilter === "revolut"
-                    ? "bg-white text-emerald-700 shadow-sm border border-gray-200/50"
-                    : "text-gray-500 hover:text-emerald-700 hover:bg-gray-200/50"
+                    ? "bg-background text-emerald-700 dark:text-emerald-300 shadow-sm border border-border"
+                    : "text-muted-foreground hover:text-emerald-700 dark:hover:text-emerald-300 hover:bg-background/80"
                 }`}
               >
                 Revolut
@@ -1091,7 +1091,7 @@ export default function TransactionsPage() {
 
             <Button
               variant="outline"
-              className={`bg-white gap-2 text-sm font-normal text-gray-600 ${activeFilters.length > 0 ? "border-primary text-primary bg-primary/5" : ""}`}
+              className={`bg-background gap-2 text-sm font-normal text-muted-foreground ${activeFilters.length > 0 ? "border-primary text-primary bg-primary/5" : ""}`}
               onClick={() => setFilterDialogOpen(true)}
             >
               <Filter className="h-3 w-3" />
@@ -1109,10 +1109,10 @@ export default function TransactionsPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden flex flex-col">
-          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-200 scrollbar-track-transparent pb-2">
+        <div className="bg-card rounded-lg shadow-sm border border-border overflow-hidden flex flex-col">
+          <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent pb-2">
             <Table className="min-w-[1100px]">
-              <TableHeader className="bg-gray-50/50">
+              <TableHeader className="bg-muted/50">
                 <TableRow>
                   <TableHead className="pl-6">Amount</TableHead>
                   <TableHead>Status</TableHead>
@@ -1419,7 +1419,7 @@ export default function TransactionsPage() {
             </Table>
           </div>
 
-          <div className="border-t border-gray-200 px-4 py-3 bg-gray-50 flex items-center justify-between text-sm text-gray-500">
+          <div className="border-t border-border px-4 py-3 bg-muted/50 flex items-center justify-between text-sm text-muted-foreground">
             <div>
               Viewing {combinedData.length > 0 ? 1 : 0}-{combinedData.length} of{" "}
               {data.length + revolutPayments.length} items
@@ -1525,13 +1525,13 @@ export default function TransactionsPage() {
               {/* Left Column: Screenshot Image */}
               <div className="flex flex-col">
                 {selectedRevolutPayment.paymentScreenshot?.url ? (
-                  <div className="border rounded-lg overflow-hidden flex-1 bg-gray-100 flex flex-col">
+                  <div className="border border-border rounded-lg overflow-hidden flex-1 bg-muted flex flex-col">
                     <img
                       src={selectedRevolutPayment.paymentScreenshot.url}
                       alt="Payment screenshot"
                       className="w-full object-contain max-h-[600px] flex-1"
                     />
-                    <div className="px-3 py-2 bg-gray-50 border-t text-xs text-gray-500 flex justify-between mt-auto">
+                    <div className="px-3 py-2 bg-muted/70 border-t border-border text-xs text-muted-foreground flex justify-between mt-auto">
                       <span
                         className="truncate mr-2"
                         title={
@@ -1551,8 +1551,8 @@ export default function TransactionsPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="border rounded-lg overflow-hidden flex-1 bg-gray-50 flex items-center justify-center p-8 min-h-[300px]">
-                    <span className="text-gray-400">
+                  <div className="border border-border rounded-lg overflow-hidden flex-1 bg-muted/50 flex items-center justify-center p-8 min-h-[300px]">
+                    <span className="text-muted-foreground">
                       No screenshot provided
                     </span>
                   </div>
@@ -1561,14 +1561,14 @@ export default function TransactionsPage() {
 
               {/* Right Column: Payment Details & Actions */}
               <div className="flex flex-col space-y-6">
-                <div className="bg-gray-50 rounded-lg p-5 space-y-4 text-sm border">
-                  <h3 className="font-semibold text-gray-900 border-b pb-2">
+                <div className="bg-muted/50 rounded-lg p-5 space-y-4 text-sm border border-border">
+                  <h3 className="font-semibold text-foreground border-b border-border pb-2">
                     Transaction Details
                   </h3>
                   <div className="space-y-3">
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-500">Amount</span>
-                      <span className="font-semibold text-base text-gray-900">
+                      <span className="text-muted-foreground">Amount</span>
+                      <span className="font-semibold text-base text-foreground">
                         {getCurrencySymbol(
                           selectedRevolutPayment.payment?.currency || "GBP",
                         )}
@@ -1576,8 +1576,8 @@ export default function TransactionsPage() {
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-500">Installment</span>
-                      <span className="font-medium text-gray-900">
+                      <span className="text-muted-foreground">Installment</span>
+                      <span className="font-medium text-foreground">
                         {selectedRevolutPayment.payment?.installmentTerm ===
                         "full_payment"
                           ? "Full Payment"
@@ -1585,20 +1585,22 @@ export default function TransactionsPage() {
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-500">Customer</span>
-                      <span className="font-medium text-gray-900">
+                      <span className="text-muted-foreground">Customer</span>
+                      <span className="font-medium text-foreground">
                         {getCustomerName(selectedRevolutPayment)}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-500">Email</span>
-                      <span className="text-gray-600">
+                      <span className="text-muted-foreground">Email</span>
+                      <span className="text-foreground/80">
                         {getCustomerEmail(selectedRevolutPayment)}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center border-t pt-3">
-                      <span className="text-gray-500">Submitted On</span>
-                      <span className="text-gray-600">
+                    <div className="flex justify-between items-center border-t border-border pt-3">
+                      <span className="text-muted-foreground">
+                        Submitted On
+                      </span>
+                      <span className="text-foreground/80">
                         {formatDate(
                           selectedRevolutPayment.timestamps?.createdAt,
                         )}
