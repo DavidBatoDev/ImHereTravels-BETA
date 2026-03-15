@@ -74,6 +74,7 @@ import bookingStatusFunction from "./payment-setting/booking-status";
 import paymentProgressFunction from "./payment-setting/payment-progress";
 import getAdminFeeFunction from "./payment-setting/admin-fee";
 import getPaidTermsFunction from "./payment-setting/paid-terms";
+import getTotalLateFeesFunction from "./payment-setting/total-late-fees";
 
 // Discount Functions
 import getDiscountRateFunction from "./discounts/discount-rate";
@@ -134,6 +135,7 @@ export {
   paymentProgressFunction,
   getAdminFeeFunction,
   getPaidTermsFunction,
+  getTotalLateFeesFunction,
   // Discounts
   getDiscountRateFunction,
   getDiscountTypeFunction,
@@ -240,6 +242,7 @@ export const functionMap: Record<string, Function> = {
   paymentProgressFunction,
   getAdminFeeFunction,
   getPaidTermsFunction,
+  getTotalLateFeesFunction,
 
   // Discount functions
   getDiscountRateFunction,

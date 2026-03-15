@@ -352,9 +352,13 @@ export default function LateFeesSection() {
   const handleResendNotice = async (row: LateFeeRow) => {
     setBusyRowId(row.rowId);
     try {
-      await ScheduledEmailService.sendLateFeeNotice(row.bookingDocId, row.termKey, {
-        resend: true,
-      });
+      await ScheduledEmailService.sendLateFeeNotice(
+        row.bookingDocId,
+        row.termKey,
+        {
+          resend: true,
+        },
+      );
       toast({
         title: "Notice Resent",
         description: `${row.term} notice resent successfully.`,
@@ -461,7 +465,9 @@ export default function LateFeesSection() {
                 <TableHead className="py-2 text-xs">Late Fee</TableHead>
                 <TableHead className="py-2 text-xs">Overdue</TableHead>
                 <TableHead className="py-2 text-xs">Notice</TableHead>
-                <TableHead className="w-[260px] py-2 text-xs">Actions</TableHead>
+                <TableHead className="w-[260px] py-2 text-xs">
+                  Actions
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -494,23 +500,31 @@ export default function LateFeesSection() {
                           {row.emailAddress}
                         </div>
                       </TableCell>
-                      <TableCell className="py-2 font-medium">{row.term}</TableCell>
+                      <TableCell className="py-2 font-medium">
+                        {row.term}
+                      </TableCell>
                       <TableCell className="py-2 text-muted-foreground">
                         {formatDate(row.dueDate)}
                       </TableCell>
-                      <TableCell className="py-2">{formatGBP(row.amount)}</TableCell>
+                      <TableCell className="py-2">
+                        {formatGBP(row.amount)}
+                      </TableCell>
                       <TableCell className="py-2">
                         {row.penalty > 0 ? (
                           formatGBP(row.penalty)
                         ) : (
                           <span className="font-medium text-amber-600">
-                            {formatGBP(Math.round(row.amount * 0.03 * 100) / 100)}
+                            {formatGBP(
+                              Math.round(row.amount * 0.03 * 100) / 100,
+                            )}
                           </span>
                         )}
                       </TableCell>
                       <TableCell className="py-2">
                         {row.hasOverdueUnpaid ? (
-                          <Badge variant="destructive">{row.daysOverdue} days</Badge>
+                          <Badge variant="destructive">
+                            {row.daysOverdue} days
+                          </Badge>
                         ) : (
                           <Badge variant="secondary">0 days</Badge>
                         )}
@@ -560,7 +574,9 @@ export default function LateFeesSection() {
                               Open Notice
                             </a>
                           ) : (
-                            <span className="text-sm text-muted-foreground">-</span>
+                            <span className="text-sm text-muted-foreground">
+                              -
+                            </span>
                           )}
                         </div>
                       </TableCell>

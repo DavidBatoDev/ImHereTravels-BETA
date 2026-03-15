@@ -102,7 +102,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const bookingId = String(body?.bookingId || "").trim();
-    const termKey = String(body?.termKey || "").trim().toLowerCase() as TermKey;
+    const termKey = String(body?.termKey || "")
+      .trim()
+      .toLowerCase() as TermKey;
     const resend = Boolean(body?.resend);
 
     if (!bookingId || !["p1", "p2", "p3", "p4"].includes(termKey)) {
@@ -184,8 +186,9 @@ export async function POST(request: NextRequest) {
     );
 
     const templateDoc =
-      templateSnapshot.docs.find((entry) => entry.data()?.status === "active") ||
-      templateSnapshot.docs[0];
+      templateSnapshot.docs.find(
+        (entry) => entry.data()?.status === "active",
+      ) || templateSnapshot.docs[0];
 
     const templateData = templateDoc?.data() ?? null;
 
@@ -199,7 +202,9 @@ export async function POST(request: NextRequest) {
       const applied = await runTransaction(db, async (transaction) => {
         const freshSnapshot = await transaction.get(bookingRef);
         const freshData = (freshSnapshot.data() || {}) as Record<string, any>;
-        const freshPenalty = Number(freshData[`${termKey}LateFeesPenalty`] || 0);
+        const freshPenalty = Number(
+          freshData[`${termKey}LateFeesPenalty`] || 0,
+        );
         const freshAppliedAt = freshData[`${termKey}LateFeeAppliedAt`];
 
         if (freshPenalty > 0 || freshAppliedAt) {
@@ -210,7 +215,8 @@ export async function POST(request: NextRequest) {
         const freshUpdatedRemaining = Number(
           (freshRemainingBalance + penaltyAmount).toFixed(2),
         );
-        const totalLateFees = Number(freshData.totalLateFees || 0) + penaltyAmount;
+        const totalLateFees =
+          Number(freshData.totalLateFees || 0) + penaltyAmount;
 
         transaction.update(bookingRef, {
           [`${termKey}LateFeesPenalty`]: penaltyAmount,
@@ -226,13 +232,20 @@ export async function POST(request: NextRequest) {
       appliedPenaltyNow = applied;
 
       const refreshedBookingSnap = await getDoc(bookingRef);
-      const refreshedBooking = refreshedBookingSnap.data() as Record<string, any>;
-      penaltyAmount = Number(refreshedBooking?.[`${termKey}LateFeesPenalty`] || penaltyAmount);
+      const refreshedBooking = refreshedBookingSnap.data() as Record<
+        string,
+        any
+      >;
+      penaltyAmount = Number(
+        refreshedBooking?.[`${termKey}LateFeesPenalty`] || penaltyAmount,
+      );
     }
 
     const refreshedBookingSnap = await getDoc(bookingRef);
     const refreshedBooking = refreshedBookingSnap.data() as Record<string, any>;
-    const remainingBalance = Number(refreshedBooking?.remainingBalance || booking.remainingBalance || 0);
+    const remainingBalance = Number(
+      refreshedBooking?.remainingBalance || booking.remainingBalance || 0,
+    );
 
     const daysOverdue = Math.max(
       0,
