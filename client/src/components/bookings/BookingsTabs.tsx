@@ -16,6 +16,7 @@ import BookingsSheet from "../sheet-management/BookingsSheet";
 import PreDeparturePackSection from "@/app/(protected)/bookings/components/PreDeparturePackSection";
 import ConfirmedBookingsSection from "@/app/(protected)/bookings/components/ConfirmedBookingsSection";
 import GuestInvitationsSection from "@/app/(protected)/bookings/components/GuestInvitationsSection";
+import LateFeesSection from "@/app/(protected)/bookings/components/LateFeesSection";
 import { getUnsentConfirmedBookingsCount } from "@/services/confirmed-bookings-service";
 import { getUnsentGuestInvitationsCount } from "@/services/guest-invitations-service";
 
@@ -32,6 +33,8 @@ const urlToInternalTab = (urlTab: string | null): string => {
       return "guest-invitations";
     case "bookings-sheet":
       return "sheet";
+    case "late-fees":
+      return "late-fees";
     case "sheet-management-tab": // Backward compatibility
       return "sheet";
     default:
@@ -49,6 +52,8 @@ const internalTabToUrl = (internalTab: string): string => {
       return "guest-invitations";
     case "sheet":
       return "bookings-sheet";
+    case "late-fees":
+      return "late-fees";
     default:
       return "bookings";
   }
@@ -165,6 +170,12 @@ export default function BookingsTabs() {
                     )}
                   </span>
                 )}
+                {activeTab === "late-fees" && (
+                  <span className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                    Late Fees
+                  </span>
+                )}
                 {activeTab === "sheet" && (
                   <span className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
@@ -228,6 +239,17 @@ export default function BookingsTabs() {
                 </span>
               </SelectItem>
               <SelectItem
+                value="late-fees"
+                className="rounded-lg hover:bg-royal-purple/10 focus:bg-royal-purple/10 cursor-pointer"
+              >
+                <span className="flex items-center gap-2">
+                  {activeTab === "late-fees" && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                  )}
+                  Late Fees
+                </span>
+              </SelectItem>
+              <SelectItem
                 value="sheet"
                 className="rounded-lg hover:bg-royal-purple/10 focus:bg-royal-purple/10 cursor-pointer"
               >
@@ -243,7 +265,7 @@ export default function BookingsTabs() {
         </div>
 
         {/* Desktop: Horizontal Tabs */}
-        <TabsList className="hidden md:grid w-full grid-cols-4 bg-muted border border-border">
+        <TabsList className="hidden md:grid w-full grid-cols-5 bg-muted border border-border">
           <TabsTrigger
             value="list"
             className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
@@ -279,6 +301,12 @@ export default function BookingsTabs() {
             )}
           </TabsTrigger>
           <TabsTrigger
+            value="late-fees"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
+          >
+            Late Fees
+          </TabsTrigger>
+          <TabsTrigger
             value="sheet"
             className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
           >
@@ -299,6 +327,10 @@ export default function BookingsTabs() {
 
         <TabsContent value="guest-invitations" className="mt-6">
           <GuestInvitationsSection />
+        </TabsContent>
+
+        <TabsContent value="late-fees" className="mt-6">
+          <LateFeesSection />
         </TabsContent>
 
         <TabsContent value="sheet" className="mt-6">

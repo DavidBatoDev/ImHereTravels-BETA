@@ -140,6 +140,14 @@ import {
   runMigration as runMigration043,
   rollbackMigration as rollbackMigration043,
 } from "./043-update-revolut-payment-status-term-label";
+import {
+  runMigration as runMigration044,
+  rollbackMigration as rollbackMigration044,
+} from "./044-late-fees-config";
+import {
+  runMigration as runMigration045,
+  rollbackMigration as rollbackMigration045,
+} from "./045-late-fee-notice-email-template";
 import migration034 from "./034-initialize-columns-metadata";
 
 // ============================================================================
@@ -179,18 +187,40 @@ async function main() {
 
     case "043":
       console.log(
-        "📊 Running migration: 043-update-revolut-payment-status-term-label"
+        "📊 Running migration: 043-update-revolut-payment-status-term-label",
       );
       const result043 = await runMigration043(dryRun);
       console.log(`\n🎯 ${result043.message}`);
       if (result043.details) {
         console.log(
-          `📊 Details: ${result043.details.updated} updated, ${result043.details.skipped} skipped, ${result043.details.errors.length} errors`
+          `📊 Details: ${result043.details.updated} updated, ${result043.details.skipped} skipped, ${result043.details.errors.length} errors`,
         );
         if (result043.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           result043.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
+          );
+        }
+      }
+      break;
+
+    case "044":
+      console.log("📊 Running migration: 044-late-fees-config");
+      await runMigration044();
+      break;
+
+    case "045":
+      console.log("📊 Running migration: 045-late-fee-notice-email-template");
+      const result045 = await runMigration045(dryRun);
+      console.log(`\n🎯 ${result045.message}`);
+      if (result045.details) {
+        console.log(
+          `📊 Details: ${result045.details.created} created, ${result045.details.skipped} skipped, ${result045.details.errors.length} errors`,
+        );
+        if (result045.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          result045.details.errors.forEach((error) =>
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -632,10 +662,23 @@ async function main() {
 
     case "rollback043":
       console.log(
-        "🔄 Rolling back migration: 043-update-revolut-payment-status-term-label"
+        "🔄 Rolling back migration: 043-update-revolut-payment-status-term-label",
       );
       const rollbackResult043 = await rollbackMigration043();
       console.log(`\n🎯 ${rollbackResult043.message}`);
+      break;
+
+    case "rollback044":
+      console.log("🔄 Rolling back migration: 044-late-fees-config");
+      await rollbackMigration044();
+      break;
+
+    case "rollback045":
+      console.log(
+        "🔄 Rolling back migration: 045-late-fee-notice-email-template",
+      );
+      const rollbackResult045 = await rollbackMigration045();
+      console.log(`\n🎯 ${rollbackResult045.message}`);
       break;
 
     case "rollback003":
@@ -1034,13 +1077,13 @@ async function main() {
 
     case "dry-run043":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 043-update-revolut-payment-status-term-label"
+        "🔍 Running migration in DRY RUN mode: 043-update-revolut-payment-status-term-label",
       );
       const dryRunResult043 = await runMigration043(true);
       console.log(`\n🎯 ${dryRunResult043.message}`);
       if (dryRunResult043.details) {
         console.log(
-          `📊 Details: ${dryRunResult043.details.updated} would be updated, ${dryRunResult043.details.skipped} would be skipped`
+          `📊 Details: ${dryRunResult043.details.updated} would be updated, ${dryRunResult043.details.skipped} would be skipped`,
         );
       }
       break;
@@ -1270,6 +1313,19 @@ async function main() {
       }
       break;
 
+    case "dry-run045":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 045-late-fee-notice-email-template",
+      );
+      const dryRunResult045 = await runMigration045(true);
+      console.log(`\n🎯 ${dryRunResult045.message}`);
+      if (dryRunResult045.details) {
+        console.log(
+          `📊 Details: ${dryRunResult045.details.created} would be created, ${dryRunResult045.details.skipped} would be skipped`,
+        );
+      }
+      break;
+
     case "help":
     case "--help":
     case "-h":
@@ -1308,6 +1364,8 @@ function showHelp() {
   020                Run the migration to rebuild columns with custom IDs based on column names
   042                Run the migration to create Revolut payment decision email templates
   043                Run the migration to update Revolut payment templates with approved term labels
+  044                Run the migration to create late-fees config document
+  045                Run the migration to create late-fee notice email template
   rollback, undo     Rollback the migration 001 (delete created tours)
   rollback002        Rollback the migration 002 (delete created tours)
   rollback003        Rollback the migration 003 (delete created tours)
@@ -1328,6 +1386,8 @@ function showHelp() {
   rollback020        Rollback the migration 020 (delete columns with custom IDs)
   rollback042        Rollback the migration 042 (delete Revolut payment decision email templates)
   rollback043        Rollback the migration 043 (no-op informational rollback)
+  rollback044        Rollback the migration 044 (delete late-fees config document)
+  rollback045        Rollback the migration 045 (delete late-fee notice email template)
   dry-run, test     Test the migration 001 without making changes
   dry-run002        Test the migration 002 without making changes
   dry-run003        Test the migration 003 without making changes
@@ -1348,6 +1408,7 @@ function showHelp() {
   dry-run020        Test the migration 020 without making changes
   dry-run042        Test the migration 042 without making changes
   dry-run043        Test the migration 043 without making changes
+  dry-run045        Test the migration 045 without making changes
   help               Show this help message
 
 📝 Examples:

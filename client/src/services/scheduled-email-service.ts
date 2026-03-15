@@ -125,7 +125,7 @@ export class ScheduledEmailService {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -153,7 +153,7 @@ export class ScheduledEmailService {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -181,7 +181,7 @@ export class ScheduledEmailService {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -270,7 +270,7 @@ export class ScheduledEmailService {
    */
   static async rescheduleEmail(
     scheduledEmailId: string,
-    newScheduledFor: string | Date
+    newScheduledFor: string | Date,
   ) {
     const newScheduledForISO =
       typeof newScheduledFor === "string"
@@ -312,7 +312,7 @@ export class ScheduledEmailService {
       bcc?: string[];
       subject?: string;
       htmlContent?: string;
-    }
+    },
   ) {
     // Call Next.js API route
     const response = await fetch(`/api/scheduled-emails/${scheduledEmailId}`, {
@@ -348,7 +348,7 @@ export class ScheduledEmailService {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -376,7 +376,7 @@ export class ScheduledEmailService {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -417,6 +417,59 @@ export class ScheduledEmailService {
     return result;
   }
 
+  /**
+   * Manually trigger late-fee processing (apply penalties + schedule notices)
+   */
+  static async triggerLateFeesProcessing() {
+    const response = await fetch("/api/late-fees/process-now", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to trigger late-fee processing");
+    }
+
+    return result;
+  }
+
+  /**
+   * Send late-fee notice for a specific booking term (or resend when requested)
+   */
+  static async sendLateFeeNotice(
+    bookingId: string,
+    termKey: "p1" | "p2" | "p3" | "p4",
+    options?: { resend?: boolean },
+  ) {
+    const response = await fetch("/api/late-fees/send-notice", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        bookingId,
+        termKey,
+        resend: Boolean(options?.resend),
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return result.data;
+  }
+
   // Utility methods for common scheduling scenarios
 
   /**
@@ -426,7 +479,7 @@ export class ScheduledEmailService {
     bookingId: string,
     recipientEmail: string,
     scheduledFor: Date,
-    bookingDetails: Record<string, any>
+    bookingDetails: Record<string, any>,
   ) {
     return this.scheduleEmail({
       to: recipientEmail,
@@ -447,7 +500,7 @@ export class ScheduledEmailService {
     subject: string,
     content: string,
     scheduledFor: Date,
-    bookingId?: string
+    bookingId?: string,
   ) {
     return this.scheduleEmail({
       to: recipientEmail,
@@ -467,7 +520,7 @@ export class ScheduledEmailService {
     subject: string,
     content: string,
     daysFromNow: number,
-    bookingId?: string
+    bookingId?: string,
   ) {
     const scheduledFor = new Date();
     scheduledFor.setDate(scheduledFor.getDate() + daysFromNow);
@@ -486,7 +539,7 @@ export class ScheduledEmailService {
    * Generate a booking confirmation email template
    */
   private static generateBookingConfirmationEmail(
-    bookingDetails: Record<string, any>
+    bookingDetails: Record<string, any>,
   ): string {
     return `
       <!DOCTYPE html>
