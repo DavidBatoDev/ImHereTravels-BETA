@@ -406,36 +406,37 @@ export function getEligible2ndOfMonths(
   const resUTC = normalizeUTCDate(res);
   const tourUTC = normalizeUTCDate(tour);
 
-  // Full payment due is 30 days before tour
-  const fullPaymentDue = new Date(tourUTC);
-  fullPaymentDue.setUTCDate(fullPaymentDue.getUTCDate() - 30);
+  // Keep existing field name for backward compatibility, but align logic with
+  // installment due-date generation: last Friday dates in (res + 2, tour - 3].
+  const monthCount =
+    (tourUTC.getUTCFullYear() - resUTC.getUTCFullYear()) * 12 +
+    (tourUTC.getUTCMonth() - resUTC.getUTCMonth()) +
+    1;
 
-  // Calculate months between
-  const yearDiff = fullPaymentDue.getUTCFullYear() - resUTC.getUTCFullYear();
-  const monthDiff = fullPaymentDue.getUTCMonth() - resUTC.getUTCMonth();
-  let monthCount = Math.max(0, yearDiff * 12 + monthDiff + 1);
+  if (monthCount <= 0) return 0;
 
-  if (fullPaymentDue.getUTCDate() < resUTC.getUTCDate()) {
-    monthCount = Math.max(0, monthCount - 1);
-  }
+  const DAY_MS = 24 * 60 * 60 * 1000;
+  const installmentDates: Date[] = Array.from(
+    { length: monthCount },
+    (_, i) => {
+      const t = Date.UTC(
+        resUTC.getUTCFullYear(),
+        resUTC.getUTCMonth() + i + 1,
+        0,
+      );
+      const lastDay = new Date(t);
+      const offset = (lastDay.getUTCDay() - 5 + 7) % 7; // days back to last Friday
+      return new Date(t - offset * DAY_MS);
+    },
+  );
 
-  // Generate 2nd-of-month dates and filter valid ones
-  const validDates: Date[] = [];
-  for (let i = 1; i <= monthCount; i++) {
-    const secondOfMonth = new Date(
-      Date.UTC(resUTC.getUTCFullYear(), resUTC.getUTCMonth() + i, 2),
-    );
+  const eligible = installmentDates.filter(
+    (d) =>
+      d.getTime() > resUTC.getTime() + 2 * DAY_MS &&
+      d.getTime() <= tourUTC.getTime() - 3 * DAY_MS,
+  );
 
-    // Valid if: > res + 3 days AND <= fullPaymentDue
-    const minDate = new Date(resUTC);
-    minDate.setUTCDate(minDate.getUTCDate() + 3);
-
-    if (secondOfMonth > minDate && secondOfMonth <= fullPaymentDue) {
-      validDates.push(secondOfMonth);
-    }
-  }
-
-  return validDates.length;
+  return eligible.length;
 }
 
 /**

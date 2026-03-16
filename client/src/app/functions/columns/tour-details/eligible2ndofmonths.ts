@@ -37,24 +37,17 @@ export const eligible2ndofmonthsColumn: BookingSheetColumn = {
 
 // Column Function Implementation
 /**
- * Excel equivalent:
- * =IF(OR(ISBLANK(K), ISBLANK(N)), "",
- *   LET(
- *     resDate, K,
- *     tourDate, N,
- *     fullPaymentDue, tourDate - 30,
- *     monthCount, MAX(0, DATEDIF(resDate, fullPaymentDue, "M") + 1),
- *     secondDates, DATE(YEAR(resDate), MONTH(resDate) + SEQUENCE(monthCount), 2),
- *     validDates, FILTER(secondDates, (secondDates >= resDate + 3) * (secondDates <= fullPaymentDue)),
- *     IF(ISERROR(validDates), 0, COUNTA(validDates))
- *   )
- * )
+ * NOTE:
+ * Field name remains "Eligible 2nd-of-Months" for compatibility, but the
+ * logic is now aligned with current installment due-date rules:
+ * - candidate date per month = last Friday of that month
+ * - valid if date is in (reservationDate + 2 days, tourDate - 3 days]
  *
  * Returns: number | ""  (empty string if either date is blank/invalid)
  */
 export default function eligibleSecondsCountFunction(
   reservationDate: unknown, // K
-  tourDate: unknown // N
+  tourDate: unknown, // N
 ): number | "" {
   // ---------- local helpers (robust parsing like our previous funcs) ----------
   const toDate = (input: unknown): Date | null => {
@@ -130,32 +123,6 @@ export default function eligibleSecondsCountFunction(
   const startOfDay = (d: Date) =>
     new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
-  const addDays = (base: Date, days: number): Date => {
-    const out = new Date(base);
-    out.setDate(out.getDate() + days);
-    return out;
-  };
-
-  // Similar behavior to DATEDIF(res, end, "M")
-  const monthsBetweenInclusiveStart = (a: Date, b: Date): number => {
-    const years = b.getFullYear() - a.getFullYear();
-    const months = b.getMonth() - a.getMonth();
-    let diff = years * 12 + months;
-    if (b.getDate() < a.getDate()) diff -= 1;
-    return Math.max(0, diff);
-  };
-
-  const generateMonthSeconds = (start: Date, count: number): Date[] => {
-    const list: Date[] = [];
-    // Excel's formula uses: DATE(YEAR(resDate), MONTH(resDate) + SEQUENCE(monthCount), 2)
-    // SEQUENCE(monthCount) generates 1..monthCount, so it starts from the next month.
-    // To match that behaviour, start at i = 1 and go through <= count.
-    for (let i = 1; i <= count; i++) {
-      list.push(new Date(start.getFullYear(), start.getMonth() + i, 2));
-    }
-    return list;
-  };
-
   // ---------- apply logic ----------
   const res = toDate(reservationDate);
   const tour = toDate(tourDate);
@@ -164,24 +131,29 @@ export default function eligibleSecondsCountFunction(
   const resD = startOfDay(res);
   const tourD = startOfDay(tour);
 
-  const fullPaymentDue = addDays(tourD, -30); // tourDate - 30
-  const windowStart = addDays(resD, 3); // resDate + 3
+  const monthCount =
+    (tourD.getFullYear() - resD.getFullYear()) * 12 +
+    (tourD.getMonth() - resD.getMonth()) +
+    1;
 
-  // monthCount = MAX(0, DATEDIF(resDate, fullPaymentDue, "M") + 1)
-  const monthCount = Math.max(
-    0,
-    monthsBetweenInclusiveStart(resD, fullPaymentDue) + 1
+  if (monthCount <= 0) return 0;
+
+  const DAY_MS = 24 * 60 * 60 * 1000;
+
+  const installmentDates: Date[] = Array.from(
+    { length: monthCount },
+    (_, i) => {
+      const lastDay = new Date(resD.getFullYear(), resD.getMonth() + i + 1, 0);
+      const offset = (lastDay.getDay() - 5 + 7) % 7; // days back to last Friday
+      return new Date(resD.getFullYear(), resD.getMonth() + i + 1, -offset);
+    },
   );
 
-  // secondDates = DATE(YEAR(resDate), MONTH(resDate) + SEQUENCE(monthCount), 2)
-  const seconds = generateMonthSeconds(resD, monthCount);
-
-  // validDates: seconds within [res+3, fullPaymentDue]
-  const eligible = seconds.filter(
-    (d) => d >= windowStart && d <= fullPaymentDue
+  const eligible = installmentDates.filter(
+    (d) =>
+      d.getTime() > resD.getTime() + 2 * DAY_MS &&
+      d.getTime() <= tourD.getTime() - 3 * DAY_MS,
   );
 
-  // IF(ISERROR(validDates), 0, COUNTA(validDates))
-  // In JS, filter won't error; count is just eligible.length
   return eligible.length;
 }
