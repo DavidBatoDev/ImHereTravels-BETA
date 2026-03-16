@@ -125,7 +125,7 @@ export class ScheduledEmailService {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -153,7 +153,7 @@ export class ScheduledEmailService {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -181,7 +181,7 @@ export class ScheduledEmailService {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -270,7 +270,7 @@ export class ScheduledEmailService {
    */
   static async rescheduleEmail(
     scheduledEmailId: string,
-    newScheduledFor: string | Date
+    newScheduledFor: string | Date,
   ) {
     const newScheduledForISO =
       typeof newScheduledFor === "string"
@@ -312,7 +312,7 @@ export class ScheduledEmailService {
       bcc?: string[];
       subject?: string;
       htmlContent?: string;
-    }
+    },
   ) {
     // Call Next.js API route
     const response = await fetch(`/api/scheduled-emails/${scheduledEmailId}`, {
@@ -348,7 +348,7 @@ export class ScheduledEmailService {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -376,7 +376,7 @@ export class ScheduledEmailService {
         headers: {
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
     if (!response.ok) {
@@ -387,6 +387,36 @@ export class ScheduledEmailService {
 
     if (!result.success) {
       throw new Error(result.error || "Failed to delete payment reminders");
+    }
+
+    return result.data;
+  }
+
+  /**
+   * Recompute scheduled dates for pending payment reminders of a booking.
+   * Rule is resolved by API route (currently dueDate - 14 days at SGT 09:00).
+   */
+  static async reschedulePendingPaymentReminders(bookingId: string) {
+    const response = await fetch(
+      `/api/scheduled-emails/payment-reminders/${bookingId}`,
+      {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(
+        result.error || "Failed to reschedule pending payment reminders",
+      );
     }
 
     return result.data;
@@ -426,7 +456,7 @@ export class ScheduledEmailService {
     bookingId: string,
     recipientEmail: string,
     scheduledFor: Date,
-    bookingDetails: Record<string, any>
+    bookingDetails: Record<string, any>,
   ) {
     return this.scheduleEmail({
       to: recipientEmail,
@@ -447,7 +477,7 @@ export class ScheduledEmailService {
     subject: string,
     content: string,
     scheduledFor: Date,
-    bookingId?: string
+    bookingId?: string,
   ) {
     return this.scheduleEmail({
       to: recipientEmail,
@@ -467,7 +497,7 @@ export class ScheduledEmailService {
     subject: string,
     content: string,
     daysFromNow: number,
-    bookingId?: string
+    bookingId?: string,
   ) {
     const scheduledFor = new Date();
     scheduledFor.setDate(scheduledFor.getDate() + daysFromNow);
@@ -486,7 +516,7 @@ export class ScheduledEmailService {
    * Generate a booking confirmation email template
    */
   private static generateBookingConfirmationEmail(
-    bookingDetails: Record<string, any>
+    bookingDetails: Record<string, any>,
   ): string {
     return `
       <!DOCTYPE html>

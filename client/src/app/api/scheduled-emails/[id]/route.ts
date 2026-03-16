@@ -4,7 +4,7 @@ import { db } from "@/lib/firebase";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id: scheduledEmailId } = await params;
@@ -17,7 +17,7 @@ export async function PUT(
           success: false,
           error: "Scheduled email ID is required",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -33,7 +33,7 @@ export async function PUT(
           success: false,
           error: "Scheduled email not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -46,7 +46,7 @@ export async function PUT(
           success: false,
           error: "Cannot update email that has already been sent",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -56,7 +56,7 @@ export async function PUT(
           success: false,
           error: "Cannot update cancelled email",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -92,14 +92,14 @@ export async function PUT(
         error: "Failed to update scheduled email",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id: scheduledEmailId } = await params;
@@ -110,7 +110,7 @@ export async function DELETE(
           success: false,
           error: "Scheduled email ID is required",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -126,7 +126,7 @@ export async function DELETE(
           success: false,
           error: "Scheduled email not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -139,7 +139,7 @@ export async function DELETE(
           success: false,
           error: "Cannot cancel email that has already been sent",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -149,7 +149,7 @@ export async function DELETE(
           success: false,
           error: "Email is already cancelled",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -177,14 +177,14 @@ export async function DELETE(
         error: "Failed to cancel scheduled email",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id: scheduledEmailId } = await params;
@@ -197,7 +197,7 @@ export async function PATCH(
           success: false,
           error: "Scheduled email ID is required",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -207,7 +207,7 @@ export async function PATCH(
           success: false,
           error: "New scheduled time is required",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -226,7 +226,7 @@ export async function PATCH(
           success: false,
           error: "Invalid newScheduledFor date format. Use ISO string format.",
         },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -240,37 +240,26 @@ export async function PATCH(
           success: false,
           error: "Scheduled email not found",
         },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const emailData = emailDoc.data();
 
-    // Check if email is already sent
-    if (emailData.status === "sent") {
+    // Pending-only scope for rescheduling
+    if (emailData.status !== "pending") {
       return NextResponse.json(
         {
           success: false,
-          error: "Cannot reschedule email that has already been sent",
+          error: "Only pending emails can be rescheduled",
         },
-        { status: 400 }
-      );
-    }
-
-    if (emailData.status === "cancelled") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Cannot reschedule cancelled email",
-        },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     // Update document with new scheduled time
     await updateDoc(emailDocRef, {
       scheduledFor: Timestamp.fromDate(newScheduledTime),
-      status: "pending", // Reset to pending in case it was failed
       updatedAt: Timestamp.now(),
     });
 
@@ -293,7 +282,7 @@ export async function PATCH(
         error: "Failed to reschedule email",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

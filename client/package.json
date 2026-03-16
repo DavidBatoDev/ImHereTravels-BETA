@@ -63,7 +63,10 @@
     "log-ts-folders": "tsx src/scripts/log-ts-folders.ts",
     "export:prod": "node scripts/export-prod-collections.js",
     "sync:collection": "node scripts/sync-collection.js",
-    "import:dev": "node scripts/import-to-dev.js"
+    "import:dev": "node scripts/import-to-dev.js",
+    "reschedule-pending-payment-reminders": "tsx scripts/reschedule-pending-payment-reminders.ts",
+    "reschedule-pending-payment-reminders:dry-run": "tsx scripts/reschedule-pending-payment-reminders.ts --dry-run",
+    "reschedule-pending-payment-reminders:production": "tsx scripts/reschedule-pending-payment-reminders.ts --production"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

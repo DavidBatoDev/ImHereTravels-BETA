@@ -133,6 +133,10 @@ export default function ScheduledEmailsTab() {
     isDeletePaymentRemindersDialogOpen,
     setIsDeletePaymentRemindersDialogOpen,
   ] = useState(false);
+  const [
+    isReschedulePaymentRemindersDialogOpen,
+    setIsReschedulePaymentRemindersDialogOpen,
+  ] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<ScheduledEmail | null>(
     null,
   );
@@ -140,6 +144,8 @@ export default function ScheduledEmailsTab() {
     null,
   );
   const [isDeletingPaymentReminders, setIsDeletingPaymentReminders] =
+    useState(false);
+  const [isReschedulingPaymentReminders, setIsReschedulingPaymentReminders] =
     useState(false);
   const [newEmailData, setNewEmailData] = useState<Partial<ScheduledEmailData>>(
     {
@@ -494,6 +500,40 @@ export default function ScheduledEmailsTab() {
     }
   };
 
+  // Recompute pending payment reminder schedules for a booking
+  const handleReschedulePendingPaymentReminders = async () => {
+    if (!selectedBookingId) return;
+
+    try {
+      setIsReschedulingPaymentReminders(true);
+      setIsReschedulePaymentRemindersDialogOpen(false);
+
+      const result =
+        await ScheduledEmailService.reschedulePendingPaymentReminders(
+          selectedBookingId,
+        );
+
+      toast({
+        title: "Success",
+        description: `Updated ${result.updated} pending reminder${
+          result.updated !== 1 ? "s" : ""
+        } (Skipped: ${result.skippedNonPending + result.skippedMissingTerm + result.skippedMissingDueDate + result.skippedInvalidDueDate})`,
+      });
+
+      setSelectedBookingId(null);
+      // Real-time listener will auto-update
+    } catch (error) {
+      console.error("Error rescheduling pending payment reminders:", error);
+      toast({
+        title: "Error",
+        description: "Failed to recompute pending payment reminder schedules",
+        variant: "destructive",
+      });
+    } finally {
+      setIsReschedulingPaymentReminders(false);
+    }
+  };
+
   // Schedule quick reminder helper
   const scheduleQuickReminder = (daysFromNow: number, type: string) => {
     const scheduledFor = new Date();
@@ -632,7 +672,9 @@ export default function ScheduledEmailsTab() {
 
             // Validate and format with Manila timezone to avoid UTC midnight off-by-one
             if (date && !isNaN(date.getTime())) {
-              return date.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+              return date.toLocaleDateString("en-CA", {
+                timeZone: "Asia/Manila",
+              });
             }
 
             return "";
@@ -716,7 +758,9 @@ export default function ScheduledEmailsTab() {
             const dueDateRaw = (bookingData as any)[`${tLower}DueDate`];
             const parsedDueDate = parseDueDateForTerm(dueDateRaw, tIndex);
             const dueDateStr = formatDate(parsedDueDate);
-            const datePaidStr = formatDate((bookingData as any)[`${tLower}DatePaid`]);
+            const datePaidStr = formatDate(
+              (bookingData as any)[`${tLower}DatePaid`],
+            );
             const isLate =
               !datePaidStr && !!dueDateStr && new Date(dueDateStr) < viewDate;
 
@@ -1350,6 +1394,18 @@ export default function ScheduledEmailsTab() {
                         View Booking
                       </Button>
                       <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedBookingId(bookingId);
+                          setIsReschedulePaymentRemindersDialogOpen(true);
+                        }}
+                        className="gap-2"
+                      >
+                        <RefreshCw className="w-4 h-4" />
+                        Recompute Pending
+                      </Button>
+                      <Button
                         variant="destructive"
                         size="sm"
                         onClick={() => {
@@ -1439,7 +1495,9 @@ export default function ScheduledEmailsTab() {
                               >
                                 <Eye className="w-4 h-4" />
                               </Button>
-                              {(email.status === "sent" || email.status === "skipped" || email.status === "pending") && (
+                              {(email.status === "sent" ||
+                                email.status === "skipped" ||
+                                email.status === "pending") && (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -1447,7 +1505,11 @@ export default function ScheduledEmailsTab() {
                                     setSelectedEmail(email);
                                     setIsResendDialogOpen(true);
                                   }}
-                                  title={email.status === "pending" ? "Send this email now" : "Resend this email"}
+                                  title={
+                                    email.status === "pending"
+                                      ? "Send this email now"
+                                      : "Resend this email"
+                                  }
                                 >
                                   <Send className="w-4 h-4" />
                                 </Button>
@@ -1590,7 +1652,9 @@ export default function ScheduledEmailsTab() {
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
-                      {(email.status === "sent" || email.status === "skipped" || email.status === "pending") && (
+                      {(email.status === "sent" ||
+                        email.status === "skipped" ||
+                        email.status === "pending") && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1598,7 +1662,11 @@ export default function ScheduledEmailsTab() {
                             setSelectedEmail(email);
                             setIsResendDialogOpen(true);
                           }}
-                          title={email.status === "pending" ? "Send this email now" : "Resend this email"}
+                          title={
+                            email.status === "pending"
+                              ? "Send this email now"
+                              : "Resend this email"
+                          }
                         >
                           <Send className="w-4 h-4" />
                         </Button>
@@ -1964,6 +2032,44 @@ export default function ScheduledEmailsTab() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Recompute Pending Payment Reminders Confirmation Dialog */}
+      <AlertDialog
+        open={isReschedulePaymentRemindersDialogOpen}
+        onOpenChange={setIsReschedulePaymentRemindersDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Recompute Pending Reminder Dates
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Recompute all pending payment reminder schedules for this booking
+              using the rule: 14 days before each term due date at 9:00 AM
+              Asia/Singapore.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground mb-2">
+              This action will only update reminders with status Pending.
+            </p>
+            <ul className="list-disc ml-6 space-y-1 text-sm text-muted-foreground">
+              <li>Sent reminders are untouched</li>
+              <li>Cancelled, skipped, and failed reminders are untouched</li>
+              <li>Missing or invalid due dates are skipped safely</li>
+            </ul>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleReschedulePendingPaymentReminders}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Recompute Pending
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Loading Modal for Deleting Payment Reminders */}
       {isDeletingPaymentReminders && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -1984,6 +2090,33 @@ export default function ScheduledEmailsTab() {
                 <p>• Deleting scheduled payment reminder emails</p>
                 <p>• Disabling payment reminders on booking</p>
                 <p>• Clearing P1-P4 scheduled email links</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Modal for Recomputing Payment Reminders */}
+      {isReschedulingPaymentReminders && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Recomputing Pending Reminders
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Updating pending payment reminder schedules from due
+                    dates...
+                  </p>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>• Applying due date minus 14 days rule</p>
+                <p>• Setting send time to 09:00 Asia/Singapore</p>
+                <p>• Keeping non-pending reminders unchanged</p>
               </div>
             </div>
           </div>
@@ -2164,16 +2297,29 @@ export default function ScheduledEmailsTab() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {selectedEmail?.status === "pending" ? "Send Email Now?" : "Resend Email?"}
+              {selectedEmail?.status === "pending"
+                ? "Send Email Now?"
+                : "Resend Email?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to {selectedEmail?.status === "pending" ? "send" : "resend"} this message to{" "}
+              Are you sure you want to{" "}
+              {selectedEmail?.status === "pending" ? "send" : "resend"} this
+              message to{" "}
               <span className="font-semibold text-foreground">
                 {selectedEmail?.to}
               </span>
-              ? {selectedEmail?.status === "pending"
-                  ? <>This is originally scheduled for {selectedEmail.scheduledFor ? formatDate(selectedEmail.scheduledFor) : "later"}. The email will be sent immediately.</>
-                  : "This action cannot be undone and the email will be sent immediately."}
+              ?{" "}
+              {selectedEmail?.status === "pending" ? (
+                <>
+                  This is originally scheduled for{" "}
+                  {selectedEmail.scheduledFor
+                    ? formatDate(selectedEmail.scheduledFor)
+                    : "later"}
+                  . The email will be sent immediately.
+                </>
+              ) : (
+                "This action cannot be undone and the email will be sent immediately."
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -2188,9 +2334,13 @@ export default function ScheduledEmailsTab() {
               }}
               disabled={isResendingEmail}
             >
-              {isResendingEmail 
-                ? (selectedEmail?.status === "pending" ? "Sending..." : "Resending...") 
-                : (selectedEmail?.status === "pending" ? "Yes, Send Email Now" : "Yes, Resend Email")}
+              {isResendingEmail
+                ? selectedEmail?.status === "pending"
+                  ? "Sending..."
+                  : "Resending..."
+                : selectedEmail?.status === "pending"
+                  ? "Yes, Send Email Now"
+                  : "Yes, Resend Email"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
