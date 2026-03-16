@@ -115,19 +115,23 @@ export default function getP4DueDateFunction(
   if (resYmd === "" || tourYmd === "") return "";
   if (resYmd === "ERROR" || tourYmd === "ERROR") return "ERROR";
 
-  const res = new Date(resYmd);
-  const tour = new Date(tourYmd);
+  // Parse as local midnight (not UTC) to avoid the midnight trap.
+  const [ry, rm, rd] = resYmd.split("-").map(Number);
+  const res = new Date(ry, rm - 1, rd);
+  const [ty, tm, td] = tourYmd.split("-").map(Number);
+  const tour = new Date(ty, tm - 1, td);
   const monthCount =
     (tour.getFullYear() - res.getFullYear()) * 12 +
     (tour.getMonth() - res.getMonth()) +
     1;
 
   const DAY_MS = 86400000;
-  // Generate the last day of each month (using day 0 of next month)
-  const lastDayDates = Array.from(
-    { length: monthCount },
-    (_, i) => new Date(res.getFullYear(), res.getMonth() + i + 1, 0),
-  );
+  // Generate the last Friday of each month
+  const lastDayDates = Array.from({ length: monthCount }, (_, i) => {
+    const lastDay = new Date(res.getFullYear(), res.getMonth() + i + 1, 0);
+    const offset = (lastDay.getDay() - 5 + 7) % 7; // days back to last Friday
+    return new Date(res.getFullYear(), res.getMonth() + i + 1, -offset);
+  });
   const validDates = lastDayDates.filter(
     (d) =>
       d.getTime() > res.getTime() + 2 * DAY_MS &&

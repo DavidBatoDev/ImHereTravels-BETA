@@ -37,7 +37,7 @@ export const p1ScheduledReminderDateColumn: BookingSheetColumn = {
 // Column Function Implementation
 export default function getBaseMondayFromP1DueDateFunction(
   p1DueDate: any,
-  p1DatePaid?: any
+  p1DatePaid?: any,
 ): string {
   // --- Return "" if no due date or if there's already a date paid ---
   if (!p1DueDate || p1DatePaid) return "";
@@ -51,7 +51,7 @@ export default function getBaseMondayFromP1DueDateFunction(
       // Firestore-style { seconds, nanoseconds }
       if (val?.seconds && typeof val.seconds === "number") {
         return new Date(
-          val.seconds * 1000 + Math.floor((val.nanoseconds || 0) / 1e6)
+          val.seconds * 1000 + Math.floor((val.nanoseconds || 0) / 1e6),
         );
       }
 
@@ -79,24 +79,14 @@ export default function getBaseMondayFromP1DueDateFunction(
   const d = toDate(p1DueDate);
   if (!d) return "";
 
-  // Spreadsheet formula: EOMONTH(d,-1) - get last day of previous month
-  const eomPrev = new Date(d.getFullYear(), d.getMonth(), 0);
-
-  // limit = lastDay - 6 (a week before month end)
-  const limit = new Date(eomPrev);
-  limit.setDate(limit.getDate() - 6);
-
-  // Find Monday: limit - MOD(WEEKDAY(limit,2)-1, 7)
-  // WEEKDAY(limit, 2) makes Monday = 1, Sunday = 7
-  const weekday = ((limit.getDay() + 6) % 7) + 1; // Convert to ISO weekday
-  const mod = (weekday - 1) % 7;
-  const base = new Date(limit);
-  base.setDate(base.getDate() - mod);
+  // 14 days before due date (calendar arithmetic avoids the DST trap where
+  // subtracting 14 * 86400000 ms can land at 23:00 on the wrong day)
+  const reminder = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 14);
 
   // Format to yyyy-mm-dd string
-  const y = base.getFullYear();
-  const m = String(base.getMonth() + 1).padStart(2, "0");
-  const day = String(base.getDate()).padStart(2, "0");
+  const y = reminder.getFullYear();
+  const m = String(reminder.getMonth() + 1).padStart(2, "0");
+  const day = String(reminder.getDate()).padStart(2, "0");
 
   return `${y}-${m}-${day}`;
 }

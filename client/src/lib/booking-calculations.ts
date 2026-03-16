@@ -565,13 +565,16 @@ export function generateInstallmentDueDates(
     1;
 
   const DAY_MS = 24 * 60 * 60 * 1000;
-  const secondDates: Date[] = Array.from(
-    { length: monthCount },
-    (_, i) =>
-      new Date(
-        Date.UTC(resUTC.getUTCFullYear(), resUTC.getUTCMonth() + i + 1, 0),
-      ),
-  );
+  const secondDates: Date[] = Array.from({ length: monthCount }, (_, i) => {
+    const t = Date.UTC(
+      resUTC.getUTCFullYear(),
+      resUTC.getUTCMonth() + i + 1,
+      0,
+    );
+    const lastDay = new Date(t);
+    const offset = (lastDay.getUTCDay() - 5 + 7) % 7; // days back to last Friday
+    return new Date(t - offset * DAY_MS);
+  });
 
   const validDates = secondDates.filter(
     (d) =>
@@ -870,23 +873,16 @@ export function calculateScheduledReminderDates(dueDates: {
     const date = toDate(firstDate);
     if (!date) return "";
 
-    // Spreadsheet formula: EOMONTH(d,-1) => last day of previous month
-    const eomPrev = new Date(date.getFullYear(), date.getMonth(), 0);
+    // 14 days before due date (calendar arithmetic avoids the DST trap)
+    const reminder = new Date(
+      date.getFullYear(),
+      date.getMonth(),
+      date.getDate() - 14,
+    );
 
-    // limit = lastDay - 6 (a week before month end)
-    const limit = new Date(eomPrev);
-    limit.setDate(limit.getDate() - 6);
-
-    // Find Monday: limit - MOD(WEEKDAY(limit,2)-1, 7)
-    // WEEKDAY(limit, 2) makes Monday = 1, Sunday = 7
-    const weekday = ((limit.getDay() + 6) % 7) + 1; // Convert to ISO weekday
-    const mod = (weekday - 1) % 7;
-    const base = new Date(limit);
-    base.setDate(base.getDate() - mod);
-
-    const y = base.getFullYear();
-    const m = String(base.getMonth() + 1).padStart(2, "0");
-    const d = String(base.getDate()).padStart(2, "0");
+    const y = reminder.getFullYear();
+    const m = String(reminder.getMonth() + 1).padStart(2, "0");
+    const d = String(reminder.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   };
 

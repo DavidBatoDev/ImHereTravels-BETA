@@ -213,8 +213,13 @@ export default function getP1DueDateFunction(
   if (tourYmd === "") return ""; // treated as blank
   if (tourYmd === "ERROR") return "ERROR";
 
-  const res = new Date(resYmd);
-  const tour = new Date(tourYmd);
+  // Parse as local midnight (not UTC) to avoid the midnight trap where
+  // new Date("yyyy-mm-dd") creates a UTC midnight date that .getMonth()
+  // can resolve to the previous month in negative-offset timezones.
+  const [ry, rm, rd] = resYmd.split("-").map(Number);
+  const res = new Date(ry, rm - 1, rd);
+  const [ty, tm, td] = tourYmd.split("-").map(Number);
+  const tour = new Date(ty, tm - 1, td);
 
   // If either is still invalid (paranoid guard)
   if (isNaN(res.getTime()) || isNaN(tour.getTime())) return "ERROR";
@@ -227,12 +232,12 @@ export default function getP1DueDateFunction(
 
   if (monthCount <= 0) return "";
 
-  // generate the last day of each month between res and tour (1..monthCount)
-  // Using day 0 of the next month gives us the last day of the current month
-  const lastDayDates: Date[] = Array.from(
-    { length: monthCount },
-    (_, i) => new Date(res.getFullYear(), res.getMonth() + i + 1, 0),
-  );
+  // generate the last Friday of each month between res and tour (1..monthCount)
+  const lastDayDates: Date[] = Array.from({ length: monthCount }, (_, i) => {
+    const lastDay = new Date(res.getFullYear(), res.getMonth() + i + 1, 0);
+    const offset = (lastDay.getDay() - 5 + 7) % 7; // days back to last Friday
+    return new Date(res.getFullYear(), res.getMonth() + i + 1, -offset);
+  });
 
   // validDates: (lastDayDates > res + 2) * (lastDayDates <= tour - 3)
   const DAY_MS = 24 * 60 * 60 * 1000;
