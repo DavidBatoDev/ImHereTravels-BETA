@@ -110,10 +110,10 @@ export const DEFAULT_PAYMENT_TERMS: Omit<
   {
     name: "Invalid Booking",
     description:
-      "To handle bookings that cannot be processed due to scheduling constraints. Tour date is within 2 days of booking date.",
+      "To handle bookings that cannot be processed due to scheduling constraints. Tour date is within 3 days of booking date.",
     paymentPlanType: "invalid_booking",
     paymentType: "invalid_booking",
-    daysRequired: 2,
+    daysRequired: 3,
     depositPercentage: 0,
     isActive: true,
     sortOrder: 1,
@@ -122,10 +122,10 @@ export const DEFAULT_PAYMENT_TERMS: Omit<
   {
     name: "Full Payment Required Within 2 Days",
     description:
-      "Capture last-minute bookings while ensuring immediate payment. Tour date is 2-30 days away with no eligible installment dates available.",
+      "Capture last-minute bookings while ensuring immediate payment. Tour date is 3-30 days away with no eligible installment dates available.",
     paymentPlanType: "full_payment_48hrs",
     paymentType: "full_payment",
-    daysRequired: 2, // Changed from 48 hours to 2 days for consistency
+    daysRequired: 3, // Starts at 3 days from tour date
     depositPercentage: 0, // Changed from 15 to 0 - full payment means no deposit
     isActive: true,
     percentage: 100, // Legacy percentage for full payment
@@ -210,7 +210,7 @@ export const PAYMENT_PLAN_TYPE_LABELS: Record<PaymentPlanType, string> = {
 
 export const PAYMENT_PLAN_TYPE_DESCRIPTIONS: Record<PaymentPlanType, string> = {
   invalid_booking:
-    "Booking not allowed - Less than 2 days between reservation and tour date",
+    "Booking not allowed - Less than 3 days between reservation and tour date",
   full_payment_48hrs:
     "Immediate full payment required within 2 days of booking", // Updated from 48 hours to 2 days
   p1_single_installment:
@@ -232,7 +232,7 @@ export function getDefaultConfigForPlanType(
     case "invalid_booking":
       return {
         paymentType: "invalid_booking",
-        daysRequired: 2,
+        daysRequired: 3,
         depositPercentage: 0,
         monthsRequired: undefined,
         monthlyPercentages: undefined,
@@ -241,7 +241,7 @@ export function getDefaultConfigForPlanType(
     case "full_payment_48hrs":
       return {
         paymentType: "full_payment",
-        daysRequired: 2, // Changed from 48 hours to 2 days
+        daysRequired: 3, // Starts at 3 days from tour date
         depositPercentage: 0,
         monthsRequired: undefined,
         monthlyPercentages: undefined,

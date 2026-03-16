@@ -9,14 +9,14 @@ The Payment Terms system in ImHereTravels provides flexible payment options for 
 ### 1. Invalid Booking
 
 - **Purpose**: Handle bookings that cannot be processed due to scheduling constraints
-- **Trigger Conditions**: Tour date is within 2 days of booking date
+- **Trigger Conditions**: Tour date is within 3 days of booking date
 - **Financial Handling**: No payments processed, reservation fee refunded, booking marked as invalid
 - **Typical Scenario**: Customer tries to book for tomorrow's tour
 
 ### 2. Full Payment Required Within 48hrs
 
 - **Purpose**: Capture last-minute bookings while ensuring immediate payment
-- **Trigger Conditions**: Tour date is 2-30 days away, no eligible installment dates available
+- **Trigger Conditions**: Tour date is 3-30 days away, no eligible installment dates available
 - **Payment Structure**: 100% payment due within 2 days of booking (no deposit)
 - **Typical Scenario**: Customer books a tour 2 weeks away
 
@@ -113,7 +113,7 @@ const newPaymentPlan = {
 
 const planId = await PaymentTermsService.createPaymentTerm(
   newPaymentPlan,
-  userId
+  userId,
 );
 ```
 
@@ -129,7 +129,7 @@ const paymentTerms = await PaymentTermsService.getActivePaymentTerms();
 const result = PaymentTermsCalculator.evaluatePaymentTerm(
   reservationDate,
   tourDate,
-  paymentTerms
+  paymentTerms,
 );
 
 console.log(result);
@@ -152,7 +152,7 @@ const termName = "P3 - Three Installment Plan";
 
 const breakdown = await PaymentTypeUtils.getMonthlyPaymentBreakdown(
   termName,
-  totalCost
+  totalCost,
 );
 
 console.log(breakdown);

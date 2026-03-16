@@ -4,7 +4,7 @@ export const eligible2ndofmonthsColumn: BookingSheetColumn = {
   id: "eligible2ndofmonths",
   data: {
     id: "eligible2ndofmonths",
-    columnName: "Eligible 2nd-of-Months",
+    columnName: "Eligible Last Fridays",
     dataType: "function",
     function: "eligibleSecondsCountFunction",
     parentTab: "Tour Details",
@@ -38,8 +38,7 @@ export const eligible2ndofmonthsColumn: BookingSheetColumn = {
 // Column Function Implementation
 /**
  * NOTE:
- * Field name remains "Eligible 2nd-of-Months" for compatibility, but the
- * logic is now aligned with current installment due-date rules:
+ * Logic is aligned with current installment due-date rules:
  * - candidate date per month = last Friday of that month
  * - valid if date is in (reservationDate + 2 days, tourDate - 3 days]
  *

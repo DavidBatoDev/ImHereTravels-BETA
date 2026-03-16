@@ -392,7 +392,7 @@ export function getDaysBetweenDates(
 }
 
 /**
- * Calculate eligible 2nd-of-months count for payment terms
+ * Calculate eligible last-Friday dates count for payment terms
  */
 export function getEligible2ndOfMonths(
   reservationDate: unknown,
@@ -406,8 +406,8 @@ export function getEligible2ndOfMonths(
   const resUTC = normalizeUTCDate(res);
   const tourUTC = normalizeUTCDate(tour);
 
-  // Keep existing field name for backward compatibility, but align logic with
-  // installment due-date generation: last Friday dates in (res + 2, tour - 3].
+  // Align with installment due-date generation:
+  // last Friday dates in (res + 2, tour - 3].
   const monthCount =
     (tourUTC.getUTCFullYear() - resUTC.getUTCFullYear()) * 12 +
     (tourUTC.getUTCMonth() - resUTC.getUTCMonth()) +
@@ -440,7 +440,7 @@ export function getEligible2ndOfMonths(
 }
 
 /**
- * Determine payment condition based on eligible 2nd-of-months and days between
+ * Determine payment condition based on eligible installment dates and days between
  */
 export function getPaymentCondition(
   tourDate: unknown,
@@ -453,8 +453,8 @@ export function getPaymentCondition(
   const eligible = Number(eligible2ndOfMonths);
   const days = Number(daysBetween);
 
-  if (eligible === 0 && days < 2) return "Invalid Booking";
-  if (eligible === 0 && days >= 2) return "Last Minute Booking";
+  if (eligible === 0 && days < 3) return "Invalid Booking";
+  if (eligible === 0 && days >= 3) return "Last Minute Booking";
   if (eligible === 1) return "Standard Booking, P1";
   if (eligible === 2) return "Standard Booking, P2";
   if (eligible === 3) return "Standard Booking, P3";
@@ -874,11 +874,11 @@ export function calculateScheduledReminderDates(dueDates: {
     const date = toDate(firstDate);
     if (!date) return "";
 
-    // 14 days before due date (calendar arithmetic avoids the DST trap)
+    // 3 days before due date (calendar arithmetic avoids the DST trap)
     const reminder = new Date(
       date.getFullYear(),
       date.getMonth(),
-      date.getDate() - 14,
+      date.getDate() - 3,
     );
 
     const y = reminder.getFullYear();

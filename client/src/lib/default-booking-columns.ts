@@ -341,7 +341,7 @@ export const defaultBookingColumns: Omit<SheetColumn, "id">[] = [
     order: 42,
   },
   {
-    columnName: "Eligible 2nd-of-Months",
+    columnName: "Eligible Last Fridays",
     dataType: "boolean",
     includeInForms: true,
 

@@ -69,8 +69,8 @@ export default function getBaseMondayFromP4DueDateFunction(
   const d = toDate(p4DueDate);
   if (!d) return "";
 
-  // 14 days before due date (calendar arithmetic avoids the DST trap)
-  const reminder = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 14);
+  // 3 days before due date (calendar arithmetic avoids the DST trap)
+  const reminder = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 3);
 
   // Format to yyyy-mm-dd string
   const y = reminder.getFullYear();

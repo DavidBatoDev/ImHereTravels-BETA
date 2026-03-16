@@ -26,7 +26,7 @@ export const paymentConditionColumn: BookingSheetColumn = {
       {
         name: "eligibleSecondCount",
         type: "number",
-        columnReference: "Eligible 2nd-of-Months",
+        columnReference: "Eligible Last Fridays",
         isOptional: false,
         hasDefault: false,
         isRest: false,
@@ -50,8 +50,8 @@ export const paymentConditionColumn: BookingSheetColumn = {
  * Excel equivalent:
  * =IF(ISBLANK(N),"",
  *   IFS(
- *     AND(R=0, S<2), "Invalid Booking",
- *     AND(R=0, S>=2), "Last Minute Booking",
+ *     AND(R=0, S<3), "Invalid Booking",
+ *     AND(R=0, S>=3), "Last Minute Booking",
  *     R=1, "Standard Booking, P1",
  *     R=2, "Standard Booking, P2",
  *     R=3, "Standard Booking, P3",
@@ -60,7 +60,7 @@ export const paymentConditionColumn: BookingSheetColumn = {
  * )
  *
  * @param tourDate                  The tour date (N column)
- * @param eligibleSecondCount       The number of eligible "2nd of month" dates (R column)
+ * @param eligibleSecondCount       The number of eligible last-Friday dates (R column)
  * @param daysBetweenReservationAndTour  Days between reservation date and tour date (S column)
  * @returns "" | the payment condition string
  */
@@ -86,10 +86,10 @@ export default function paymentConditionFunction(
   const eligible = Math.trunc(eligibleNum);
   const days = Math.trunc(daysNum);
 
-  if (eligible === 0 && days < 2) {
+  if (eligible === 0 && days < 3) {
     return "Invalid Booking";
   }
-  if (eligible === 0 && days >= 2) {
+  if (eligible === 0 && days >= 3) {
     return "Last Minute Booking";
   }
   if (eligible === 1) return "Standard Booking, P1";

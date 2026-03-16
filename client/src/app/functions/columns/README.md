@@ -108,10 +108,10 @@ db; // Firestore database instance
 storage; // Firebase Storage instance
 
 // Firestore functions
-collection, doc, getDocs, getDoc;
-addDoc, updateDoc, deleteDoc;
-query, where, orderBy, limit;
-serverTimestamp, Timestamp;
+(collection, doc, getDocs, getDoc);
+(addDoc, updateDoc, deleteDoc);
+(query, where, orderBy, limit);
+(serverTimestamp, Timestamp);
 ```
 
 ### Usage in Column Functions
@@ -124,7 +124,7 @@ export default function bookingCodeColumnFunction(bookingType: string) {
   // Use Firestore functions
   const q = query(
     collection(db, "bookings"),
-    where("tourCode", "==", tourCode)
+    where("tourCode", "==", tourCode),
   );
 
   // Use functionsUtils
@@ -206,7 +206,7 @@ const formCols = getFormColumns();
 - Reservation Date, Return Date
 - Days Between Booking and Tour Date
 - Payment Condition, Available Payment Terms
-- Eligible 2nd-of-Months, Booking Type
+- Eligible Last Fridays, Booking Type
 
 ### Payment Setting (13 columns)
 

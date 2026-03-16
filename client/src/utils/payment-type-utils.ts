@@ -12,6 +12,7 @@ export class PaymentTypeUtils {
   private static paymentTypesCache: PaymentTermConfiguration[] | null = null;
   private static cacheTimestamp = 0;
   private static readonly CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+  private static readonly INVALID_BOOKING_MIN_DAYS = 3;
 
   /**
    * Get all active payment types with caching
@@ -111,15 +112,39 @@ export class PaymentTypeUtils {
         (tourDate.getTime() - reservationDate.getTime()) / (1000 * 60 * 60 * 24)
       );
 
-      // Sort by daysRequired ascending to check from strictest to most lenient
       const sortedTypes = activeTypes
         .filter((type) => type.isActive)
         .sort((a, b) => (a.daysRequired || 0) - (b.daysRequired || 0));
 
-      // Find the applicable payment type
+      const invalidType = sortedTypes.find(
+        (type) => type.paymentPlanType === "invalid_booking"
+      );
+      if (daysDifference < this.INVALID_BOOKING_MIN_DAYS) {
+        return invalidType?.name || "Invalid Booking";
+      }
+
+      const fullPaymentType = sortedTypes.find(
+        (type) => type.paymentPlanType === "full_payment_48hrs"
+      );
+      if (daysDifference >= 3 && daysDifference <= 30) {
+        return fullPaymentType?.name || "Full Payment Required Within 48hrs";
+      }
+
       for (const type of sortedTypes) {
-        if (daysDifference < (type.daysRequired || 0)) {
-          return type.name;
+        if (
+          [
+            "p1_single_installment",
+            "p2_two_installments",
+            "p3_three_installments",
+            "p4_four_installments",
+            "custom",
+          ].includes(type.paymentPlanType)
+        ) {
+          const minDays = this.getMinDaysForPlanType(type.paymentPlanType);
+          const maxDays = this.getMaxDaysForPlanType(type.paymentPlanType);
+          if (daysDifference >= minDays && daysDifference <= maxDays) {
+            return type.name;
+          }
         }
       }
 
@@ -167,12 +192,12 @@ export class PaymentTypeUtils {
 
       // Invalid booking check
       if (paymentPlanType === "invalid_booking") {
-        return daysDifference < (term.daysRequired || 0);
+        return daysDifference < this.INVALID_BOOKING_MIN_DAYS;
       }
 
       // Full payment 48hrs check
       if (paymentPlanType === "full_payment_48hrs") {
-        return daysDifference >= 2 && daysDifference <= 30;
+        return daysDifference >= 3 && daysDifference <= 30;
       }
 
       // Installment plan checks

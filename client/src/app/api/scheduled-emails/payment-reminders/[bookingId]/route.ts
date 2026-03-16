@@ -180,7 +180,7 @@ export async function DELETE(
 /**
  * PATCH /api/scheduled-emails/payment-reminders/[bookingId]
  * Recompute scheduledFor for pending payment reminders of a booking.
- * Rule: 14 days before term due date at Asia/Singapore 09:00.
+ * Rule: 3 days before term due date at Asia/Singapore 09:00.
  */
 export async function PATCH(
   request: NextRequest,
@@ -270,7 +270,7 @@ export async function PATCH(
       const reminderDate = new Date(
         parsedDueDate.getFullYear(),
         parsedDueDate.getMonth(),
-        parsedDueDate.getDate() - 14,
+        parsedDueDate.getDate() - 3,
       );
       const scheduledFor = toSingapore9am(reminderDate);
 
