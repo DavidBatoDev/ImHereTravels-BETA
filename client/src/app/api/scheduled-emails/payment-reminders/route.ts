@@ -29,37 +29,25 @@ function parseTermFromScheduledEmail(data: Record<string, any>): Term | null {
   return `P${match[1]}` as Term;
 }
 
-function parseDueDateForTerm(dueDateRaw: unknown, term: Term): Date | null {
-  if (!dueDateRaw) return null;
+function parseDateValue(rawValue: unknown): Date | null {
+  if (!rawValue) return null;
 
-  const termIndex = Number(term[1]) - 1;
-  let dueDateValue: unknown = dueDateRaw;
-
-  if (typeof dueDateRaw === "string" && dueDateRaw.includes(",")) {
-    const parts = dueDateRaw.split(",").map((part) => part.trim());
-    if (parts.length > termIndex * 2 + 1) {
-      dueDateValue = `${parts[termIndex * 2]}, ${parts[termIndex * 2 + 1]}`;
-    }
-  }
-
-  if (dueDateValue instanceof Date && !Number.isNaN(dueDateValue.getTime())) {
-    return dueDateValue;
+  if (rawValue instanceof Date && !Number.isNaN(rawValue.getTime())) {
+    return rawValue;
   }
 
   if (
-    typeof dueDateValue === "object" &&
-    dueDateValue !== null &&
-    "seconds" in (dueDateValue as any) &&
-    typeof (dueDateValue as any).seconds === "number"
+    typeof rawValue === "object" &&
+    rawValue !== null &&
+    "seconds" in (rawValue as any) &&
+    typeof (rawValue as any).seconds === "number"
   ) {
-    const ts = dueDateValue as { seconds: number; nanoseconds?: number };
-    return new Date(
-      ts.seconds * 1000 + Math.floor((ts.nanoseconds ?? 0) / 1e6),
-    );
+    const ts = rawValue as { seconds: number; nanoseconds?: number };
+    return new Date(ts.seconds * 1000 + Math.floor((ts.nanoseconds ?? 0) / 1e6));
   }
 
-  if (typeof dueDateValue === "string") {
-    const raw = dueDateValue.trim();
+  if (typeof rawValue === "string") {
+    const raw = rawValue.trim();
     if (!raw) return null;
 
     if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
@@ -79,6 +67,22 @@ function parseDueDateForTerm(dueDateRaw: unknown, term: Term): Date | null {
   return null;
 }
 
+function parseDueDateForTerm(dueDateRaw: unknown, term: Term): Date | null {
+  if (!dueDateRaw) return null;
+
+  const termIndex = Number(term[1]) - 1;
+  let dueDateValue: unknown = dueDateRaw;
+
+  if (typeof dueDateRaw === "string" && dueDateRaw.includes(",")) {
+    const parts = dueDateRaw.split(",").map((part) => part.trim());
+    if (parts.length > termIndex * 2 + 1) {
+      dueDateValue = `${parts[termIndex * 2]}, ${parts[termIndex * 2 + 1]}`;
+    }
+  }
+
+  return parseDateValue(dueDateValue);
+}
+
 function toSingapore9am(date: Date): Date {
   const year = date.getFullYear();
   const month = date.getMonth();
@@ -89,7 +93,7 @@ function toSingapore9am(date: Date): Date {
 /**
  * PATCH /api/scheduled-emails/payment-reminders
  * Recompute scheduledFor for ALL pending payment reminders.
- * Rule: 3 days before term due date at Asia/Singapore 09:00.
+ * Rule: max(term due date - 14 days, reservation date) at Asia/Singapore 09:00.
  */
 export async function PATCH(request: NextRequest) {
   try {
@@ -193,11 +197,25 @@ export async function PATCH(request: NextRequest) {
         continue;
       }
 
-      const reminderDate = new Date(
+      const parsedReservationDate = parseDateValue(bookingData.reservationDate);
+
+      const candidateReminderDate = new Date(
         parsedDueDate.getFullYear(),
         parsedDueDate.getMonth(),
-        parsedDueDate.getDate() - 3,
+        parsedDueDate.getDate() - 14,
       );
+      const reminderDate = parsedReservationDate
+        ? new Date(
+            Math.max(
+              candidateReminderDate.getTime(),
+              new Date(
+                parsedReservationDate.getFullYear(),
+                parsedReservationDate.getMonth(),
+                parsedReservationDate.getDate(),
+              ).getTime(),
+            ),
+          )
+        : candidateReminderDate;
       const scheduledFor = toSingapore9am(reminderDate);
 
       batch.update(emailDoc.ref, {

@@ -840,7 +840,7 @@ export function calculateScheduledReminderDates(dueDates: {
   p2DueDate: string;
   p3DueDate: string;
   p4DueDate: string;
-}): {
+}, reservationDate?: unknown): {
   p1ScheduledReminderDate: string;
   p2ScheduledReminderDate: string;
   p3ScheduledReminderDate: string;
@@ -868,22 +868,41 @@ export function calculateScheduledReminderDates(dueDates: {
     return dueDate.trim();
   };
 
+  const reservation = toDate(reservationDate);
+  const reservationDay = reservation
+    ? new Date(
+        reservation.getFullYear(),
+        reservation.getMonth(),
+        reservation.getDate(),
+      )
+    : null;
+
   const calculateBaseMonday = (dueDate: string): string => {
     if (!dueDate) return "";
     const firstDate = extractFirstDate(dueDate);
     const date = toDate(firstDate);
     if (!date) return "";
 
-    // 3 days before due date (calendar arithmetic avoids the DST trap)
+    // 14 days before due date (calendar arithmetic avoids the DST trap)
     const reminder = new Date(
       date.getFullYear(),
       date.getMonth(),
-      date.getDate() - 3,
+      date.getDate() - 14,
     );
 
-    const y = reminder.getFullYear();
-    const m = String(reminder.getMonth() + 1).padStart(2, "0");
-    const d = String(reminder.getDate()).padStart(2, "0");
+    const reminderDay = new Date(
+      reminder.getFullYear(),
+      reminder.getMonth(),
+      reminder.getDate(),
+    );
+    const finalReminder =
+      reservationDay && reminderDay < reservationDay
+        ? reservationDay
+        : reminderDay;
+
+    const y = finalReminder.getFullYear();
+    const m = String(finalReminder.getMonth() + 1).padStart(2, "0");
+    const d = String(finalReminder.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   };
 
@@ -1264,7 +1283,10 @@ export function calculatePaymentPlanUpdate(
   );
 
   // Calculate scheduled reminder dates
-  const reminders = calculateScheduledReminderDates(dueDates);
+  const reminders = calculateScheduledReminderDates(
+    dueDates,
+    input.reservationDate,
+  );
 
   // Clear unused payment term fields based on selected plan
   // If user selects P1, clear P2-P4 fields; if P2, clear P3-P4 fields, etc.

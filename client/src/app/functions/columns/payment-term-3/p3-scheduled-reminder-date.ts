@@ -22,6 +22,15 @@ export const p3ScheduledReminderDateColumn: BookingSheetColumn = {
         value: "",
       },
       {
+        name: "reservationDate",
+        type: "any",
+        columnReference: "Reservation Date",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
+      {
         name: "p3DatePaid",
         type: "any",
         columnReference: "P3 Date Paid",
@@ -37,6 +46,7 @@ export const p3ScheduledReminderDateColumn: BookingSheetColumn = {
 // Column Function Implementation
 export default function getBaseMondayFromP3DueDateFunction(
   p3DueDate: any,
+  reservationDate?: any,
   p3DatePaid?: any,
 ): string {
   if (!p3DueDate || p3DatePaid) return "";
@@ -68,14 +78,30 @@ export default function getBaseMondayFromP3DueDateFunction(
 
   const d = toDate(p3DueDate);
   if (!d) return "";
+  const reservation = toDate(reservationDate);
 
-  // 3 days before due date (calendar arithmetic avoids the DST trap)
-  const reminder = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 3);
+  // 14 days before due date (calendar arithmetic avoids the DST trap)
+  const reminder = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 14);
+
+  const reminderDay = new Date(
+    reminder.getFullYear(),
+    reminder.getMonth(),
+    reminder.getDate(),
+  );
+  const reservationDay = reservation
+    ? new Date(
+        reservation.getFullYear(),
+        reservation.getMonth(),
+        reservation.getDate(),
+      )
+    : null;
+  const finalReminder =
+    reservationDay && reminderDay < reservationDay ? reservationDay : reminderDay;
 
   // Format to yyyy-mm-dd string
-  const y = reminder.getFullYear();
-  const m = String(reminder.getMonth() + 1).padStart(2, "0");
-  const day = String(reminder.getDate()).padStart(2, "0");
+  const y = finalReminder.getFullYear();
+  const m = String(finalReminder.getMonth() + 1).padStart(2, "0");
+  const day = String(finalReminder.getDate()).padStart(2, "0");
 
   return `${y}-${m}-${day}`;
 }

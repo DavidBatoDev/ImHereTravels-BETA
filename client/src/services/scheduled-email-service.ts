@@ -394,7 +394,7 @@ export class ScheduledEmailService {
 
   /**
    * Recompute scheduled dates for pending payment reminders of a booking.
-   * Rule is resolved by API route (currently dueDate - 14 days at SGT 09:00).
+    * Rule is resolved by API route: max(dueDate - 14 days, reservation date) at SGT 09:00.
    */
   static async reschedulePendingPaymentReminders(bookingId: string) {
     const response = await fetch(

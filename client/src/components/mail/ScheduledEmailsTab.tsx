@@ -2091,8 +2091,8 @@ export default function ScheduledEmailsTab() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               Recompute all pending payment reminder schedules for this booking
-              using the rule: 14 days before each term due date at 9:00 AM
-              Asia/Singapore.
+              using the rule: 14 days before each term due date, but not
+              earlier than reservation date, at 9:00 AM Asia/Singapore.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <div className="py-4">

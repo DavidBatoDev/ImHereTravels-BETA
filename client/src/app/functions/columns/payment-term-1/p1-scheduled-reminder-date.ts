@@ -22,6 +22,15 @@ export const p1ScheduledReminderDateColumn: BookingSheetColumn = {
         value: "",
       },
       {
+        name: "reservationDate",
+        type: "any",
+        columnReference: "Reservation Date",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
+      {
         name: "p1DatePaid",
         type: "any",
         columnReference: "P1 Date Paid",
@@ -37,6 +46,7 @@ export const p1ScheduledReminderDateColumn: BookingSheetColumn = {
 // Column Function Implementation
 export default function getBaseMondayFromP1DueDateFunction(
   p1DueDate: any,
+  reservationDate?: any,
   p1DatePaid?: any,
 ): string {
   // --- Return "" if no due date or if there's already a date paid ---
@@ -78,15 +88,31 @@ export default function getBaseMondayFromP1DueDateFunction(
 
   const d = toDate(p1DueDate);
   if (!d) return "";
+  const reservation = toDate(reservationDate);
 
-  // 3 days before due date (calendar arithmetic avoids the DST trap where
+  // 14 days before due date (calendar arithmetic avoids the DST trap where
   // subtracting N * 86400000 ms can land at 23:00 on the wrong day)
-  const reminder = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 3);
+  const reminder = new Date(d.getFullYear(), d.getMonth(), d.getDate() - 14);
+
+  const reminderDay = new Date(
+    reminder.getFullYear(),
+    reminder.getMonth(),
+    reminder.getDate(),
+  );
+  const reservationDay = reservation
+    ? new Date(
+        reservation.getFullYear(),
+        reservation.getMonth(),
+        reservation.getDate(),
+      )
+    : null;
+  const finalReminder =
+    reservationDay && reminderDay < reservationDay ? reservationDay : reminderDay;
 
   // Format to yyyy-mm-dd string
-  const y = reminder.getFullYear();
-  const m = String(reminder.getMonth() + 1).padStart(2, "0");
-  const day = String(reminder.getDate()).padStart(2, "0");
+  const y = finalReminder.getFullYear();
+  const m = String(finalReminder.getMonth() + 1).padStart(2, "0");
+  const day = String(finalReminder.getDate()).padStart(2, "0");
 
   return `${y}-${m}-${day}`;
 }
