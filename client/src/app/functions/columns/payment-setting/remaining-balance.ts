@@ -174,6 +174,42 @@ export const remainingBalanceColumn: BookingSheetColumn = {
         isRest: false,
         value: "",
       },
+      {
+        name: "p1LateFeesPenalty",
+        type: "number",
+        columnReference: "P1 Late Fees Penalty",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
+      {
+        name: "p2LateFeesPenalty",
+        type: "number",
+        columnReference: "P2 Late Fees Penalty",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
+      {
+        name: "p3LateFeesPenalty",
+        type: "number",
+        columnReference: "P3 Late Fees Penalty",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
+      {
+        name: "p4LateFeesPenalty",
+        type: "number",
+        columnReference: "P4 Late Fees Penalty",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
     ],
   },
 };
@@ -209,52 +245,98 @@ export const remainingBalanceColumn: BookingSheetColumn = {
 
 export default function getRemainingBalanceFunction(
   tourPackageName: string,
-  useDiscountedCost?: boolean,
-  discountedTourCost?: number,
-  originalTourCost?: number,
-  reservationFee?: number,
+  useDiscountedCost?: boolean | string,
+  discountedTourCost?: number | string,
+  originalTourCost?: number | string,
+  reservationFee?: number | string,
   creditFrom?: string,
-  creditAmount?: number,
+  creditAmount?: number | string,
   paymentPlan?: string,
   fullPaymentDate?: string,
-  fullPaymentAmount?: number,
+  fullPaymentAmount?: number | string,
   p1DatePaid?: string,
-  p1Amount?: number,
+  p1Amount?: number | string,
   p2DatePaid?: string,
-  p2Amount?: number,
+  p2Amount?: number | string,
   p3DatePaid?: string,
-  p3Amount?: number,
+  p3Amount?: number | string,
   p4DatePaid?: string,
-  p4Amount?: number
+  p4Amount?: number | string,
+  p1LateFeesPenalty?: number | string,
+  p2LateFeesPenalty?: number | string,
+  p3LateFeesPenalty?: number | string,
+  p4LateFeesPenalty?: number | string,
 ): number | "" {
   if (!tourPackageName) return "";
 
+  const toNumber = (value: unknown): number => {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    if (typeof value === "string") {
+      const normalized = value.replace(/[^\d.-]/g, "").trim();
+      if (!normalized) return 0;
+      const parsed = Number(normalized);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    return 0;
+  };
+
+  const isPaid = (value: unknown): boolean => {
+    if (value == null) return false;
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase();
+      return (
+        normalized !== "" && normalized !== "null" && normalized !== "undefined"
+      );
+    }
+    return true;
+  };
+
   // Normalize numeric inputs to avoid undefined values
-  const origCost = originalTourCost ?? 0;
-  const discCost = discountedTourCost ?? 0;
-  const resFee = reservationFee ?? 0;
-  const credit = creditAmount ?? 0;
+  const origCost = toNumber(originalTourCost);
+  const discCost = toNumber(discountedTourCost);
+  const resFee = toNumber(reservationFee);
+  const credit = toNumber(creditAmount);
 
   // Determine which total cost to use (discounted or original)
   // Automatically use discounted cost if available (from active discount events)
-  const baseCost = (discCost > 0) ? discCost : origCost;
+  const baseCost = discCost > 0 ? discCost : origCost;
 
   // Subtract reservation fee and any credit from reservation
   const total = baseCost - resFee - (creditFrom === "Reservation" ? credit : 0);
 
   // Total paid amount so far (treat missing amounts as 0)
   const paid =
-    (fullPaymentDate ? fullPaymentAmount ?? 0 : 0) +
-    (p1DatePaid ? p1Amount ?? 0 : 0) +
-    (p2DatePaid ? p2Amount ?? 0 : 0) +
-    (p3DatePaid ? p3Amount ?? 0 : 0) +
-    (p4DatePaid ? p4Amount ?? 0 : 0);
+    (isPaid(fullPaymentDate) ? toNumber(fullPaymentAmount) : 0) +
+    (isPaid(p1DatePaid) ? toNumber(p1Amount) : 0) +
+    (isPaid(p2DatePaid) ? toNumber(p2Amount) : 0) +
+    (isPaid(p3DatePaid) ? toNumber(p3Amount) : 0) +
+    (isPaid(p4DatePaid) ? toNumber(p4Amount) : 0);
+
+  // All applied late fees increase total amount due.
+  const totalLateFees =
+    toNumber(p1LateFeesPenalty) +
+    toNumber(p2LateFeesPenalty) +
+    toNumber(p3LateFeesPenalty) +
+    toNumber(p4LateFeesPenalty);
+
+  // Only treat a term's late fee as paid when that term is marked paid.
+  const paidLateFees =
+    (isPaid(p1DatePaid) ? toNumber(p1LateFeesPenalty) : 0) +
+    (isPaid(p2DatePaid) ? toNumber(p2LateFeesPenalty) : 0) +
+    (isPaid(p3DatePaid) ? toNumber(p3LateFeesPenalty) : 0) +
+    (isPaid(p4DatePaid) ? toNumber(p4LateFeesPenalty) : 0);
+
+  const totalDue = total + totalLateFees;
 
   // Remaining balance - round to 2 decimal places
-  const remaining = Math.round((total - paid) * 100) / 100;
+  const remaining = Math.round((totalDue - (paid + paidLateFees)) * 100) / 100;
 
   // Special rule for P1 plan
-  if (paymentPlan === "P1" && p1DatePaid) {
+  if (paymentPlan === "P1" && isPaid(p1DatePaid)) {
     return 0;
   }
 

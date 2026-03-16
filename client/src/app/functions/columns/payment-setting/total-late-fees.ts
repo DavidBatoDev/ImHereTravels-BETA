@@ -54,15 +54,30 @@ export const totalLateFeesColumn: BookingSheetColumn = {
 
 // Column Function Implementation
 export default function getTotalLateFeesFunction(
-  p1LateFeesPenalty?: number | null,
-  p2LateFeesPenalty?: number | null,
-  p3LateFeesPenalty?: number | null,
-  p4LateFeesPenalty?: number | null,
+  p1LateFeesPenalty?: number | string | null,
+  p2LateFeesPenalty?: number | string | null,
+  p3LateFeesPenalty?: number | string | null,
+  p4LateFeesPenalty?: number | string | null,
 ): number {
+  const toNumber = (value: number | string | null | undefined): number => {
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? value : 0;
+    }
+
+    if (typeof value === "string") {
+      const normalized = value.replace(/[^\d.-]/g, "").trim();
+      if (!normalized) return 0;
+      const parsed = Number(normalized);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    return 0;
+  };
+
   return (
-    (Number(p1LateFeesPenalty) || 0) +
-    (Number(p2LateFeesPenalty) || 0) +
-    (Number(p3LateFeesPenalty) || 0) +
-    (Number(p4LateFeesPenalty) || 0)
+    toNumber(p1LateFeesPenalty) +
+    toNumber(p2LateFeesPenalty) +
+    toNumber(p3LateFeesPenalty) +
+    toNumber(p4LateFeesPenalty)
   );
 }

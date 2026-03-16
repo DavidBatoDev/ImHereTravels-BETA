@@ -106,6 +106,11 @@ export async function POST(request: NextRequest) {
       .trim()
       .toLowerCase() as TermKey;
     const resend = Boolean(body?.resend);
+    const previewOnly = Boolean(body?.previewOnly);
+    const customSubject =
+      typeof body?.customSubject === "string" ? body.customSubject : "";
+    const customHtmlContent =
+      typeof body?.customHtmlContent === "string" ? body.customHtmlContent : "";
 
     if (!bookingId || !["p1", "p2", "p3", "p4"].includes(termKey)) {
       return NextResponse.json(
@@ -192,11 +197,18 @@ export async function POST(request: NextRequest) {
 
     const templateData = templateDoc?.data() ?? null;
 
-    let penaltyAmount = Number(booking[`${termKey}LateFeesPenalty`] || 0);
+    const existingPenalty = Number(booking[`${termKey}LateFeesPenalty`] || 0);
+    const calculatedPenalty = Number(
+      ((termAmount * penaltyPercent) / 100).toFixed(2),
+    );
+    let penaltyAmount =
+      existingPenalty > 0 ? existingPenalty : calculatedPenalty;
     let appliedPenaltyNow = false;
 
-    if (penaltyAmount <= 0) {
-      penaltyAmount = Number(((termAmount * penaltyPercent) / 100).toFixed(2));
+    let refreshedBooking = booking;
+    let remainingBalance = Number(booking.remainingBalance || 0);
+
+    if (!previewOnly && penaltyAmount > 0 && existingPenalty <= 0) {
       const nowTimestamp = Timestamp.now();
 
       const applied = await runTransaction(db, async (transaction) => {
@@ -230,20 +242,17 @@ export async function POST(request: NextRequest) {
       });
 
       appliedPenaltyNow = applied;
-
-      const refreshedBookingSnap = await getDoc(bookingRef);
-      const refreshedBooking = refreshedBookingSnap.data() as Record<
-        string,
-        any
-      >;
-      penaltyAmount = Number(
-        refreshedBooking?.[`${termKey}LateFeesPenalty`] || penaltyAmount,
-      );
     }
 
     const refreshedBookingSnap = await getDoc(bookingRef);
-    const refreshedBooking = refreshedBookingSnap.data() as Record<string, any>;
-    const remainingBalance = Number(
+    refreshedBooking = (refreshedBookingSnap.data() || booking) as Record<
+      string,
+      any
+    >;
+    penaltyAmount = Number(
+      refreshedBooking?.[`${termKey}LateFeesPenalty`] || penaltyAmount,
+    );
+    remainingBalance = Number(
       refreshedBooking?.remainingBalance || booking.remainingBalance || 0,
     );
 
@@ -273,21 +282,56 @@ export async function POST(request: NextRequest) {
       bookingStatusUrl,
     };
 
-    const subjectTemplate =
-      templateData?.subject ||
+    const fallbackSubject =
       "Action Required: Late Fee Applied to {{ paymentTerm }}";
-    const htmlTemplate =
-      templateData?.content ||
+    const fallbackHtml =
       "<p>Hi {{ fullName }}, a late fee of {{ lateFeeAmount }} was applied to {{ paymentTerm }}.</p>";
 
-    const subject = EmailTemplateService.processTemplate(
-      subjectTemplate,
+    const subjectTemplate =
+      typeof templateData?.subject === "string" && templateData.subject.trim()
+        ? templateData.subject
+        : fallbackSubject;
+    const htmlTemplate =
+      typeof templateData?.content === "string" && templateData.content.trim()
+        ? templateData.content
+        : fallbackHtml;
+
+    const processedSubject = EmailTemplateService.processTemplate(
+      customSubject.trim() || subjectTemplate,
       templateVariables,
     );
-    const htmlContent = EmailTemplateService.processTemplate(
-      htmlTemplate,
+    const processedHtmlContent = EmailTemplateService.processTemplate(
+      customHtmlContent.trim() || htmlTemplate,
       templateVariables,
     );
+
+    const subject =
+      typeof processedSubject === "string" && processedSubject.trim()
+        ? processedSubject
+        : EmailTemplateService.processTemplate(
+            fallbackSubject,
+            templateVariables,
+          );
+    const htmlContent =
+      typeof processedHtmlContent === "string" && processedHtmlContent.trim()
+        ? processedHtmlContent
+        : EmailTemplateService.processTemplate(fallbackHtml, templateVariables);
+
+    if (previewOnly) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          bookingId,
+          termKey,
+          subject,
+          htmlContent,
+          recipientEmail: refreshedBooking?.emailAddress || "",
+          penaltyAmount,
+          daysOverdue,
+          canSend: true,
+        },
+      });
+    }
 
     const gmailService = new GmailApiService();
     const sendResult = await gmailService.sendEmail({
@@ -332,6 +376,7 @@ export async function POST(request: NextRequest) {
         termKey,
         noticeUrl,
         appliedPenaltyNow,
+        subject,
       },
     });
   } catch (error) {

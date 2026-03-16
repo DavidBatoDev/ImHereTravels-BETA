@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Fuse from "fuse.js";
 import {
   collection,
   doc,
@@ -8,12 +9,30 @@ import {
   query,
   Timestamp,
   setDoc,
+  where,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import type { Booking } from "@/types/bookings";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Table,
   TableBody,
@@ -25,11 +44,22 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { Pencil, Save, X, Play } from "lucide-react";
 import ScheduledEmailService from "@/services/scheduled-email-service";
+import LateFeeNoticeComposerModal from "@/app/(protected)/bookings/components/LateFeeNoticeComposerModal";
 
 type TermKey = "p1" | "p2" | "p3" | "p4";
+type LateFeesSortKey =
+  | "overdue-desc"
+  | "overdue-asc"
+  | "row-asc"
+  | "row-desc"
+  | "due-date-asc"
+  | "due-date-desc"
+  | "booking-asc"
+  | "booking-desc";
 
 interface LateFeeRow {
   rowId: string;
+  rowNumber: number | string;
   bookingDocId: string;
   bookingCode: string;
   fullName: string;
@@ -43,6 +73,7 @@ interface LateFeeRow {
   remainingBalance: number;
   daysOverdue: number;
   hasOverdueUnpaid: boolean;
+  isPaid: boolean;
   noticeStatus: "sent" | "none";
   noticeLink?: string;
 }
@@ -110,12 +141,28 @@ function formatDate(value: Date | null): string {
 export default function LateFeesSection() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [quickSort, setQuickSort] = useState<LateFeesSortKey>("overdue-desc");
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
   const [effectiveDate, setEffectiveDate] = useState("");
   const [draftEffectiveDate, setDraftEffectiveDate] = useState("");
   const [isEditingEffectiveDate, setIsEditingEffectiveDate] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
   const [isProcessingNow, setIsProcessingNow] = useState(false);
+  const [isProcessConfirmOpen, setIsProcessConfirmOpen] = useState(false);
+  const [isNoticeModalOpen, setIsNoticeModalOpen] = useState(false);
+  const [activeNoticeRow, setActiveNoticeRow] = useState<LateFeeRow | null>(
+    null,
+  );
+  const [noticeRecipient, setNoticeRecipient] = useState("");
+  const [noticeDraftSubject, setNoticeDraftSubject] = useState("");
+  const [noticeDraftHtml, setNoticeDraftHtml] = useState("");
+  const [isResendNoticeFlow, setIsResendNoticeFlow] = useState(false);
+  const [isLoadingNoticePreview, setIsLoadingNoticePreview] = useState(false);
+  const [isSendingNotice, setIsSendingNotice] = useState(false);
+
+  useEffect(() => {
+    setQuickSort("overdue-desc");
+  }, []);
 
   useEffect(() => {
     const lateFeesConfigRef = doc(db, "config", "late-fees");
@@ -143,7 +190,17 @@ export default function LateFeesSection() {
   }, [isEditingEffectiveDate]);
 
   useEffect(() => {
-    const bookingsQuery = query(collection(db, "bookings"));
+    const bookingsCollectionRef = collection(db, "bookings");
+    const bookingsQuery = effectiveDate
+      ? query(
+          bookingsCollectionRef,
+          where(
+            "reservationDate",
+            ">=",
+            Timestamp.fromDate(new Date(`${effectiveDate}T00:00:00`)),
+          ),
+        )
+      : query(bookingsCollectionRef);
     const unsubscribe = onSnapshot(
       bookingsQuery,
       (snapshot) => {
@@ -169,13 +226,25 @@ export default function LateFeesSection() {
     );
 
     return () => unsubscribe();
-  }, []);
+  }, [effectiveDate]);
 
-  const rows = useMemo(() => {
+  const expandedRows = useMemo(() => {
     const now = new Date();
+    const effectiveDateStart = effectiveDate
+      ? new Date(`${effectiveDate}T00:00:00`)
+      : null;
     const expandedRows: LateFeeRow[] = [];
 
     for (const booking of bookings) {
+      const reservationDate = asDate((booking as any).reservationDate);
+      if (
+        effectiveDateStart &&
+        (!reservationDate ||
+          reservationDate.getTime() < effectiveDateStart.getTime())
+      ) {
+        continue;
+      }
+
       for (let index = 0; index < TERM_KEYS.length; index++) {
         const termKey = TERM_KEYS[index];
         const termLabel = termKey.toUpperCase();
@@ -185,6 +254,7 @@ export default function LateFeesSection() {
         );
         const amount = Number((booking as any)[`${termKey}Amount`] || 0);
         const datePaid = asDate((booking as any)[`${termKey}DatePaid`]);
+        const isPaid = !!datePaid;
         const penalty = Number(
           (booking as any)[`${termKey}LateFeesPenalty`] || 0,
         );
@@ -211,6 +281,7 @@ export default function LateFeesSection() {
 
         expandedRows.push({
           rowId: `${booking.id}-${termKey}`,
+          rowNumber: Number((booking as any).row || 0),
           bookingDocId: booking.id,
           bookingCode: booking.bookingId || booking.bookingCode || booking.id,
           fullName: booking.fullName || "",
@@ -224,34 +295,107 @@ export default function LateFeesSection() {
           remainingBalance: Number(booking.remainingBalance || 0),
           daysOverdue,
           hasOverdueUnpaid,
+          isPaid,
           noticeStatus: noticeLink ? "sent" : "none",
           noticeLink,
         });
       }
     }
 
-    return expandedRows
-      .sort((a, b) => {
-        if (a.hasOverdueUnpaid !== b.hasOverdueUnpaid) {
-          return a.hasOverdueUnpaid ? -1 : 1;
-        }
-        return b.daysOverdue - a.daysOverdue;
-      })
-      .filter((row) => {
-        if (!searchTerm.trim()) return true;
-        const haystack = [
-          row.bookingCode,
-          row.fullName,
-          row.emailAddress,
-          row.tourPackageName,
-          row.term,
-        ]
-          .join(" ")
-          .toLowerCase();
+    return expandedRows.sort((a, b) => {
+      if (a.hasOverdueUnpaid !== b.hasOverdueUnpaid) {
+        return a.hasOverdueUnpaid ? -1 : 1;
+      }
+      return b.daysOverdue - a.daysOverdue;
+    });
+  }, [bookings, effectiveDate]);
 
-        return haystack.includes(searchTerm.toLowerCase());
-      });
-  }, [bookings, searchTerm]);
+  const fuse = useMemo(() => {
+    if (expandedRows.length === 0) return null;
+
+    return new Fuse(expandedRows, {
+      keys: [
+        { name: "bookingCode", weight: 1.0 },
+        { name: "fullName", weight: 0.9 },
+        { name: "emailAddress", weight: 0.85 },
+        { name: "tourPackageName", weight: 0.75 },
+        { name: "term", weight: 0.7 },
+      ],
+      threshold: 0.3,
+      includeScore: true,
+      minMatchCharLength: 2,
+    });
+  }, [expandedRows]);
+
+  const rows = useMemo(() => {
+    let workingRows = expandedRows;
+
+    if (searchTerm.trim()) {
+      if (fuse) {
+        workingRows = fuse.search(searchTerm).map((result) => result.item);
+      } else {
+        const lowered = searchTerm.toLowerCase();
+        workingRows = expandedRows.filter((row) =>
+          [
+            row.bookingCode,
+            row.fullName,
+            row.emailAddress,
+            row.tourPackageName,
+            row.term,
+          ]
+            .join(" ")
+            .toLowerCase()
+            .includes(lowered),
+        );
+      }
+    }
+
+    const rowValue = (value: number | string): number => {
+      if (typeof value === "number") return value;
+      const parsed = Number(String(value).replace(/[^\d.-]/g, ""));
+      return Number.isFinite(parsed) ? parsed : 0;
+    };
+
+    const sortedRows = [...workingRows];
+    sortedRows.sort((a, b) => {
+      switch (quickSort) {
+        case "row-asc":
+          return rowValue(a.rowNumber) - rowValue(b.rowNumber);
+        case "row-desc":
+          return rowValue(b.rowNumber) - rowValue(a.rowNumber);
+        case "overdue-asc":
+          return a.daysOverdue - b.daysOverdue;
+        case "overdue-desc":
+          return b.daysOverdue - a.daysOverdue;
+        case "due-date-asc": {
+          const aTime = a.dueDate?.getTime() ?? Number.MAX_SAFE_INTEGER;
+          const bTime = b.dueDate?.getTime() ?? Number.MAX_SAFE_INTEGER;
+          return aTime - bTime;
+        }
+        case "due-date-desc": {
+          const aTime = a.dueDate?.getTime() ?? 0;
+          const bTime = b.dueDate?.getTime() ?? 0;
+          return bTime - aTime;
+        }
+        case "booking-asc":
+          return a.bookingCode.localeCompare(b.bookingCode);
+        case "booking-desc":
+          return b.bookingCode.localeCompare(a.bookingCode);
+        default:
+          return 0;
+      }
+    });
+
+    return sortedRows;
+  }, [expandedRows, searchTerm, fuse, quickSort]);
+
+  const overdueWithoutNoticeCount = useMemo(
+    () =>
+      expandedRows.filter(
+        (row) => row.hasOverdueUnpaid && row.noticeStatus === "none",
+      ).length,
+    [expandedRows],
+  );
 
   const handleSaveEffectiveDate = async () => {
     if (!draftEffectiveDate) {
@@ -305,6 +449,7 @@ export default function LateFeesSection() {
   };
 
   const handleProcessNow = async () => {
+    setIsProcessConfirmOpen(false);
     setIsProcessingNow(true);
     try {
       const result = await ScheduledEmailService.triggerLateFeesProcessing();
@@ -324,69 +469,129 @@ export default function LateFeesSection() {
     }
   };
 
-  const handleApplyNotice = async (row: LateFeeRow) => {
-    setBusyRowId(row.rowId);
-    try {
-      const result = await ScheduledEmailService.sendLateFeeNotice(
-        row.bookingDocId,
-        row.termKey,
-      );
-      toast({
-        title: "Notice Applied",
-        description: result.appliedPenaltyNow
-          ? `${row.term} notice sent and penalty applied.`
-          : `${row.term} notice sent successfully.`,
-      });
-    } catch (error) {
-      console.error(error);
-      toast({
-        title: "Error",
-        description: "Failed to apply late fee notice.",
-        variant: "destructive",
-      });
-    } finally {
-      setBusyRowId(null);
-    }
-  };
+  const handleOpenSendNoticeModal = async (
+    row: LateFeeRow,
+    options?: { resend?: boolean },
+  ) => {
+    const isResend = Boolean(options?.resend);
 
-  const handleResendNotice = async (row: LateFeeRow) => {
+    if (row.isPaid && !isResend) {
+      toast({
+        title: "Already Paid",
+        description: "This booker already paid this term.",
+      });
+      return;
+    }
+
     setBusyRowId(row.rowId);
+    setIsLoadingNoticePreview(true);
     try {
-      await ScheduledEmailService.sendLateFeeNotice(
+      const preview = await ScheduledEmailService.getLateFeeNoticePreview(
         row.bookingDocId,
         row.termKey,
         {
-          resend: true,
+          resend: isResend,
         },
       );
+      const fallbackHtml =
+        "<p>Hi {{ fullName }}, a late fee has been applied to your payment term.</p>";
+      setActiveNoticeRow(row);
+      setIsResendNoticeFlow(isResend);
+      setNoticeRecipient(preview.recipientEmail || row.emailAddress || "");
+      setNoticeDraftSubject(preview.subject || "");
+      setNoticeDraftHtml(
+        typeof preview.htmlContent === "string" && preview.htmlContent.trim()
+          ? preview.htmlContent
+          : fallbackHtml
+              .replace("{{ fullName }}", row.fullName || "Customer")
+              .replace("payment term", row.term),
+      );
+      setIsNoticeModalOpen(true);
+    } catch (error) {
+      console.error(error);
+      const message = error instanceof Error ? error.message.toLowerCase() : "";
+
+      if (
+        message.includes("not eligible") ||
+        message.includes("already paid")
+      ) {
+        toast({
+          title: "Already Paid",
+          description: "This booker already paid this term.",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to prepare late fee notice.",
+          variant: "destructive",
+        });
+      }
+    } finally {
+      setBusyRowId(null);
+      setIsLoadingNoticePreview(false);
+    }
+  };
+
+  const handleSendNoticeFromModal = async (payload: {
+    subject: string;
+    htmlContent: string;
+  }) => {
+    if (!activeNoticeRow) return;
+
+    setIsSendingNotice(true);
+    try {
+      const result = await ScheduledEmailService.sendLateFeeNotice(
+        activeNoticeRow.bookingDocId,
+        activeNoticeRow.termKey,
+        {
+          resend: isResendNoticeFlow,
+          customSubject: payload.subject,
+          customHtmlContent: payload.htmlContent,
+        },
+      );
+
       toast({
-        title: "Notice Resent",
-        description: `${row.term} notice resent successfully.`,
+        title: "Notice Sent",
+        description: result.appliedPenaltyNow
+          ? `${activeNoticeRow.term} notice sent and penalty applied.`
+          : `${activeNoticeRow.term} notice sent successfully.`,
       });
+
+      setIsNoticeModalOpen(false);
+      setActiveNoticeRow(null);
+      setIsResendNoticeFlow(false);
+      setNoticeRecipient("");
+      setNoticeDraftSubject("");
+      setNoticeDraftHtml("");
     } catch (error) {
       console.error(error);
       toast({
         title: "Error",
-        description: "Failed to resend late fee notice.",
+        description: "Failed to send late fee notice.",
         variant: "destructive",
       });
     } finally {
-      setBusyRowId(null);
+      setIsSendingNotice(false);
     }
   };
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold tracking-tight">Late Fees</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-semibold tracking-tight">Late Fees</h2>
+          <Badge variant="destructive" className="h-6 px-2 text-xs">
+            {overdueWithoutNoticeCount} overdue without notice
+          </Badge>
+        </div>
         <Button
           variant="destructive"
-          onClick={handleProcessNow}
+          onClick={() => setIsProcessConfirmOpen(true)}
           disabled={isProcessingNow}
           className="border-0"
         >
           <Play className="mr-2 h-4 w-4" />
-          {isProcessingNow ? "Processing..." : "Process Now"}
+          {isProcessingNow ? "Sending..." : "Send Notice to All Pending"}
         </Button>
       </div>
 
@@ -394,8 +599,8 @@ export default function LateFeesSection() {
         <div className="space-y-1">
           <p className="text-sm font-medium">Late Fees Effective Date</p>
           <p className="text-xs text-muted-foreground">
-            Bookings with reservation dates on/after this date are eligible for
-            late-fee checks.
+            Late fee checks apply to bookings with reservation dates on or after
+            this date.
           </p>
         </div>
 
@@ -446,17 +651,54 @@ export default function LateFeesSection() {
         </div>
       </div>
 
-      <Input
-        value={searchTerm}
-        onChange={(event) => setSearchTerm(event.target.value)}
-        placeholder="Search booking, customer, email, tour, or term..."
-      />
+      <div className="flex flex-col gap-3 rounded-md border bg-white p-3 md:flex-row md:items-end">
+        <div className="flex-1">
+          <Input
+            value={searchTerm}
+            onChange={(event) => setSearchTerm(event.target.value)}
+            placeholder="Search booking, customer, email, tour, or term..."
+          />
+        </div>
+        <div className="w-full md:w-[280px] space-y-1">
+          <label
+            htmlFor="late-fees-sort"
+            className="text-xs text-muted-foreground"
+          >
+            Sort by
+          </label>
+          <Select
+            value={quickSort}
+            onValueChange={(value) => setQuickSort(value as LateFeesSortKey)}
+          >
+            <SelectTrigger id="late-fees-sort">
+              <SelectValue placeholder="Quick sort" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="overdue-desc">
+                Overdue Days (High to Low)
+              </SelectItem>
+              <SelectItem value="overdue-asc">
+                Overdue Days (Low to High)
+              </SelectItem>
+              <SelectItem value="due-date-asc">Due Date (Earliest)</SelectItem>
+              <SelectItem value="due-date-desc">Due Date (Latest)</SelectItem>
+              <SelectItem value="row-asc">Row (Low to High)</SelectItem>
+              <SelectItem value="row-desc">Row (High to Low)</SelectItem>
+              <SelectItem value="booking-asc">Booking Code (A to Z)</SelectItem>
+              <SelectItem value="booking-desc">
+                Booking Code (Z to A)
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
 
       <div className="border border-border bg-white overflow-hidden flex flex-col">
         <div className="overflow-x-auto scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent pb-2">
           <Table className="min-w-[940px] text-sm">
             <TableHeader className="bg-muted/50">
               <TableRow>
+                <TableHead className="pl-4 py-2 text-xs">Row</TableHead>
                 <TableHead className="pl-4 py-2 text-xs">Booking</TableHead>
                 <TableHead className="py-2 text-xs">Customer</TableHead>
                 <TableHead className="py-2 text-xs">Term</TableHead>
@@ -474,7 +716,7 @@ export default function LateFeesSection() {
               {rows.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={9}
+                    colSpan={10}
                     className="h-24 text-center text-muted-foreground"
                   >
                     No late fee rows found.
@@ -488,6 +730,9 @@ export default function LateFeesSection() {
                       key={row.rowId}
                       className="hover:bg-muted/50 transition-colors"
                     >
+                      <TableCell className="pl-4 py-2 font-medium">
+                        {row.rowNumber || "-"}
+                      </TableCell>
                       <TableCell className="pl-4 py-2 align-top">
                         <div className="font-medium">{row.bookingCode}</div>
                         <div className="text-xs text-muted-foreground">
@@ -525,8 +770,14 @@ export default function LateFeesSection() {
                           <Badge variant="destructive">
                             {row.daysOverdue} days
                           </Badge>
+                        ) : row.isPaid ? (
+                          <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border border-green-200">
+                            Paid
+                          </Badge>
                         ) : (
-                          <Badge variant="secondary">0 days</Badge>
+                          <span className="text-xs text-muted-foreground">
+                            -
+                          </span>
                         )}
                       </TableCell>
                       <TableCell className="py-2">
@@ -548,9 +799,11 @@ export default function LateFeesSection() {
                               variant="outline"
                               className="h-8 px-3"
                               disabled={isBusy}
-                              onClick={() => handleApplyNotice(row)}
+                              onClick={() => handleOpenSendNoticeModal(row)}
                             >
-                              Apply Notice
+                              {isBusy && isLoadingNoticePreview
+                                ? "Preparing..."
+                                : "Send Notice"}
                             </Button>
                           ) : (
                             <Button
@@ -558,9 +811,15 @@ export default function LateFeesSection() {
                               variant="outline"
                               className="h-8 px-3"
                               disabled={isBusy}
-                              onClick={() => handleResendNotice(row)}
+                              onClick={() =>
+                                handleOpenSendNoticeModal(row, {
+                                  resend: true,
+                                })
+                              }
                             >
-                              Resend Notice
+                              {isBusy && isLoadingNoticePreview
+                                ? "Preparing..."
+                                : "Resend Notice"}
                             </Button>
                           )}
 
@@ -588,6 +847,53 @@ export default function LateFeesSection() {
           </Table>
         </div>
       </div>
+
+      <AlertDialog
+        open={isProcessConfirmOpen}
+        onOpenChange={setIsProcessConfirmOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Send notices to all pending?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will process all eligible late fees and send notices for
+              pending overdue terms based on the current late-fees rules and
+              effective date.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isProcessingNow}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleProcessNow}
+              disabled={isProcessingNow}
+            >
+              {isProcessingNow ? "Sending..." : "Send notice to all pending"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <LateFeeNoticeComposerModal
+        open={isNoticeModalOpen}
+        onOpenChange={(open) => {
+          setIsNoticeModalOpen(open);
+          if (!open) {
+            setActiveNoticeRow(null);
+            setIsResendNoticeFlow(false);
+            setNoticeRecipient("");
+            setNoticeDraftSubject("");
+            setNoticeDraftHtml("");
+          }
+        }}
+        termLabel={activeNoticeRow?.term}
+        recipient={noticeRecipient}
+        initialSubject={noticeDraftSubject}
+        initialHtmlContent={noticeDraftHtml}
+        isSending={isSendingNotice}
+        onSend={handleSendNoticeFromModal}
+      />
     </div>
   );
 }
