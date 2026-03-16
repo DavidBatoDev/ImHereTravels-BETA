@@ -137,6 +137,10 @@ export default function ScheduledEmailsTab() {
     isReschedulePaymentRemindersDialogOpen,
     setIsReschedulePaymentRemindersDialogOpen,
   ] = useState(false);
+  const [
+    isRescheduleAllPaymentRemindersDialogOpen,
+    setIsRescheduleAllPaymentRemindersDialogOpen,
+  ] = useState(false);
   const [selectedEmail, setSelectedEmail] = useState<ScheduledEmail | null>(
     null,
   );
@@ -147,6 +151,10 @@ export default function ScheduledEmailsTab() {
     useState(false);
   const [isReschedulingPaymentReminders, setIsReschedulingPaymentReminders] =
     useState(false);
+  const [
+    isReschedulingAllPaymentReminders,
+    setIsReschedulingAllPaymentReminders,
+  ] = useState(false);
   const [newEmailData, setNewEmailData] = useState<Partial<ScheduledEmailData>>(
     {
       maxAttempts: 3,
@@ -531,6 +539,34 @@ export default function ScheduledEmailsTab() {
       });
     } finally {
       setIsReschedulingPaymentReminders(false);
+    }
+  };
+
+  // Recompute pending payment reminder schedules for all bookings
+  const handleRescheduleAllPendingPaymentReminders = async () => {
+    try {
+      setIsReschedulingAllPaymentReminders(true);
+      setIsRescheduleAllPaymentRemindersDialogOpen(false);
+
+      const result =
+        await ScheduledEmailService.rescheduleAllPendingPaymentReminders();
+
+      toast({
+        title: "Success",
+        description: `Updated ${result.updated} pending reminders globally (Examined: ${result.examined})`,
+      });
+
+      // Real-time listener will auto-update
+    } catch (error) {
+      console.error("Error rescheduling all pending payment reminders:", error);
+      toast({
+        title: "Error",
+        description:
+          "Failed to recompute all pending payment reminder schedules",
+        variant: "destructive",
+      });
+    } finally {
+      setIsReschedulingAllPaymentReminders(false);
     }
   };
 
@@ -1166,6 +1202,17 @@ export default function ScheduledEmailsTab() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setIsRescheduleAllPaymentRemindersDialogOpen(true)}
+            variant="outline"
+            size="sm"
+            disabled={isReschedulingAllPaymentReminders}
+          >
+            <RefreshCw className="w-4 h-4 mr-2" />
+            {isReschedulingAllPaymentReminders
+              ? "Recomputing..."
+              : "Recompute All Pending"}
+          </Button>
           <Button
             onClick={() => setIsCreateDialogOpen(true)}
             className="bg-red-600 hover:bg-red-700"
@@ -2070,6 +2117,43 @@ export default function ScheduledEmailsTab() {
         </AlertDialogContent>
       </AlertDialog>
 
+      {/* Recompute All Pending Payment Reminders Confirmation Dialog */}
+      <AlertDialog
+        open={isRescheduleAllPaymentRemindersDialogOpen}
+        onOpenChange={setIsRescheduleAllPaymentRemindersDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Recompute All Pending Reminder Dates
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Recompute all pending payment reminder schedules across all
+              bookings using due date minus 14 days at 9:00 AM Asia/Singapore.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4">
+            <p className="text-sm text-muted-foreground mb-2">
+              This action only updates pending payment reminders.
+            </p>
+            <ul className="list-disc ml-6 space-y-1 text-sm text-muted-foreground">
+              <li>Sent reminders are untouched</li>
+              <li>Cancelled, skipped, and failed reminders are untouched</li>
+              <li>Missing or invalid due dates are skipped safely</li>
+            </ul>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRescheduleAllPendingPaymentReminders}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              Recompute All Pending
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {/* Loading Modal for Deleting Payment Reminders */}
       {isDeletingPaymentReminders && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -2110,6 +2194,32 @@ export default function ScheduledEmailsTab() {
                   <p className="text-sm text-muted-foreground">
                     Updating pending payment reminder schedules from due
                     dates...
+                  </p>
+                </div>
+              </div>
+              <div className="text-xs text-muted-foreground space-y-1">
+                <p>• Applying due date minus 14 days rule</p>
+                <p>• Setting send time to 09:00 Asia/Singapore</p>
+                <p>• Keeping non-pending reminders unchanged</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Loading Modal for Recomputing All Payment Reminders */}
+      {isReschedulingAllPaymentReminders && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <div className="flex flex-col space-y-4">
+              <div className="flex items-center space-x-4">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground">
+                    Recomputing All Pending Reminders
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Updating pending payment reminder schedules globally...
                   </p>
                 </div>
               </div>

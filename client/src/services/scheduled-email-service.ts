@@ -423,6 +423,32 @@ export class ScheduledEmailService {
   }
 
   /**
+   * Recompute scheduled dates for all pending payment reminders.
+   */
+  static async rescheduleAllPendingPaymentReminders() {
+    const response = await fetch(`/api/scheduled-emails/payment-reminders`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(
+        result.error || "Failed to reschedule all pending payment reminders",
+      );
+    }
+
+    return result.data;
+  }
+
+  /**
    * Manually trigger scheduled email processing (for testing)
    */
   static async triggerProcessing() {
