@@ -1,5 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { doc, getDoc, updateDoc, collection, getDocs, Timestamp } from "firebase/firestore";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  collection,
+  getDocs,
+  Timestamp,
+} from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import GmailApiService from "@/lib/gmail/gmail-api-service";
 import EmailTemplateService from "@/services/email-template-service";
@@ -126,14 +133,26 @@ async function rerenderEmailTemplate(
       // Re-render time is the resend time, so use now to determine Late status
       const sendDate = new Date();
 
+      const getTermLatePenalty = (termLabel: string): number => {
+        const rawPenalty = (bookingData as any)[
+          `${termLabel.toLowerCase()}LateFeesPenalty`
+        ];
+        const parsed = Number(rawPenalty);
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+
       freshVariables.termData = visibleTerms.map((t) => {
         const tIndex = parseInt(t.replace("P", "")) - 1;
         const tLower = t.toLowerCase();
         const dueDateRaw = (bookingData as any)[`${tLower}DueDate`];
         const parsedDueDate = parseDueDateForTerm(dueDateRaw, tIndex);
         const dueDateStr = formatDate(parsedDueDate);
-        const datePaidStr = formatDate((bookingData as any)[`${tLower}DatePaid`] || "");
-        const isLate = !datePaidStr && !!dueDateStr && new Date(dueDateStr) < sendDate;
+        const datePaidStr = formatDate(
+          (bookingData as any)[`${tLower}DatePaid`] || "",
+        );
+        const isLate =
+          !datePaidStr && !!dueDateStr && new Date(dueDateStr) < sendDate;
+        const penaltyValue = getTermLatePenalty(t);
 
         return {
           term: t,
@@ -141,14 +160,40 @@ async function rerenderEmailTemplate(
           dueDate: dueDateStr,
           datePaid: datePaidStr,
           isLate,
+          penaltyValue,
+          penaltyAmount: penaltyValue > 0 ? formatGBP(penaltyValue) : "",
         };
       });
+
+      const totalLateFeesFromTerms = (freshVariables.termData as any[]).reduce(
+        (sum, item) => sum + (Number(item.penaltyValue) || 0),
+        0,
+      );
+      const bookingTotalLateFees = Number(
+        (bookingData as any).totalLateFees || 0,
+      );
+      const totalLateFeesValue =
+        totalLateFeesFromTerms > 0
+          ? totalLateFeesFromTerms
+          : Number.isFinite(bookingTotalLateFees)
+            ? bookingTotalLateFees
+            : 0;
+      const currentTermLatePenalty = templateVariables.paymentTerm
+        ? getTermLatePenalty(templateVariables.paymentTerm as string)
+        : 0;
 
       freshVariables.totalAmount = formatGBP(
         bookingData.useDiscountedTourCost
           ? bookingData.discountedTourCost
           : bookingData.originalTourCost,
       );
+      freshVariables.totalLateFees = formatGBP(totalLateFeesValue);
+      freshVariables.totalLateFeesValue = totalLateFeesValue;
+      freshVariables.hasLateFeePenalties = (
+        freshVariables.termData as any[]
+      ).some((item) => Number(item.penaltyValue) > 0);
+      freshVariables.lateFeePenalty = formatGBP(currentTermLatePenalty);
+      freshVariables.lateFeePenaltyValue = currentTermLatePenalty;
       freshVariables.reservationFee = formatGBP(bookingData.reservationFee);
       freshVariables.paidTerms = formatGBP(bookingData.paidTerms);
       freshVariables.paid = formatGBP(bookingData.paid);
@@ -173,29 +218,40 @@ async function rerenderEmailTemplate(
     } Due`;
 
     let resolvedBcc: string[] = [];
-    if (templateData.bccGroups && Array.isArray(templateData.bccGroups) && templateData.bccGroups.length > 0) {
+    if (
+      templateData.bccGroups &&
+      Array.isArray(templateData.bccGroups) &&
+      templateData.bccGroups.length > 0
+    ) {
       try {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        
+
         // 1. Literal emails
-        const literalEmails = templateData.bccGroups.filter((g: any) => typeof g === "string" && emailRegex.test(g));
+        const literalEmails = templateData.bccGroups.filter(
+          (g: any) => typeof g === "string" && emailRegex.test(g),
+        );
         resolvedBcc.push(...literalEmails);
-        
+
         // 2. References to bcc-users (by ID or bccId)
-        const refIds = templateData.bccGroups.filter((g: any) => typeof g === "string" && !emailRegex.test(g));
-        
+        const refIds = templateData.bccGroups.filter(
+          (g: any) => typeof g === "string" && !emailRegex.test(g),
+        );
+
         if (refIds.length > 0) {
           // Chunk to handle Firestore "in" query limit of 10
           for (let i = 0; i < refIds.length; i += 10) {
             const chunk = refIds.slice(i, i + 10);
-            
+
             // By bccId
-            const bccIdQuery = query(collection(db, "bcc-users"), where("bccId", "in", chunk));
+            const bccIdQuery = query(
+              collection(db, "bcc-users"),
+              where("bccId", "in", chunk),
+            );
             const bccIdSnap = await getDocs(bccIdQuery);
-            bccIdSnap.forEach(doc => {
+            bccIdSnap.forEach((doc) => {
               if (doc.data().email) resolvedBcc.push(doc.data().email);
             });
-            
+
             // By document ID
             try {
               for (const id of chunk) {
@@ -224,11 +280,11 @@ async function rerenderEmailTemplate(
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id: scheduledEmailId } = await params;
-    
+
     // Get the scheduled email document
     const emailDocRef = doc(db, "scheduledEmails", scheduledEmailId);
     const emailDoc = await getDoc(emailDocRef);
@@ -236,29 +292,45 @@ export async function POST(
     if (!emailDoc.exists()) {
       return NextResponse.json(
         { success: false, error: "Scheduled email not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
     const emailData = emailDoc.data();
 
-    if (emailData.status !== "sent" && emailData.status !== "skipped" && emailData.status !== "pending") {
+    if (
+      emailData.status !== "sent" &&
+      emailData.status !== "skipped" &&
+      emailData.status !== "pending"
+    ) {
       return NextResponse.json(
-        { success: false, error: "Only sent, skipped, or pending emails can be sent or resent" },
-        { status: 400 }
+        {
+          success: false,
+          error: "Only sent, skipped, or pending emails can be sent or resent",
+        },
+        { status: 400 },
       );
     }
 
     const gmailService = new GmailApiService();
-    
+
     let emailSubject = emailData.subject;
     let emailHtmlContent = emailData.htmlContent;
     let emailBcc = emailData.bcc || [];
-    
+
     // Re-render template if payment reminder
-    if (emailData.emailType === "payment-reminder" && emailData.bookingId && emailData.templateId && emailData.templateVariables) {
+    if (
+      emailData.emailType === "payment-reminder" &&
+      emailData.bookingId &&
+      emailData.templateId &&
+      emailData.templateVariables
+    ) {
       try {
-        const freshEmail = await rerenderEmailTemplate(emailData.bookingId, emailData.templateId, emailData.templateVariables);
+        const freshEmail = await rerenderEmailTemplate(
+          emailData.bookingId,
+          emailData.templateId,
+          emailData.templateVariables,
+        );
         emailSubject = freshEmail.subject;
         emailHtmlContent = freshEmail.htmlContent;
         if (freshEmail.bcc && freshEmail.bcc.length > 0) {
@@ -288,12 +360,11 @@ export async function POST(
       updatedAt: Timestamp.now(),
     });
 
-    return NextResponse.json({ 
-      success: true, 
-      message: "Email resent successfully", 
-      emailId: scheduledEmailId 
+    return NextResponse.json({
+      success: true,
+      message: "Email resent successfully",
+      emailId: scheduledEmailId,
     });
-
   } catch (error) {
     console.error("Error in resend scheduled email API:", error);
     return NextResponse.json(
@@ -302,7 +373,7 @@ export async function POST(
         error: "Failed to resend scheduled email",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

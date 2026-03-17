@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+  <body
+    style="
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f4f4f4;
+      margin: 0;
+    "
+  >
+    <div
+      style="
+        max-width: 600px;
+        margin: 0 auto;
+        background-color: #ffffff;
+        padding: 20px;
+        border-radius: 8px;
+      "
+    >
+      <p style="font-size: 16px; color: #333333">Hi {{ fullName }},</p>
+
+      <p style="font-size: 16px; color: #333333">
+        We've received your proof of payment sent on
+        <strong>{{ proofDate }}</strong>, and we're happy to confirm that your
+        payment has been successfully received and verified.
+      </p>
+
+      <p style="font-size: 16px; color: #333333">
+        Your booking has now been updated in our system.
+      </p>
+
+      <p style="font-size: 16px; color: #333333">
+        <strong>Approved term:</strong> {{ installmentTermLabel }}
+      </p>
+
+      <h3 style="font-size: 20px; color: #d32f2f; margin-top: 20px">
+        What's Next
+      </h3>
+
+      <p style="font-size: 16px; color: #333333">
+        You can view your updated payment status anytime through your Booking
+        Status page.
+      </p>
+
+      {% if bookingStatusUrl %}
+      <p style="margin-top: 15px">
+        <a
+          href="{{ bookingStatusUrl }}"
+          target="_blank"
+          style="
+            display: inline-block;
+            background-color: #e74c3c;
+            color: #ffffff;
+            text-decoration: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-weight: bold;
+          "
+        >
+          View Booking Status
+        </a>
+      </p>
+      {% endif %}
+
+      <p style="font-size: 16px; color: #333333">
+        If you have any upcoming payments as part of your payment plan, please
+        make sure to complete them before their due dates to keep your booking
+        active.
+      </p>
+
+      <p style="font-size: 16px; color: #333333">
+        If you have any questions, feel free to reply to this email and our
+        team will be happy to assist you.
+      </p>
+
+      <p style="font-size: 16px; color: #333333">
+        Thank you and we look forward to having you on the trip!
+      </p>
+
+      <p style="font-size: 16px; color: #333333">Best regards,</p>
+      <p style="font-size: 16px; color: #333333">
+        <strong>ImHereTravels Team</strong>
+      </p>
+    </div>
+  </body>
+</html>

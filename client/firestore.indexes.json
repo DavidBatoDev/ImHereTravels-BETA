@@ -161,6 +161,20 @@
           "order": "ASCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "scheduledEmails",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "emailType",
+          "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "createdAt",
+          "order": "DESCENDING"
+        }
+      ]
     }
   ],
   "fieldOverrides": []

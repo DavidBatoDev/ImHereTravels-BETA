@@ -12,7 +12,7 @@ import {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ bookingDocumentId: string }> }
+  { params }: { params: Promise<{ bookingDocumentId: string }> },
 ) {
   try {
     const { searchParams } = new URL(request.url);
@@ -25,7 +25,7 @@ export async function GET(
     if (!bookingDocumentId) {
       return NextResponse.json(
         { success: false, error: "Access token is required" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -33,7 +33,7 @@ export async function GET(
     const bookingsQuery = query(
       collection(db, "bookings"),
       where("access_token", "==", bookingDocumentId),
-      limit(1)
+      limit(1),
     );
     const bookingsSnap = await getDocs(bookingsQuery);
 
@@ -41,7 +41,7 @@ export async function GET(
       console.log("Booking not found with access token:", bookingDocumentId);
       return NextResponse.json(
         { success: false, error: "Booking not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -63,14 +63,14 @@ export async function GET(
         "Verifying email - Booking:",
         bookingEmail,
         "Provided:",
-        providedEmail
+        providedEmail,
       );
 
       if (bookingEmail !== providedEmail) {
         console.log("Email mismatch");
         return NextResponse.json(
           { success: false, error: "Email does not match booking records" },
-          { status: 403 }
+          { status: 403 },
         );
       }
     }
@@ -80,7 +80,7 @@ export async function GET(
     try {
       const confirmedBookingsQuery = query(
         collection(db, "confirmedBookings"),
-        where("bookingDocumentId", "==", bookingDoc.id)
+        where("bookingDocumentId", "==", bookingDoc.id),
       );
       const confirmedBookingsSnap = await getDocs(confirmedBookingsQuery);
 
@@ -91,7 +91,7 @@ export async function GET(
           const packRef = doc(
             db,
             "fileObjects",
-            confirmedBooking.preDeparturePackId
+            confirmedBooking.preDeparturePackId,
           );
           const packSnap = await getDoc(packRef);
 
@@ -174,6 +174,16 @@ export async function GET(
       p4Amount: bookingData.p4Amount,
       p4DatePaid: bookingData.p4DatePaid,
 
+      // Late Fee Fields
+      p1LateFeesPenalty: bookingData.p1LateFeesPenalty,
+      p1LateFeeAppliedAt: bookingData.p1LateFeeAppliedAt,
+      p2LateFeesPenalty: bookingData.p2LateFeesPenalty,
+      p2LateFeeAppliedAt: bookingData.p2LateFeeAppliedAt,
+      p3LateFeesPenalty: bookingData.p3LateFeesPenalty,
+      p3LateFeeAppliedAt: bookingData.p3LateFeeAppliedAt,
+      p4LateFeesPenalty: bookingData.p4LateFeesPenalty,
+      p4LateFeeAppliedAt: bookingData.p4LateFeeAppliedAt,
+
       // Email Links (for viewing confirmation)
       sentEmailLink: bookingData.sentEmailLink,
 
@@ -190,7 +200,7 @@ export async function GET(
 
       // Pre-Departure Pack
       preDeparturePack,
-      
+
       // Payment Tokens (only in development for auto-confirm)
       ...(process.env.NEXT_PUBLIC_ENV === "development" && {
         paymentTokens: bookingData.paymentTokens,
@@ -202,7 +212,7 @@ export async function GET(
     console.error("Error fetching booking:", error);
     return NextResponse.json(
       { success: false, error: "Failed to fetch booking details" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

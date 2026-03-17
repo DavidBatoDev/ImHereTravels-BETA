@@ -132,6 +132,22 @@ import {
   runMigration as runMigration041,
   rollbackMigration as rollbackMigration041,
 } from "./041-pre-departure-config";
+import {
+  runMigration as runMigration042,
+  rollbackMigration as rollbackMigration042,
+} from "./042-revolut-payment-status-email-templates";
+import {
+  runMigration as runMigration043,
+  rollbackMigration as rollbackMigration043,
+} from "./043-update-revolut-payment-status-term-label";
+import {
+  runMigration as runMigration044,
+  rollbackMigration as rollbackMigration044,
+} from "./044-late-fees-config";
+import {
+  runMigration as runMigration045,
+  rollbackMigration as rollbackMigration045,
+} from "./045-late-fee-notice-email-template";
 import migration034 from "./034-initialize-columns-metadata";
 
 // ============================================================================
@@ -155,7 +171,7 @@ async function main() {
       console.log(`\n🎯 ${result002.message}`);
       if (result002.details) {
         console.log(
-          `📊 Details: ${result002.details.created} created, ${result002.details.skipped} skipped, ${result002.details.errors} errors`
+          `📊 Details: ${result002.details.created} created, ${result002.details.skipped} skipped, ${result002.details.errors} errors`,
         );
         if (
           result002.details.errorDetails &&
@@ -163,7 +179,48 @@ async function main() {
         ) {
           console.log("\n❌ Errors:");
           result002.details.errorDetails.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
+          );
+        }
+      }
+      break;
+
+    case "043":
+      console.log(
+        "📊 Running migration: 043-update-revolut-payment-status-term-label",
+      );
+      const result043 = await runMigration043(dryRun);
+      console.log(`\n🎯 ${result043.message}`);
+      if (result043.details) {
+        console.log(
+          `📊 Details: ${result043.details.updated} updated, ${result043.details.skipped} skipped, ${result043.details.errors.length} errors`,
+        );
+        if (result043.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          result043.details.errors.forEach((error) =>
+            console.log(`  - ${error}`),
+          );
+        }
+      }
+      break;
+
+    case "044":
+      console.log("📊 Running migration: 044-late-fees-config");
+      await runMigration044();
+      break;
+
+    case "045":
+      console.log("📊 Running migration: 045-late-fee-notice-email-template");
+      const result045 = await runMigration045(dryRun);
+      console.log(`\n🎯 ${result045.message}`);
+      if (result045.details) {
+        console.log(
+          `📊 Details: ${result045.details.created} created, ${result045.details.skipped} skipped, ${result045.details.errors.length} errors`,
+        );
+        if (result045.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          result045.details.errors.forEach((error) =>
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -175,7 +232,7 @@ async function main() {
       console.log(`\n🎯 ${result003.message}`);
       if (result003.details) {
         console.log(
-          `📊 Details: ${result003.details.created} created, ${result003.details.skipped} skipped, ${result003.details.errors} errors`
+          `📊 Details: ${result003.details.created} created, ${result003.details.skipped} skipped, ${result003.details.errors} errors`,
         );
         if (
           result003.details.errorDetails &&
@@ -183,7 +240,7 @@ async function main() {
         ) {
           console.log("\n❌ Errors:");
           result003.details.errorDetails.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -195,12 +252,12 @@ async function main() {
       console.log(`\n🎯 ${result004.message}`);
       if (result004.details) {
         console.log(
-          `📊 Details: ${result004.details.created} created, ${result004.details.skipped} skipped, ${result004.details.errors.length} errors`
+          `📊 Details: ${result004.details.created} created, ${result004.details.skipped} skipped, ${result004.details.errors.length} errors`,
         );
         if (result004.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           result004.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -212,12 +269,12 @@ async function main() {
       console.log(`\n🎯 ${result005.message}`);
       if (result005.details) {
         console.log(
-          `📊 Details: ${result005.details.updated} updated, ${result005.details.skipped} skipped, ${result005.details.errors.length} errors`
+          `📊 Details: ${result005.details.updated} updated, ${result005.details.skipped} skipped, ${result005.details.errors.length} errors`,
         );
         if (result005.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           result005.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -229,12 +286,12 @@ async function main() {
       console.log(`\n🎯 ${result006.message}`);
       if (result006.details) {
         console.log(
-          `📊 Details: ${result006.details.created} created, ${result006.details.skipped} skipped, ${result006.details.errors.length} errors`
+          `📊 Details: ${result006.details.created} created, ${result006.details.skipped} skipped, ${result006.details.errors.length} errors`,
         );
         if (result006.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           result006.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -246,12 +303,12 @@ async function main() {
       console.log(`\n🎯 ${result008.message}`);
       if (result008.details) {
         console.log(
-          `�� Details: ${result008.details.created} created, ${result008.details.skipped} skipped, ${result008.details.errors.length} errors`
+          `�� Details: ${result008.details.created} created, ${result008.details.skipped} skipped, ${result008.details.errors.length} errors`,
         );
         if (result008.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           result008.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -259,18 +316,18 @@ async function main() {
 
     case "009":
       console.log(
-        "📊 Running migration: 009-initial-payment-reminder-template"
+        "📊 Running migration: 009-initial-payment-reminder-template",
       );
       const result009 = await runMigration009(dryRun);
       console.log(`\n🎯 ${result009.message}`);
       if (result009.details) {
         console.log(
-          `📊 Details: ${result009.details.created} created, ${result009.details.skipped} skipped, ${result009.details.errors.length} errors`
+          `📊 Details: ${result009.details.created} created, ${result009.details.skipped} skipped, ${result009.details.errors.length} errors`,
         );
         if (result009.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           result009.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -278,18 +335,18 @@ async function main() {
 
     case "010":
       console.log(
-        "📊 Running migration: 010-scheduled-reminder-email-template"
+        "📊 Running migration: 010-scheduled-reminder-email-template",
       );
       const result010 = await runMigration010(dryRun);
       console.log(`\n🎯 ${result010.message}`);
       if (result010.details) {
         console.log(
-          `📊 Details: ${result010.details.created} created, ${result010.details.skipped} skipped, ${result010.details.errors.length} errors`
+          `📊 Details: ${result010.details.created} created, ${result010.details.skipped} skipped, ${result010.details.errors.length} errors`,
         );
         if (result010.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           result010.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -301,12 +358,12 @@ async function main() {
       console.log(`\n🎯 ${result012.message}`);
       if (result012.details) {
         console.log(
-          `📊 Details: ${result012.details.created} created, ${result012.details.skipped} skipped, ${result012.details.errors.length} errors`
+          `📊 Details: ${result012.details.created} created, ${result012.details.skipped} skipped, ${result012.details.errors.length} errors`,
         );
         if (result012.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           result012.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -322,12 +379,12 @@ async function main() {
             result013.details.columnsFound
           } columns found, booking ${
             result013.details.bookingCreated ? "created" : "not created"
-          }, ${result013.details.errors.length} errors`
+          }, ${result013.details.errors.length} errors`,
         );
         if (result013.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           result013.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -339,14 +396,14 @@ async function main() {
       console.log(`\n🎯 ${result014.message}`);
       if (result014.details) {
         console.log(
-          `📊 Details: ${result014.details.updatedCount} updated, ${result014.details.skippedCount} skipped, ${result014.details.errorCount} errors`
+          `📊 Details: ${result014.details.updatedCount} updated, ${result014.details.skippedCount} skipped, ${result014.details.errorCount} errors`,
         );
         if (result014.details.errorCount > 0) {
           console.log("\n❌ Errors:");
           result014.details.migrationResults
             .filter((r: any) => r.status === "error")
             .forEach((error: any) =>
-              console.log(`  - ${error.id}: ${error.error}`)
+              console.log(`  - ${error.id}: ${error.error}`),
             );
         }
       }
@@ -358,14 +415,14 @@ async function main() {
       console.log(`\n🎯 ${result015.message}`);
       if (result015.details) {
         console.log(
-          `📊 Details: ${result015.details.updatedCount} updated, ${result015.details.skippedCount} skipped, ${result015.details.errorCount} errors`
+          `📊 Details: ${result015.details.updatedCount} updated, ${result015.details.skippedCount} skipped, ${result015.details.errorCount} errors`,
         );
         if (result015.details.errorCount > 0) {
           console.log("\n❌ Errors:");
           result015.details.migrationResults
             .filter((r: any) => r.status === "error")
             .forEach((error: any) =>
-              console.log(`  - ${error.id}: ${error.error}`)
+              console.log(`  - ${error.id}: ${error.error}`),
             );
         }
       }
@@ -377,14 +434,14 @@ async function main() {
       console.log(`\n🎯 ${result016.message}`);
       if (result016.details) {
         console.log(
-          `📊 Details: ${result016.details.updatedCount} updated, ${result016.details.skippedCount} skipped, ${result016.details.errorCount} errors`
+          `📊 Details: ${result016.details.updatedCount} updated, ${result016.details.skippedCount} skipped, ${result016.details.errorCount} errors`,
         );
         if (result016.details.errorCount > 0) {
           console.log("\n❌ Errors:");
           result016.details.migrationResults
             .filter((r: any) => r.status === "error")
             .forEach((error: any) =>
-              console.log(`  - ${error.id}: ${error.error}`)
+              console.log(`  - ${error.id}: ${error.error}`),
             );
         }
       }
@@ -396,14 +453,14 @@ async function main() {
       console.log(`\n🎯 ${result017.message}`);
       if (result017.details) {
         console.log(
-          `📊 Details: ${result017.details.deletedCount} deleted, ${result017.details.addedCount} added, ${result017.details.updatedCount} updated, ${result017.details.errorCount} errors`
+          `📊 Details: ${result017.details.deletedCount} deleted, ${result017.details.addedCount} added, ${result017.details.updatedCount} updated, ${result017.details.errorCount} errors`,
         );
         if (result017.details.errorCount > 0) {
           console.log("\n❌ Errors:");
           result017.details.migrationResults
             .filter((r: any) => r.status === "error")
             .forEach((error: any) =>
-              console.log(`  - ${error.id}: ${error.error}`)
+              console.log(`  - ${error.id}: ${error.error}`),
             );
         }
       }
@@ -442,7 +499,7 @@ async function main() {
       console.log(`\n🎯 ${result027.message}`);
       if (result027.details) {
         console.log(
-          `📊 Details: ${result027.details.created} created, ${result027.details.skipped} skipped, ${result027.details.errors} errors`
+          `📊 Details: ${result027.details.created} created, ${result027.details.skipped} skipped, ${result027.details.errors} errors`,
         );
         console.log(`📄 File: ${result027.details.fileUsed}`);
       }
@@ -484,12 +541,12 @@ async function main() {
       console.log(`\n🎯 ${result033.message}`);
       if (result033.details) {
         console.log(
-          `📊 Details: ${result033.details.updated} updated, ${result033.details.skipped} skipped, ${result033.details.errors.length} errors`
+          `📊 Details: ${result033.details.updated} updated, ${result033.details.skipped} skipped, ${result033.details.errors.length} errors`,
         );
         if (result033.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           result033.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -497,7 +554,7 @@ async function main() {
 
     case "040":
       console.log(
-        "📊 Running migration: 040-booking-confirmation-email-template"
+        "📊 Running migration: 040-booking-confirmation-email-template",
       );
       await runMigration040();
       break;
@@ -507,18 +564,37 @@ async function main() {
       await runMigration041();
       break;
 
+    case "042":
+      console.log(
+        "📊 Running migration: 042-revolut-payment-status-email-templates",
+      );
+      const result042 = await runMigration042(dryRun);
+      console.log(`\n🎯 ${result042.message}`);
+      if (result042.details) {
+        console.log(
+          `📊 Details: ${result042.details.created} created, ${result042.details.skipped} skipped, ${result042.details.errors.length} errors`,
+        );
+        if (result042.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          result042.details.errors.forEach((error) =>
+            console.log(`  - ${error}`),
+          );
+        }
+      }
+      break;
+
     case "034":
       console.log("📊 Running migration: 034-initialize-columns-metadata");
       const result034 = await migration034.run();
       console.log(`\n🎯 ${result034.message}`);
       if (result034.details) {
         console.log(
-          `📊 Details: ${result034.details.usersUpdated} users updated, ${result034.details.errors.length} errors`
+          `📊 Details: ${result034.details.usersUpdated} users updated, ${result034.details.errors.length} errors`,
         );
         if (result034.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           result034.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -530,16 +606,16 @@ async function main() {
       console.log(`\n🎯 ${result023.message}`);
       if (result023.details) {
         console.log(
-          `📊 Details: ${result023.details.updatedCount} updated, ${result023.details.skippedCount} skipped, ${result023.details.errorCount} errors`
+          `📊 Details: ${result023.details.updatedCount} updated, ${result023.details.skippedCount} skipped, ${result023.details.errorCount} errors`,
         );
         if (result023.details.migrationResults) {
           const errors = result023.details.migrationResults.filter(
-            (r: any) => r.status === "error"
+            (r: any) => r.status === "error",
           );
           if (errors.length > 0) {
             console.log("\n❌ Errors:");
             errors.forEach((error: any) =>
-              console.log(`  - ${error.id}: ${error.error}`)
+              console.log(`  - ${error.id}: ${error.error}`),
             );
           }
         }
@@ -558,7 +634,7 @@ async function main() {
 
     case "026":
       console.log(
-        "📊 Running migration: 026-move-payment-progress-to-payment-setting"
+        "📊 Running migration: 026-move-payment-progress-to-payment-setting",
       );
       await runMigration026();
       break;
@@ -570,7 +646,7 @@ async function main() {
       console.log(`\n🎯 ${rollbackResult002.message}`);
       if (rollbackResult002.details) {
         console.log(
-          `📊 Details: ${rollbackResult002.details.deleted} deleted, ${rollbackResult002.details.errors} errors`
+          `📊 Details: ${rollbackResult002.details.deleted} deleted, ${rollbackResult002.details.errors} errors`,
         );
         if (
           rollbackResult002.details.errorDetails &&
@@ -578,10 +654,31 @@ async function main() {
         ) {
           console.log("\n❌ Errors:");
           rollbackResult002.details.errorDetails.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
+      break;
+
+    case "rollback043":
+      console.log(
+        "🔄 Rolling back migration: 043-update-revolut-payment-status-term-label",
+      );
+      const rollbackResult043 = await rollbackMigration043();
+      console.log(`\n🎯 ${rollbackResult043.message}`);
+      break;
+
+    case "rollback044":
+      console.log("🔄 Rolling back migration: 044-late-fees-config");
+      await rollbackMigration044();
+      break;
+
+    case "rollback045":
+      console.log(
+        "🔄 Rolling back migration: 045-late-fee-notice-email-template",
+      );
+      const rollbackResult045 = await rollbackMigration045();
+      console.log(`\n🎯 ${rollbackResult045.message}`);
       break;
 
     case "rollback003":
@@ -590,7 +687,7 @@ async function main() {
       console.log(`\n🎯 ${rollbackResult003.message}`);
       if (rollbackResult003.details) {
         console.log(
-          `📊 Details: ${rollbackResult003.details.deleted} deleted, ${rollbackResult003.details.errors} errors`
+          `📊 Details: ${rollbackResult003.details.deleted} deleted, ${rollbackResult003.details.errors} errors`,
         );
         if (
           rollbackResult003.details.errorDetails &&
@@ -598,7 +695,7 @@ async function main() {
         ) {
           console.log("\n❌ Errors:");
           rollbackResult003.details.errorDetails.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -610,12 +707,12 @@ async function main() {
       console.log(`\n🎯 ${rollbackResult004.message}`);
       if (rollbackResult004.details) {
         console.log(
-          `📊 Details: ${rollbackResult004.details.deleted} deleted, ${rollbackResult004.details.errors.length} errors`
+          `📊 Details: ${rollbackResult004.details.deleted} deleted, ${rollbackResult004.details.errors.length} errors`,
         );
         if (rollbackResult004.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           rollbackResult004.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -627,12 +724,12 @@ async function main() {
       console.log(`\n🎯 ${rollbackResult005.message}`);
       if (rollbackResult005.details) {
         console.log(
-          `📊 Details: ${rollbackResult005.details.reverted} reverted, ${rollbackResult005.details.errors.length} errors`
+          `📊 Details: ${rollbackResult005.details.reverted} reverted, ${rollbackResult005.details.errors.length} errors`,
         );
         if (rollbackResult005.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           rollbackResult005.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -644,12 +741,12 @@ async function main() {
       console.log(`\n🎯 ${rollbackResult006.message}`);
       if (rollbackResult006.details) {
         console.log(
-          `📊 Details: ${rollbackResult006.details.deleted} deleted, ${rollbackResult006.details.errors.length} errors`
+          `📊 Details: ${rollbackResult006.details.deleted} deleted, ${rollbackResult006.details.errors.length} errors`,
         );
         if (rollbackResult006.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           rollbackResult006.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -661,12 +758,12 @@ async function main() {
       console.log(`\n🎯 ${rollbackResult008.message}`);
       if (rollbackResult008.details) {
         console.log(
-          `📊 Details: ${rollbackResult008.details.created} created, ${rollbackResult008.details.skipped} skipped, ${rollbackResult008.details.errors.length} errors`
+          `📊 Details: ${rollbackResult008.details.created} created, ${rollbackResult008.details.skipped} skipped, ${rollbackResult008.details.errors.length} errors`,
         );
         if (rollbackResult008.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           rollbackResult008.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -674,18 +771,18 @@ async function main() {
 
     case "rollback009":
       console.log(
-        "🔄 Rolling back migration: 009-initial-payment-reminder-template"
+        "🔄 Rolling back migration: 009-initial-payment-reminder-template",
       );
       const rollbackResult009 = await rollbackMigration009();
       console.log(`\n🎯 ${rollbackResult009.message}`);
       if (rollbackResult009.details) {
         console.log(
-          `📊 Details: ${rollbackResult009.details.deleted} deleted, ${rollbackResult009.details.errors.length} errors`
+          `📊 Details: ${rollbackResult009.details.deleted} deleted, ${rollbackResult009.details.errors.length} errors`,
         );
         if (rollbackResult009.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           rollbackResult009.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -693,18 +790,18 @@ async function main() {
 
     case "rollback010":
       console.log(
-        "🔄 Rolling back migration: 010-scheduled-reminder-email-template"
+        "🔄 Rolling back migration: 010-scheduled-reminder-email-template",
       );
       const rollbackResult010 = await rollbackMigration010();
       console.log(`\n🎯 ${rollbackResult010.message}`);
       if (rollbackResult010.details) {
         console.log(
-          `📊 Details: ${rollbackResult010.details.deleted} deleted, ${rollbackResult010.details.errors.length} errors`
+          `📊 Details: ${rollbackResult010.details.deleted} deleted, ${rollbackResult010.details.errors.length} errors`,
         );
         if (rollbackResult010.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           rollbackResult010.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -712,18 +809,18 @@ async function main() {
 
     case "rollback012":
       console.log(
-        "🔄 Rolling back migration: 012-default-booking-sheet-columns"
+        "🔄 Rolling back migration: 012-default-booking-sheet-columns",
       );
       const rollbackResult012 = await rollbackMigration012();
       console.log(`\n🎯 ${rollbackResult012.message}`);
       if (rollbackResult012.details) {
         console.log(
-          `📊 Details: ${rollbackResult012.details.deleted} deleted, ${rollbackResult012.details.errors.length} errors`
+          `📊 Details: ${rollbackResult012.details.deleted} deleted, ${rollbackResult012.details.errors.length} errors`,
         );
         if (rollbackResult012.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           rollbackResult012.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -731,18 +828,18 @@ async function main() {
 
     case "rollback013":
       console.log(
-        "🔄 Rolling back migration: 013-sample-booking-with-all-columns"
+        "🔄 Rolling back migration: 013-sample-booking-with-all-columns",
       );
       const rollbackResult013 = await rollbackMigration013();
       console.log(`\n🎯 ${rollbackResult013.message}`);
       if (rollbackResult013.details) {
         console.log(
-          `📊 Details: ${rollbackResult013.details.deleted} deleted, ${rollbackResult013.details.errors.length} errors`
+          `📊 Details: ${rollbackResult013.details.deleted} deleted, ${rollbackResult013.details.errors.length} errors`,
         );
         if (rollbackResult013.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           rollbackResult013.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -754,14 +851,14 @@ async function main() {
       console.log(`\n🎯 ${rollbackResult014.message}`);
       if (rollbackResult014.details) {
         console.log(
-          `📊 Details: ${rollbackResult014.details.rollbackCount} rolled back, ${rollbackResult014.details.errorCount} errors`
+          `📊 Details: ${rollbackResult014.details.rollbackCount} rolled back, ${rollbackResult014.details.errorCount} errors`,
         );
         if (rollbackResult014.details.errorCount > 0) {
           console.log("\n❌ Errors:");
           rollbackResult014.details.rollbackResults
             .filter((r: any) => r.status === "error")
             .forEach((error: any) =>
-              console.log(`  - ${error.id}: ${error.error}`)
+              console.log(`  - ${error.id}: ${error.error}`),
             );
         }
       }
@@ -769,20 +866,20 @@ async function main() {
 
     case "rollback015":
       console.log(
-        "🔄 Rolling back migration: 015-remove-column-behavior-fields"
+        "🔄 Rolling back migration: 015-remove-column-behavior-fields",
       );
       const rollbackResult015 = await rollbackMigration015();
       console.log(`\n🎯 ${rollbackResult015.message}`);
       if (rollbackResult015.details) {
         console.log(
-          `📊 Details: ${rollbackResult015.details.rollbackCount} rolled back, ${rollbackResult015.details.errorCount} errors`
+          `📊 Details: ${rollbackResult015.details.rollbackCount} rolled back, ${rollbackResult015.details.errorCount} errors`,
         );
         if (rollbackResult015.details.errorCount > 0) {
           console.log("\n❌ Errors:");
           rollbackResult015.details.rollbackResults
             .filter((r: any) => r.status === "error")
             .forEach((error: any) =>
-              console.log(`  - ${error.id}: ${error.error}`)
+              console.log(`  - ${error.id}: ${error.error}`),
             );
         }
       }
@@ -790,20 +887,20 @@ async function main() {
 
     case "rollback016":
       console.log(
-        "🔄 Rolling back migration: 016-remove-column-required-field"
+        "🔄 Rolling back migration: 016-remove-column-required-field",
       );
       const rollbackResult016 = await rollbackMigration016();
       console.log(`\n🎯 ${rollbackResult016.message}`);
       if (rollbackResult016.details) {
         console.log(
-          `📊 Details: ${rollbackResult016.details.rollbackCount} rolled back, ${rollbackResult016.details.errorCount} errors`
+          `📊 Details: ${rollbackResult016.details.rollbackCount} rolled back, ${rollbackResult016.details.errorCount} errors`,
         );
         if (rollbackResult016.details.errorCount > 0) {
           console.log("\n❌ Errors:");
           rollbackResult016.details.rollbackResults
             .filter((r: any) => r.status === "error")
             .forEach((error: any) =>
-              console.log(`  - ${error.id}: ${error.error}`)
+              console.log(`  - ${error.id}: ${error.error}`),
             );
         }
       }
@@ -815,14 +912,14 @@ async function main() {
       console.log(`\n🎯 ${rollbackResult017.message}`);
       if (rollbackResult017.details) {
         console.log(
-          `📊 Details: ${rollbackResult017.details.rollbackCount} rolled back, ${rollbackResult017.details.errorCount} errors`
+          `📊 Details: ${rollbackResult017.details.rollbackCount} rolled back, ${rollbackResult017.details.errorCount} errors`,
         );
         if (rollbackResult017.details.errorCount > 0) {
           console.log("\n❌ Errors:");
           rollbackResult017.details.rollbackResults
             .filter((r: any) => r.status === "error")
             .forEach((error: any) =>
-              console.log(`  - ${error.id}: ${error.error}`)
+              console.log(`  - ${error.id}: ${error.error}`),
             );
         }
       }
@@ -840,7 +937,7 @@ async function main() {
 
     case "rollback020":
       console.log(
-        "🔄 Rolling back migration: 020-rebuild-columns-with-custom-ids"
+        "🔄 Rolling back migration: 020-rebuild-columns-with-custom-ids",
       );
       await rollbackMigration020();
       break;
@@ -851,12 +948,12 @@ async function main() {
       console.log(`\n🎯 ${rollbackResult033.message}`);
       if (rollbackResult033.details) {
         console.log(
-          `📊 Details: ${rollbackResult033.details.reverted} reverted, ${rollbackResult033.details.errors.length} errors`
+          `📊 Details: ${rollbackResult033.details.reverted} reverted, ${rollbackResult033.details.errors.length} errors`,
         );
         if (rollbackResult033.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           rollbackResult033.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -864,7 +961,7 @@ async function main() {
 
     case "rollback040":
       console.log(
-        "🔄 Rolling back migration: 040-booking-confirmation-email-template"
+        "🔄 Rolling back migration: 040-booking-confirmation-email-template",
       );
       await rollbackMigration040();
       break;
@@ -874,18 +971,37 @@ async function main() {
       await rollbackMigration041();
       break;
 
+    case "rollback042":
+      console.log(
+        "🔄 Rolling back migration: 042-revolut-payment-status-email-templates",
+      );
+      const rollbackResult042 = await rollbackMigration042();
+      console.log(`\n🎯 ${rollbackResult042.message}`);
+      if (rollbackResult042.details) {
+        console.log(
+          `📊 Details: ${rollbackResult042.details.deleted} deleted, ${rollbackResult042.details.errors.length} errors`,
+        );
+        if (rollbackResult042.details.errors.length > 0) {
+          console.log("\n❌ Errors:");
+          rollbackResult042.details.errors.forEach((error) =>
+            console.log(`  - ${error}`),
+          );
+        }
+      }
+      break;
+
     case "rollback034":
       console.log("🔄 Rolling back migration: 034-initialize-columns-metadata");
       const rollbackResult034 = await migration034.rollback();
       console.log(`\n🎯 ${rollbackResult034.message}`);
       if (rollbackResult034.details) {
         console.log(
-          `📊 Details: ${rollbackResult034.details.usersRolledBack} users rolled back, ${rollbackResult034.details.errors.length} errors`
+          `📊 Details: ${rollbackResult034.details.usersRolledBack} users rolled back, ${rollbackResult034.details.errors.length} errors`,
         );
         if (rollbackResult034.details.errors.length > 0) {
           console.log("\n❌ Errors:");
           rollbackResult034.details.errors.forEach((error) =>
-            console.log(`  - ${error}`)
+            console.log(`  - ${error}`),
           );
         }
       }
@@ -897,16 +1013,16 @@ async function main() {
       console.log(`\n🎯 ${rollbackResult023.message}`);
       if (rollbackResult023.details) {
         console.log(
-          `📊 Details: ${rollbackResult023.details.rollbackCount} rolled back, ${rollbackResult023.details.errorCount} errors`
+          `📊 Details: ${rollbackResult023.details.rollbackCount} rolled back, ${rollbackResult023.details.errorCount} errors`,
         );
         if (rollbackResult023.details.rollbackResults) {
           const errors = rollbackResult023.details.rollbackResults.filter(
-            (r: any) => r.status === "error"
+            (r: any) => r.status === "error",
           );
           if (errors.length > 0) {
             console.log("\n❌ Errors:");
             errors.forEach((error: any) =>
-              console.log(`  - ${error.id}: ${error.error}`)
+              console.log(`  - ${error.id}: ${error.error}`),
             );
           }
         }
@@ -920,14 +1036,14 @@ async function main() {
 
     case "rollback025":
       console.log(
-        "🔄 Rolling back migration: 025-remove-emoji-from-parent-tabs"
+        "🔄 Rolling back migration: 025-remove-emoji-from-parent-tabs",
       );
       await rollbackMigration025();
       break;
 
     case "rollback026":
       console.log(
-        "🔄 Rolling back migration: 026-move-payment-progress-to-payment-setting"
+        "🔄 Rolling back migration: 026-move-payment-progress-to-payment-setting",
       );
       await rollbackMigration026();
       break;
@@ -935,26 +1051,39 @@ async function main() {
     case "dry-run":
     case "dry-run002":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 002-additional-tour-packages"
+        "🔍 Running migration in DRY RUN mode: 002-additional-tour-packages",
       );
       const dryRunResult002 = await runMigration002(true);
       console.log(`\n🎯 ${dryRunResult002.message}`);
       if (dryRunResult002.details) {
         console.log(
-          `📊 Details: ${dryRunResult002.details.created} would be created, ${dryRunResult002.details.skipped} would be skipped`
+          `📊 Details: ${dryRunResult002.details.created} would be created, ${dryRunResult002.details.skipped} would be skipped`,
         );
       }
       break;
 
     case "dry-run003":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 003-final-tour-packages"
+        "🔍 Running migration in DRY RUN mode: 003-final-tour-packages",
       );
       const dryRunResult003 = await runMigration003(true);
       console.log(`\n🎯 ${dryRunResult003.message}`);
       if (dryRunResult003.details) {
         console.log(
-          `📊 Details: ${dryRunResult003.details.created} would be created, ${dryRunResult003.details.skipped} would be skipped`
+          `📊 Details: ${dryRunResult003.details.created} would be created, ${dryRunResult003.details.skipped} would be skipped`,
+        );
+      }
+      break;
+
+    case "dry-run043":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 043-update-revolut-payment-status-term-label",
+      );
+      const dryRunResult043 = await runMigration043(true);
+      console.log(`\n🎯 ${dryRunResult043.message}`);
+      if (dryRunResult043.details) {
+        console.log(
+          `📊 Details: ${dryRunResult043.details.updated} would be updated, ${dryRunResult043.details.skipped} would be skipped`,
         );
       }
       break;
@@ -965,209 +1094,235 @@ async function main() {
       console.log(`\n🎯 ${dryRunResult004.message}`);
       if (dryRunResult004.details) {
         console.log(
-          `📊 Details: ${dryRunResult004.details.created} would be created, ${dryRunResult004.details.skipped} would be skipped`
+          `📊 Details: ${dryRunResult004.details.created} would be created, ${dryRunResult004.details.skipped} would be skipped`,
         );
       }
       break;
 
     case "dry-run005":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 005-currency-usd-to-eur"
+        "🔍 Running migration in DRY RUN mode: 005-currency-usd-to-eur",
       );
       const dryRunResult005 = await runMigration005(true);
       console.log(`\n🎯 ${dryRunResult005.message}`);
       if (dryRunResult005.details) {
         console.log(
-          `📊 Details: ${dryRunResult005.details.updated} would be updated, ${dryRunResult005.details.skipped} would be skipped`
+          `📊 Details: ${dryRunResult005.details.updated} would be updated, ${dryRunResult005.details.skipped} would be skipped`,
         );
       }
       break;
 
     case "dry-run006":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 006-conditional-email-templates"
+        "🔍 Running migration in DRY RUN mode: 006-conditional-email-templates",
       );
       const dryRunResult006 = await runMigration006(true);
       console.log(`\n🎯 ${dryRunResult006.message}`);
       if (dryRunResult006.details) {
         console.log(
-          `📊 Details: ${dryRunResult006.details.created} would be created, ${dryRunResult006.details.skipped} would be skipped`
+          `📊 Details: ${dryRunResult006.details.created} would be created, ${dryRunResult006.details.skipped} would be skipped`,
         );
       }
       break;
 
     case "dry-run008":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 008-cancellation-email-template"
+        "🔍 Running migration in DRY RUN mode: 008-cancellation-email-template",
       );
       const dryRunResult008 = await runMigration008(true);
       console.log(`\n🎯 ${dryRunResult008.message}`);
       if (dryRunResult008.details) {
         console.log(
-          `📊 Details: ${dryRunResult008.details.created} would be created, ${dryRunResult008.details.skipped} would be skipped`
+          `📊 Details: ${dryRunResult008.details.created} would be created, ${dryRunResult008.details.skipped} would be skipped`,
         );
       }
       break;
 
     case "dry-run009":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 009-initial-payment-reminder-template"
+        "🔍 Running migration in DRY RUN mode: 009-initial-payment-reminder-template",
       );
       const dryRunResult009 = await runMigration009(true);
       console.log(`\n🎯 ${dryRunResult009.message}`);
       if (dryRunResult009.details) {
         console.log(
-          `📊 Details: ${dryRunResult009.details.created} would be created, ${dryRunResult009.details.skipped} would be skipped`
+          `📊 Details: ${dryRunResult009.details.created} would be created, ${dryRunResult009.details.skipped} would be skipped`,
         );
       }
       break;
 
     case "dry-run010":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 010-scheduled-reminder-email-template"
+        "🔍 Running migration in DRY RUN mode: 010-scheduled-reminder-email-template",
       );
       const dryRunResult010 = await runMigration010(true);
       console.log(`\n🎯 ${dryRunResult010.message}`);
       if (dryRunResult010.details) {
         console.log(
-          `📊 Details: ${dryRunResult010.details.created} would be created, ${dryRunResult010.details.skipped} would be skipped`
+          `📊 Details: ${dryRunResult010.details.created} would be created, ${dryRunResult010.details.skipped} would be skipped`,
         );
       }
       break;
 
     case "dry-run012":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 012-default-booking-sheet-columns"
+        "🔍 Running migration in DRY RUN mode: 012-default-booking-sheet-columns",
       );
       const dryRunResult012 = await runMigration012(true);
       console.log(`\n🎯 ${dryRunResult012.message}`);
       if (dryRunResult012.details) {
         console.log(
-          `📊 Details: ${dryRunResult012.details.created} would be created, ${dryRunResult012.details.skipped} would be skipped`
+          `📊 Details: ${dryRunResult012.details.created} would be created, ${dryRunResult012.details.skipped} would be skipped`,
         );
       }
       break;
 
     case "dry-run013":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 013-sample-booking-with-all-columns"
+        "🔍 Running migration in DRY RUN mode: 013-sample-booking-with-all-columns",
       );
       const dryRunResult013 = await runMigration013(true);
       console.log(`\n🎯 ${dryRunResult013.message}`);
       if (dryRunResult013.details) {
         console.log(
-          `📊 Details: ${dryRunResult013.details.columnsFound} columns found, would create sample booking`
+          `📊 Details: ${dryRunResult013.details.columnsFound} columns found, would create sample booking`,
         );
       }
       break;
 
     case "dry-run014":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 014-update-column-interface"
+        "🔍 Running migration in DRY RUN mode: 014-update-column-interface",
       );
       const dryRunResult014 = await runMigration014(true);
       console.log(`\n🎯 ${dryRunResult014.message}`);
       if (dryRunResult014.details) {
         console.log(
-          `📊 Details: ${dryRunResult014.details.updatedCount} would be updated, ${dryRunResult014.details.skippedCount} would be skipped`
+          `📊 Details: ${dryRunResult014.details.updatedCount} would be updated, ${dryRunResult014.details.skippedCount} would be skipped`,
         );
       }
       break;
 
     case "dry-run015":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 015-remove-column-behavior-fields"
+        "🔍 Running migration in DRY RUN mode: 015-remove-column-behavior-fields",
       );
       const dryRunResult015 = await runMigration015(true);
       console.log(`\n🎯 ${dryRunResult015.message}`);
       if (dryRunResult015.details) {
         console.log(
-          `📊 Details: ${dryRunResult015.details.updatedCount} would be updated, ${dryRunResult015.details.skippedCount} would be skipped`
+          `📊 Details: ${dryRunResult015.details.updatedCount} would be updated, ${dryRunResult015.details.skippedCount} would be skipped`,
         );
       }
       break;
 
     case "dry-run016":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 016-remove-column-required-field"
+        "🔍 Running migration in DRY RUN mode: 016-remove-column-required-field",
       );
       const dryRunResult016 = await runMigration016(true);
       console.log(`\n🎯 ${dryRunResult016.message}`);
       if (dryRunResult016.details) {
         console.log(
-          `📊 Details: ${dryRunResult016.details.updatedCount} would be updated, ${dryRunResult016.details.skippedCount} would be skipped`
+          `📊 Details: ${dryRunResult016.details.updatedCount} would be updated, ${dryRunResult016.details.skippedCount} would be skipped`,
         );
       }
       break;
 
     case "dry-run017":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 017-update-payment-columns"
+        "🔍 Running migration in DRY RUN mode: 017-update-payment-columns",
       );
       const dryRunResult017 = await runMigration017(true);
       console.log(`\n🎯 ${dryRunResult017.message}`);
       if (dryRunResult017.details) {
         console.log(
-          `📊 Details: ${dryRunResult017.details.deletedCount} would be deleted, ${dryRunResult017.details.addedCount} would be added, ${dryRunResult017.details.updatedCount} would be updated`
+          `📊 Details: ${dryRunResult017.details.deletedCount} would be deleted, ${dryRunResult017.details.addedCount} would be added, ${dryRunResult017.details.updatedCount} would be updated`,
         );
       }
       break;
 
     case "dry-run018":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 018-update-booking-field-names"
+        "🔍 Running migration in DRY RUN mode: 018-update-booking-field-names",
       );
       await dryRun018();
       break;
 
     case "dry-run019":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 019-update-column-ids"
+        "🔍 Running migration in DRY RUN mode: 019-update-column-ids",
       );
       await dryRun019();
       break;
 
     case "dry-run033":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 033-convert-duration-to-string"
+        "🔍 Running migration in DRY RUN mode: 033-convert-duration-to-string",
       );
       const dryRunResult033 = await runMigration033(true);
       console.log(`\n🎯 ${dryRunResult033.message}`);
       if (dryRunResult033.details) {
         console.log(
-          `📊 Details: ${dryRunResult033.details.updated} would be updated, ${dryRunResult033.details.skipped} would be skipped`
+          `📊 Details: ${dryRunResult033.details.updated} would be updated, ${dryRunResult033.details.skipped} would be skipped`,
         );
       }
       break;
 
     case "dry-run020":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 020-rebuild-columns-with-custom-ids"
+        "🔍 Running migration in DRY RUN mode: 020-rebuild-columns-with-custom-ids",
       );
       await dryRun020();
       break;
 
     case "dry-run023":
       console.log(
-        "🔍 Running migration in DRY RUN mode: 023-add-parent-tab-field"
+        "🔍 Running migration in DRY RUN mode: 023-add-parent-tab-field",
       );
       const dryRunResult023 = await runMigration023(true);
       console.log(`\n🎯 ${dryRunResult023.message}`);
       if (dryRunResult023.details) {
         console.log(
-          `📊 Details: ${dryRunResult023.details.updatedCount} would be updated, ${dryRunResult023.details.skippedCount} skipped, ${dryRunResult023.details.errorCount} errors`
+          `📊 Details: ${dryRunResult023.details.updatedCount} would be updated, ${dryRunResult023.details.skippedCount} skipped, ${dryRunResult023.details.errorCount} errors`,
         );
         if (dryRunResult023.details.migrationResults) {
           const errors = dryRunResult023.details.migrationResults.filter(
-            (r: any) => r.status === "error"
+            (r: any) => r.status === "error",
           );
           if (errors.length > 0) {
             console.log("\n❌ Errors:");
             errors.forEach((error: any) =>
-              console.log(`  - ${error.id}: ${error.error}`)
+              console.log(`  - ${error.id}: ${error.error}`),
             );
           }
         }
+      }
+      break;
+
+    case "dry-run042":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 042-revolut-payment-status-email-templates",
+      );
+      const dryRunResult042 = await runMigration042(true);
+      console.log(`\n🎯 ${dryRunResult042.message}`);
+      if (dryRunResult042.details) {
+        console.log(
+          `📊 Details: ${dryRunResult042.details.created} would be created, ${dryRunResult042.details.skipped} would be skipped`,
+        );
+      }
+      break;
+
+    case "dry-run045":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 045-late-fee-notice-email-template",
+      );
+      const dryRunResult045 = await runMigration045(true);
+      console.log(`\n🎯 ${dryRunResult045.message}`);
+      if (dryRunResult045.details) {
+        console.log(
+          `📊 Details: ${dryRunResult045.details.created} would be created, ${dryRunResult045.details.skipped} would be skipped`,
+        );
       }
       break;
 
@@ -1207,6 +1362,10 @@ function showHelp() {
   018                Run the migration to update booking field names from col-<n> to Firestore column IDs
   019                Run the migration to update column id fields to use actual Firestore document IDs
   020                Run the migration to rebuild columns with custom IDs based on column names
+  042                Run the migration to create Revolut payment decision email templates
+  043                Run the migration to update Revolut payment templates with approved term labels
+  044                Run the migration to create late-fees config document
+  045                Run the migration to create late-fee notice email template
   rollback, undo     Rollback the migration 001 (delete created tours)
   rollback002        Rollback the migration 002 (delete created tours)
   rollback003        Rollback the migration 003 (delete created tours)
@@ -1225,6 +1384,10 @@ function showHelp() {
   rollback018        Rollback the migration 018 (restore col-<n> field names)
   rollback019        Rollback the migration 019 (restore col-<n> id fields)
   rollback020        Rollback the migration 020 (delete columns with custom IDs)
+  rollback042        Rollback the migration 042 (delete Revolut payment decision email templates)
+  rollback043        Rollback the migration 043 (no-op informational rollback)
+  rollback044        Rollback the migration 044 (delete late-fees config document)
+  rollback045        Rollback the migration 045 (delete late-fee notice email template)
   dry-run, test     Test the migration 001 without making changes
   dry-run002        Test the migration 002 without making changes
   dry-run003        Test the migration 003 without making changes
@@ -1243,6 +1406,9 @@ function showHelp() {
   dry-run018        Test the migration 018 without making changes
   dry-run019        Test the migration 019 without making changes
   dry-run020        Test the migration 020 without making changes
+  dry-run042        Test the migration 042 without making changes
+  dry-run043        Test the migration 043 without making changes
+  dry-run045        Test the migration 045 without making changes
   help               Show this help message
 
 📝 Examples:

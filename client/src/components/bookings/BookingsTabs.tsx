@@ -2,6 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
+import {
+  collection,
+  doc,
+  onSnapshot,
+  query,
+  Timestamp,
+  where,
+} from "firebase/firestore";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
@@ -16,8 +24,10 @@ import BookingsSheet from "../sheet-management/BookingsSheet";
 import PreDeparturePackSection from "@/app/(protected)/bookings/components/PreDeparturePackSection";
 import ConfirmedBookingsSection from "@/app/(protected)/bookings/components/ConfirmedBookingsSection";
 import GuestInvitationsSection from "@/app/(protected)/bookings/components/GuestInvitationsSection";
+import LateFeesSection from "@/app/(protected)/bookings/components/LateFeesSection";
 import { getUnsentConfirmedBookingsCount } from "@/services/confirmed-bookings-service";
 import { getUnsentGuestInvitationsCount } from "@/services/guest-invitations-service";
+import { db } from "@/lib/firebase";
 
 // Tab mapping utilities
 const urlToInternalTab = (urlTab: string | null): string => {
@@ -32,6 +42,8 @@ const urlToInternalTab = (urlTab: string | null): string => {
       return "guest-invitations";
     case "bookings-sheet":
       return "sheet";
+    case "late-fees":
+      return "late-fees";
     case "sheet-management-tab": // Backward compatibility
       return "sheet";
     default:
@@ -49,10 +61,58 @@ const internalTabToUrl = (internalTab: string): string => {
       return "guest-invitations";
     case "sheet":
       return "bookings-sheet";
+    case "late-fees":
+      return "late-fees";
     default:
       return "bookings";
   }
 };
+
+function asDate(value: any): Date | null {
+  if (!value) return null;
+
+  if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
+
+  if (typeof value === "string") {
+    const parsed = new Date(value);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  if (typeof value === "object") {
+    if (typeof value.toDate === "function") {
+      const parsed = value.toDate();
+      return parsed instanceof Date && !isNaN(parsed.getTime()) ? parsed : null;
+    }
+
+    if (typeof value.seconds === "number") {
+      const parsed = new Date(value.seconds * 1000);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+
+    if (typeof value._seconds === "number") {
+      const parsed = new Date(value._seconds * 1000);
+      return isNaN(parsed.getTime()) ? null : parsed;
+    }
+  }
+
+  return null;
+}
+
+function parseTermDueDate(dueDateRaw: any, termIndex: number): Date | null {
+  if (!dueDateRaw) return null;
+
+  if (typeof dueDateRaw === "string" && dueDateRaw.includes(",")) {
+    const parts = dueDateRaw.split(",").map((part) => part.trim());
+    const partStart = termIndex * 2;
+    const partEnd = partStart + 1;
+
+    if (parts.length > partEnd) {
+      return asDate(`${parts[partStart]}, ${parts[partEnd]}`);
+    }
+  }
+
+  return asDate(dueDateRaw);
+}
 
 export default function BookingsTabs() {
   const searchParams = useSearchParams();
@@ -61,6 +121,8 @@ export default function BookingsTabs() {
   const [unsentCount, setUnsentCount] = useState<number>(0);
   const [unsentGuestInvitationsCount, setUnsentGuestInvitationsCount] =
     useState<number>(0);
+  const [lateFeesPendingCount, setLateFeesPendingCount] = useState<number>(0);
+  const [lateFeesEffectiveDate, setLateFeesEffectiveDate] = useState("");
 
   // Fetch unsent counts for tab badges
   useEffect(() => {
@@ -81,6 +143,95 @@ export default function BookingsTabs() {
     const interval = setInterval(fetchCounts, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Subscribe to late-fees effective date from config
+  useEffect(() => {
+    const configRef = doc(db, "config", "late-fees");
+    const unsubscribe = onSnapshot(
+      configRef,
+      (snapshot) => {
+        if (!snapshot.exists()) {
+          setLateFeesEffectiveDate("");
+          return;
+        }
+
+        const config = snapshot.data();
+        const parsedDate = asDate(config?.effectiveDate);
+        setLateFeesEffectiveDate(
+          parsedDate ? parsedDate.toISOString().slice(0, 10) : "",
+        );
+      },
+      (error) => {
+        console.error("Error fetching late-fees config:", error);
+      },
+    );
+
+    return () => unsubscribe();
+  }, []);
+
+  // Subscribe to bookings and compute overdue terms with no notice sent yet
+  useEffect(() => {
+    const bookingsRef = collection(db, "bookings");
+    const bookingsQuery = lateFeesEffectiveDate
+      ? query(
+          bookingsRef,
+          where(
+            "reservationDate",
+            ">=",
+            Timestamp.fromDate(new Date(`${lateFeesEffectiveDate}T00:00:00`)),
+          ),
+        )
+      : query(bookingsRef);
+
+    const unsubscribe = onSnapshot(
+      bookingsQuery,
+      (snapshot) => {
+        const now = new Date();
+        const effectiveDateStart = lateFeesEffectiveDate
+          ? new Date(`${lateFeesEffectiveDate}T00:00:00`)
+          : null;
+
+        let count = 0;
+
+        snapshot.docs.forEach((bookingDoc) => {
+          const booking = bookingDoc.data() as Record<string, any>;
+          const reservationDate = asDate(booking.reservationDate);
+          if (
+            effectiveDateStart &&
+            (!reservationDate ||
+              reservationDate.getTime() < effectiveDateStart.getTime())
+          ) {
+            return;
+          }
+
+          ["p1", "p2", "p3", "p4"].forEach((termKey, index) => {
+            const dueDate = parseTermDueDate(
+              booking[`${termKey}DueDate`],
+              index,
+            );
+            const datePaid = asDate(booking[`${termKey}DatePaid`]);
+            const noticeLink = String(
+              booking[`${termKey}LateFeesNoticeLink`] || "",
+            ).trim();
+
+            const hasOverdueUnpaid =
+              !!dueDate && !datePaid && dueDate.getTime() < now.getTime();
+
+            if (hasOverdueUnpaid && !noticeLink) {
+              count += 1;
+            }
+          });
+        });
+
+        setLateFeesPendingCount(count);
+      },
+      (error) => {
+        console.error("Error fetching late-fees pending count:", error);
+      },
+    );
+
+    return () => unsubscribe();
+  }, [lateFeesEffectiveDate]);
 
   // Initialize tab from URL parameters
   useEffect(() => {
@@ -165,6 +316,20 @@ export default function BookingsTabs() {
                     )}
                   </span>
                 )}
+                {activeTab === "late-fees" && (
+                  <span className="flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                    Late Fees
+                    {lateFeesPendingCount > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="h-5 min-w-5 px-1.5 text-xs shadow-sm"
+                      >
+                        {lateFeesPendingCount}
+                      </Badge>
+                    )}
+                  </span>
+                )}
                 {activeTab === "sheet" && (
                   <span className="flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
@@ -228,6 +393,27 @@ export default function BookingsTabs() {
                 </span>
               </SelectItem>
               <SelectItem
+                value="late-fees"
+                className="rounded-lg hover:bg-royal-purple/10 focus:bg-royal-purple/10 cursor-pointer"
+              >
+                <span className="flex items-center justify-between w-full gap-2">
+                  <span className="flex items-center gap-2">
+                    {activeTab === "late-fees" && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary"></span>
+                    )}
+                    Late Fees
+                  </span>
+                  {lateFeesPendingCount > 0 && (
+                    <Badge
+                      variant="destructive"
+                      className="ml-2 h-5 min-w-5 px-1.5 text-xs shadow-sm"
+                    >
+                      {lateFeesPendingCount}
+                    </Badge>
+                  )}
+                </span>
+              </SelectItem>
+              <SelectItem
                 value="sheet"
                 className="rounded-lg hover:bg-royal-purple/10 focus:bg-royal-purple/10 cursor-pointer"
               >
@@ -243,7 +429,7 @@ export default function BookingsTabs() {
         </div>
 
         {/* Desktop: Horizontal Tabs */}
-        <TabsList className="hidden md:grid w-full grid-cols-4 bg-muted border border-border">
+        <TabsList className="hidden md:grid w-full grid-cols-5 bg-muted border border-border">
           <TabsTrigger
             value="list"
             className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
@@ -279,6 +465,20 @@ export default function BookingsTabs() {
             )}
           </TabsTrigger>
           <TabsTrigger
+            value="late-fees"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
+          >
+            <span>Late Fees</span>
+            {lateFeesPendingCount > 0 && (
+              <Badge
+                variant="destructive"
+                className="ml-2 h-5 min-w-5 px-1.5 text-xs"
+              >
+                {lateFeesPendingCount}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger
             value="sheet"
             className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
           >
@@ -299,6 +499,10 @@ export default function BookingsTabs() {
 
         <TabsContent value="guest-invitations" className="mt-6">
           <GuestInvitationsSection />
+        </TabsContent>
+
+        <TabsContent value="late-fees" className="mt-6">
+          <LateFeesSection />
         </TabsContent>
 
         <TabsContent value="sheet" className="mt-6">

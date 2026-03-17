@@ -15,6 +15,7 @@ import { paymentProgressColumn as _paymentProgressColumn } from "./payment-progr
 import { remainingBalanceColumn as _remainingBalanceColumn } from "./remaining-balance";
 import { reservationFeeColumn as _reservationFeeColumn } from "./reservation-fee";
 import { sentInitialReminderLinkColumn as _sentInitialReminderLinkColumn } from "./sent-initial-reminder-link";
+import { totalLateFeesColumn as _totalLateFeesColumn } from "./total-late-fees";
 
 // Export columns with orders injected from global column-orders.ts
 export const adminFeeColumn = withOrder(_adminFeeColumn);
@@ -39,3 +40,4 @@ export const reservationFeeColumn = withOrder(_reservationFeeColumn);
 export const sentInitialReminderLinkColumn = withOrder(
   _sentInitialReminderLinkColumn,
 );
+export const totalLateFeesColumn = withOrder(_totalLateFeesColumn);

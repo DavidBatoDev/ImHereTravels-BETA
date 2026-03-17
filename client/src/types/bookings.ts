@@ -97,8 +97,26 @@ export interface Booking {
   reservationFee?: number;
   paid: number;
   remainingBalance: number;
+  totalLateFees?: number;
   manualCredit?: number;
   creditFrom?: string;
+
+  // Late fees (term-level)
+  p1LateFeesPenalty?: number;
+  p1LateFeeAppliedAt?: Date | Timestamp;
+  p1LateFeesNoticeLink?: string;
+
+  p2LateFeesPenalty?: number;
+  p2LateFeeAppliedAt?: Date | Timestamp;
+  p2LateFeesNoticeLink?: string;
+
+  p3LateFeesPenalty?: number;
+  p3LateFeeAppliedAt?: Date | Timestamp;
+  p3LateFeesNoticeLink?: string;
+
+  p4LateFeesPenalty?: number;
+  p4LateFeeAppliedAt?: Date | Timestamp;
+  p4LateFeesNoticeLink?: string;
 
   // Cancellation management
   reasonForCancellation?: string;

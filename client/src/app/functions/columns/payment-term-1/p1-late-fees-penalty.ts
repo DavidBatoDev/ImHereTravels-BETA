@@ -1,0 +1,14 @@
+import { BookingSheetColumn } from "@/types/booking-sheet-column";
+
+export const p1LateFeesPenaltyColumn: BookingSheetColumn = {
+  id: "p1LateFeesPenalty",
+  data: {
+    id: "p1LateFeesPenalty",
+    columnName: "P1 Late Fees Penalty",
+    dataType: "string",
+    parentTab: "Payment Term 1",
+    includeInForms: false,
+    color: "yellow",
+    width: 150,
+  },
+};

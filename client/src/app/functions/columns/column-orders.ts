@@ -85,6 +85,7 @@ export const COLUMN_ORDERS: Record<string, number> = {
   adminFee: 38,
   paid: 39,
   paidTerms: 40,
+  totalLateFees: 40.5,
   manualCredit: 41,
   creditFrom: 42,
   paymentPlan: 43,
@@ -112,6 +113,9 @@ export const COLUMN_ORDERS: Record<string, number> = {
   p1DueDate: 58,
   p1Amount: 59,
   p1DatePaid: 60,
+  p1LateFeesPenalty: 82,
+  p1LateFeeAppliedAt: 83,
+  p1LateFeesNoticeLink: 84,
 
   // ============================================================================
   // PAYMENT TERM 2 - P2 (61-67)
@@ -123,6 +127,9 @@ export const COLUMN_ORDERS: Record<string, number> = {
   p2DueDate: 65,
   p2Amount: 66,
   p2DatePaid: 67,
+  p2LateFeesPenalty: 86,
+  p2LateFeeAppliedAt: 87,
+  p2LateFeesNoticeLink: 88,
 
   // ============================================================================
   // PAYMENT TERM 3 - P3 (68-74)
@@ -134,6 +141,9 @@ export const COLUMN_ORDERS: Record<string, number> = {
   p3DueDate: 72,
   p3Amount: 73,
   p3DatePaid: 74,
+  p3LateFeesPenalty: 90,
+  p3LateFeeAppliedAt: 91,
+  p3LateFeesNoticeLink: 92,
 
   // ============================================================================
   // PAYMENT TERM 4 - P4 (75-81)
@@ -145,31 +155,34 @@ export const COLUMN_ORDERS: Record<string, number> = {
   p4DueDate: 79,
   p4Amount: 80,
   p4DatePaid: 81,
+  p4LateFeesPenalty: 94,
+  p4LateFeeAppliedAt: 95,
+  p4LateFeesNoticeLink: 96,
 
   // ============================================================================
   // CANCELLATION (82-98)
   // ============================================================================
-  reasonForCancellation: 82,
-  cancellationRequestDate: 83,
-  cancellationScenario: 84,
-  supplierCostsCommitted: 85,
-  isNoShow: 86,
-  includeBccCancellation: 87,
-  eligibleRefund: 88,
-  nonRefundableAmount: 89,
-  refundableAmount: 90,
-  travelCreditIssued: 91,
-  generateCancellationDraft: 92,
-  cancellationEmailDraftLink: 93,
-  subjectLineCancellation: 94,
-  sendCancellationEmail: 95,
-  sentCancellationEmailLink: 96,
-  cancellationEmailSentDate: 97,
+  reasonForCancellation: 98,
+  cancellationRequestDate: 99,
+  cancellationScenario: 100,
+  supplierCostsCommitted: 101,
+  isNoShow: 102,
+  includeBccCancellation: 103,
+  eligibleRefund: 104,
+  nonRefundableAmount: 105,
+  refundableAmount: 106,
+  travelCreditIssued: 107,
+  generateCancellationDraft: 108,
+  cancellationEmailDraftLink: 109,
+  subjectLineCancellation: 110,
+  sendCancellationEmail: 111,
+  sentCancellationEmailLink: 112,
+  cancellationEmailSentDate: 113,
 
   // ============================================================================
   // DELETE (98) - Delete column at the end
   // ============================================================================
-  delete: 98,
+  delete: 114,
 };
 
 /**

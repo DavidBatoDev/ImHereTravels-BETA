@@ -199,14 +199,26 @@ async function rerenderEmailTemplate(
       // Re-render time is the send time, so use now to determine Late status
       const sendDate = new Date();
 
+      const getTermLatePenalty = (termLabel: string): number => {
+        const rawPenalty = (bookingData as any)[
+          `${termLabel.toLowerCase()}LateFeesPenalty`
+        ];
+        const parsed = Number(rawPenalty);
+        return Number.isFinite(parsed) ? parsed : 0;
+      };
+
       freshVariables.termData = visibleTerms.map((t) => {
         const tIndex = parseInt(t.replace("P", "")) - 1;
         const tLower = t.toLowerCase();
         const dueDateRaw = (bookingData as any)[`${tLower}DueDate`];
         const parsedDueDate = parseDueDateForTerm(dueDateRaw, tIndex);
         const dueDateStr = formatDate(parsedDueDate);
-        const datePaidStr = formatDate((bookingData as any)[`${tLower}DatePaid`] || "");
-        const isLate = !datePaidStr && !!dueDateStr && new Date(dueDateStr) < sendDate;
+        const datePaidStr = formatDate(
+          (bookingData as any)[`${tLower}DatePaid`] || "",
+        );
+        const isLate =
+          !datePaidStr && !!dueDateStr && new Date(dueDateStr) < sendDate;
+        const penaltyValue = getTermLatePenalty(t);
 
         return {
           term: t,
@@ -214,8 +226,27 @@ async function rerenderEmailTemplate(
           dueDate: dueDateStr,
           datePaid: datePaidStr,
           isLate,
+          penaltyValue,
+          penaltyAmount: penaltyValue > 0 ? formatGBP(penaltyValue) : "",
         };
       });
+
+      const totalLateFeesFromTerms = (freshVariables.termData as any[]).reduce(
+        (sum, item) => sum + (Number(item.penaltyValue) || 0),
+        0,
+      );
+      const bookingTotalLateFees = Number(
+        (bookingData as any).totalLateFees || 0,
+      );
+      const totalLateFeesValue =
+        totalLateFeesFromTerms > 0
+          ? totalLateFeesFromTerms
+          : Number.isFinite(bookingTotalLateFees)
+            ? bookingTotalLateFees
+            : 0;
+      const currentTermLatePenalty = templateVariables.paymentTerm
+        ? getTermLatePenalty(templateVariables.paymentTerm as string)
+        : 0;
 
       // Add formatted totals
       freshVariables.totalAmount = formatGBP(
@@ -223,6 +254,13 @@ async function rerenderEmailTemplate(
           ? bookingData.discountedTourCost
           : bookingData.originalTourCost,
       );
+      freshVariables.totalLateFees = formatGBP(totalLateFeesValue);
+      freshVariables.totalLateFeesValue = totalLateFeesValue;
+      freshVariables.hasLateFeePenalties = (
+        freshVariables.termData as any[]
+      ).some((item) => Number(item.penaltyValue) > 0);
+      freshVariables.lateFeePenalty = formatGBP(currentTermLatePenalty);
+      freshVariables.lateFeePenaltyValue = currentTermLatePenalty;
       freshVariables.reservationFee = formatGBP(bookingData.reservationFee);
       freshVariables.paidTerms = formatGBP(bookingData.paidTerms);
       freshVariables.paid = formatGBP(bookingData.paid);

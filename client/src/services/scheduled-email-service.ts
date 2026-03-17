@@ -473,6 +473,101 @@ export class ScheduledEmailService {
     return result;
   }
 
+  /**
+   * Manually trigger late-fee processing (apply penalties + schedule notices)
+   */
+  static async triggerLateFeesProcessing() {
+    const response = await fetch("/api/late-fees/process-now", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    const result = await response.json();
+
+    if (!result.success) {
+      throw new Error(result.error || "Failed to trigger late-fee processing");
+    }
+
+    return result;
+  }
+
+  /**
+   * Send late-fee notice for a specific booking term (or resend when requested)
+   */
+  static async sendLateFeeNotice(
+    bookingId: string,
+    termKey: "p1" | "p2" | "p3" | "p4",
+    options?: {
+      resend?: boolean;
+      customSubject?: string;
+      customHtmlContent?: string;
+    },
+  ) {
+    const response = await fetch("/api/late-fees/send-notice", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        bookingId,
+        termKey,
+        resend: Boolean(options?.resend),
+        customSubject: options?.customSubject || "",
+        customHtmlContent: options?.customHtmlContent || "",
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return result.data;
+  }
+
+  /**
+   * Get editable late-fee notice content before sending.
+   */
+  static async getLateFeeNoticePreview(
+    bookingId: string,
+    termKey: "p1" | "p2" | "p3" | "p4",
+    options?: {
+      resend?: boolean;
+      customSubject?: string;
+      customHtmlContent?: string;
+    },
+  ) {
+    const response = await fetch("/api/late-fees/send-notice", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        bookingId,
+        termKey,
+        resend: Boolean(options?.resend),
+        previewOnly: true,
+        customSubject: options?.customSubject || "",
+        customHtmlContent: options?.customHtmlContent || "",
+      }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || `HTTP error! status: ${response.status}`);
+    }
+
+    return result.data;
+  }
+
   // Utility methods for common scheduling scenarios
 
   /**
