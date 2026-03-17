@@ -323,6 +323,19 @@
                 >
                   Status
                 </th>
+                {% if hasLateFeePenalties %}
+                <th
+                  style="
+                    border: 1px solid #e0e0e0;
+                    text-align: left;
+                    font-weight: bold;
+                    padding: 12px;
+                    color: #e74c3c;
+                  "
+                >
+                  Late Fees
+                </th>
+                {% endif %}
               </tr>
             </thead>
             <tbody>
@@ -355,20 +368,33 @@
                 >
                   {{ item.dueDate }}
                 </td>
+                <td style="border: 1px solid #e0e0e0; padding: 12px">
+                  {% if item.datePaid %}
+                  <span style="color: #4caf50; font-weight: bold"
+                    >Paid ({{ item.datePaid }})</span
+                  >
+                  {% elif item.isLate %}
+                  <span style="color: #e74c3c; font-weight: bold"
+                    >Unpaid, Late</span
+                  >
+                  {% else %}
+                  <span style="color: #ff9800; font-weight: bold"
+                    >Upcoming</span
+                  >
+                  {% endif %}
+                </td>
+                {% if hasLateFeePenalties %}
                 <td
                   style="
                     border: 1px solid #e0e0e0;
                     padding: 12px;
+                    color: #e74c3c;
+                    font-weight: bold;
                   "
                 >
-                  {% if item.datePaid %}
-                  <span style="color: #4caf50; font-weight: bold;">Paid ({{ item.datePaid }})</span>
-                  {% elif item.isLate %}
-                  <span style="color: #e74c3c; font-weight: bold;">Unpaid, Late</span>
-                  {% else %}
-                  <span style="color: #ff9800; font-weight: bold;">Upcoming</span>
-                  {% endif %}
+                  {{ item.penaltyAmount or "-" }}
                 </td>
+                {% endif %}
               </tr>
               {% endfor %}
               <tr style="background-color: #f9f9f9">
@@ -389,7 +415,7 @@
                     font-weight: bold;
                     color: #4caf50;
                   "
-                  colspan="3"
+                  colspan="{% if hasLateFeePenalties %}4{% else %}3{% endif %}"
                 >
                   {{ reservationFee }}
                 </td>
@@ -412,9 +438,11 @@
                     font-weight: bold;
                     color: #333333;
                   "
-                  colspan="3"
+                  colspan="{% if hasLateFeePenalties %}4{% else %}3{% endif %}"
                 >
-                  {{ totalAmount }}
+                  {% if hasLateFeePenalties %} {{ totalAmount }} + {{
+                  totalLateFees }} (Late Fees) {% else %} {{ totalAmount }} {%
+                  endif %}
                 </td>
               </tr>
               <tr style="background-color: #f9f9f9">
@@ -435,7 +463,7 @@
                     font-weight: bold;
                     color: #4caf50;
                   "
-                  colspan="3"
+                  colspan="{% if hasLateFeePenalties %}4{% else %}3{% endif %}"
                 >
                   {{ paidTerms }}
                 </td>
@@ -458,7 +486,7 @@
                     font-weight: bold;
                     color: #4caf50;
                   "
-                  colspan="3"
+                  colspan="{% if hasLateFeePenalties %}4{% else %}3{% endif %}"
                 >
                   {{ paid }}
                 </td>
@@ -481,7 +509,7 @@
                     font-weight: bold;
                     color: #e74c3c;
                   "
-                  colspan="3"
+                  colspan="{% if hasLateFeePenalties %}4{% else %}3{% endif %}"
                 >
                   {{ remainingBalance }}
                 </td>
@@ -517,6 +545,43 @@
             Please send us <strong>proof of payment</strong> once you've made
             the transfer. You can reply directly to this email with the receipt
             or confirmation.
+          </p>
+        </div>
+
+        <!-- Late Fees Policy Notice -->
+        <div
+          style="
+            background-color: #fef6f6;
+            padding: 18px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border-left: 5px solid #e74c3c;
+          "
+        >
+          <p
+            style="
+              font-size: 14px;
+              color: #555555;
+              margin: 0 0 10px 0;
+              line-height: 1.6;
+            "
+          >
+            Please note that unpaid installments past the due date may be
+            subject to late fees in accordance with our payment policy. To avoid
+            additional charges or booking issues, we highly recommend settling
+            your balance on or before the due date.
+          </p>
+          <p
+            style="font-size: 14px; color: #555555; margin: 0; line-height: 1.6"
+          >
+            You can review the full policy here:
+            <a
+              href="https://imheretravels.com/terms-and-conditions/"
+              target="_blank"
+              rel="noopener noreferrer"
+              style="color: #0b57d0; text-decoration: underline"
+              >Terms and Conditions</a
+            >
           </p>
         </div>
 

@@ -863,6 +863,14 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
           // The email send date - used to determine if a past-due unpaid term is "Late"
           const emailSendDate = scheduledFor.toDate();
 
+          const getTermLatePenalty = (termLabel: string): number => {
+            const rawPenalty = (booking as any)[
+              `${termLabel.toLowerCase()}LateFeesPenalty`
+            ];
+            const parsed = Number(rawPenalty);
+            return Number.isFinite(parsed) ? parsed : 0;
+          };
+
           const termData = visibleTerms.map((t) => {
             const tDueDateRaw = getColumnValue(
               booking,
@@ -894,6 +902,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
               !datePaidFormatted &&
               !!dueDateFormatted &&
               new Date(dueDateFormatted) < emailSendDate;
+            const penaltyValue = getTermLatePenalty(t);
 
             return {
               term: t,
@@ -907,8 +916,28 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
               dueDate: dueDateFormatted,
               datePaid: datePaidFormatted,
               isLate,
+              penaltyValue,
+              penaltyAmount: penaltyValue > 0 ? formatGBP(penaltyValue) : "",
             };
           });
+
+          const totalLateFeesValueFromTerms = termData.reduce(
+            (sum, item) => sum + (Number(item.penaltyValue) || 0),
+            0,
+          );
+          const bookingTotalLateFees = Number(
+            (booking as any).totalLateFees || 0,
+          );
+          const totalLateFeesValue =
+            totalLateFeesValueFromTerms > 0
+              ? totalLateFeesValueFromTerms
+              : Number.isFinite(bookingTotalLateFees)
+                ? bookingTotalLateFees
+                : 0;
+          const hasLateFeePenalties = termData.some(
+            (item) => Number(item.penaltyValue) > 0,
+          );
+          const currentTermLatePenalty = getTermLatePenalty(term);
 
           // Prepare template variables
           const templateVariables = {
@@ -918,6 +947,8 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
             paymentTerm: term,
             amount: formatGBP(amount),
             dueDate: formatDate(dueDate),
+            lateFeePenalty: formatGBP(currentTermLatePenalty),
+            lateFeePenaltyValue: currentTermLatePenalty,
             bookingId:
               getColumnValue(booking, "Booking ID", PAYMENT_REMINDER_COLUMNS) ||
               "",
@@ -961,6 +992,9 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
                     PAYMENT_REMINDER_COLUMNS,
                   ),
             ),
+            totalLateFees: formatGBP(totalLateFeesValue),
+            totalLateFeesValue,
+            hasLateFeePenalties,
             showTable: true,
             termData: termData,
             tourPackageCoverImage,

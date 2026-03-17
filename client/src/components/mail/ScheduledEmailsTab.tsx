@@ -632,7 +632,9 @@ export default function ScheduledEmailsTab() {
 
             // Validate and format with Manila timezone to avoid UTC midnight off-by-one
             if (date && !isNaN(date.getTime())) {
-              return date.toLocaleDateString("en-CA", { timeZone: "Asia/Manila" });
+              return date.toLocaleDateString("en-CA", {
+                timeZone: "Asia/Manila",
+              });
             }
 
             return "";
@@ -710,15 +712,26 @@ export default function ScheduledEmailsTab() {
               ? new Date(email.sentAt)
               : new Date();
 
+          const getTermLatePenalty = (termLabel: string): number => {
+            const rawPenalty = (bookingData as any)[
+              `${termLabel.toLowerCase()}LateFeesPenalty`
+            ];
+            const parsed = Number(rawPenalty);
+            return Number.isFinite(parsed) ? parsed : 0;
+          };
+
           freshVariables.termData = visibleTerms.map((t) => {
             const tIndex = parseInt(t.replace("P", "")) - 1;
             const tLower = t.toLowerCase();
             const dueDateRaw = (bookingData as any)[`${tLower}DueDate`];
             const parsedDueDate = parseDueDateForTerm(dueDateRaw, tIndex);
             const dueDateStr = formatDate(parsedDueDate);
-            const datePaidStr = formatDate((bookingData as any)[`${tLower}DatePaid`]);
+            const datePaidStr = formatDate(
+              (bookingData as any)[`${tLower}DatePaid`],
+            );
             const isLate =
               !datePaidStr && !!dueDateStr && new Date(dueDateStr) < viewDate;
+            const penaltyValue = getTermLatePenalty(t);
 
             return {
               term: t,
@@ -726,8 +739,26 @@ export default function ScheduledEmailsTab() {
               dueDate: dueDateStr,
               datePaid: datePaidStr,
               isLate,
+              penaltyValue,
+              penaltyAmount: penaltyValue > 0 ? formatGBP(penaltyValue) : "",
             };
           });
+
+          const totalLateFeesFromTerms = (
+            freshVariables.termData as any[]
+          ).reduce((sum, item) => sum + (Number(item.penaltyValue) || 0), 0);
+          const bookingTotalLateFees = Number(
+            (bookingData as any).totalLateFees || 0,
+          );
+          const totalLateFeesValue =
+            totalLateFeesFromTerms > 0
+              ? totalLateFeesFromTerms
+              : Number.isFinite(bookingTotalLateFees)
+                ? bookingTotalLateFees
+                : 0;
+          const currentTermLatePenalty = email.templateVariables.paymentTerm
+            ? getTermLatePenalty(email.templateVariables.paymentTerm as string)
+            : 0;
 
           // Update totals
           freshVariables.totalAmount = formatGBP(
@@ -735,6 +766,13 @@ export default function ScheduledEmailsTab() {
               ? bookingData.discountedTourCost
               : bookingData.originalTourCost,
           );
+          freshVariables.totalLateFees = formatGBP(totalLateFeesValue);
+          freshVariables.totalLateFeesValue = totalLateFeesValue;
+          freshVariables.hasLateFeePenalties = (
+            freshVariables.termData as any[]
+          ).some((item) => Number(item.penaltyValue) > 0);
+          freshVariables.lateFeePenalty = formatGBP(currentTermLatePenalty);
+          freshVariables.lateFeePenaltyValue = currentTermLatePenalty;
           freshVariables.reservationFee = formatGBP(bookingData.reservationFee);
           freshVariables.paidTerms = formatGBP(bookingData.paidTerms);
           freshVariables.paid = formatGBP(bookingData.paid);
@@ -1439,7 +1477,9 @@ export default function ScheduledEmailsTab() {
                               >
                                 <Eye className="w-4 h-4" />
                               </Button>
-                              {(email.status === "sent" || email.status === "skipped" || email.status === "pending") && (
+                              {(email.status === "sent" ||
+                                email.status === "skipped" ||
+                                email.status === "pending") && (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -1447,7 +1487,11 @@ export default function ScheduledEmailsTab() {
                                     setSelectedEmail(email);
                                     setIsResendDialogOpen(true);
                                   }}
-                                  title={email.status === "pending" ? "Send this email now" : "Resend this email"}
+                                  title={
+                                    email.status === "pending"
+                                      ? "Send this email now"
+                                      : "Resend this email"
+                                  }
                                 >
                                   <Send className="w-4 h-4" />
                                 </Button>
@@ -1590,7 +1634,9 @@ export default function ScheduledEmailsTab() {
                       >
                         <Eye className="w-4 h-4" />
                       </Button>
-                      {(email.status === "sent" || email.status === "skipped" || email.status === "pending") && (
+                      {(email.status === "sent" ||
+                        email.status === "skipped" ||
+                        email.status === "pending") && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1598,7 +1644,11 @@ export default function ScheduledEmailsTab() {
                             setSelectedEmail(email);
                             setIsResendDialogOpen(true);
                           }}
-                          title={email.status === "pending" ? "Send this email now" : "Resend this email"}
+                          title={
+                            email.status === "pending"
+                              ? "Send this email now"
+                              : "Resend this email"
+                          }
                         >
                           <Send className="w-4 h-4" />
                         </Button>
@@ -2164,16 +2214,29 @@ export default function ScheduledEmailsTab() {
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {selectedEmail?.status === "pending" ? "Send Email Now?" : "Resend Email?"}
+              {selectedEmail?.status === "pending"
+                ? "Send Email Now?"
+                : "Resend Email?"}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to {selectedEmail?.status === "pending" ? "send" : "resend"} this message to{" "}
+              Are you sure you want to{" "}
+              {selectedEmail?.status === "pending" ? "send" : "resend"} this
+              message to{" "}
               <span className="font-semibold text-foreground">
                 {selectedEmail?.to}
               </span>
-              ? {selectedEmail?.status === "pending"
-                  ? <>This is originally scheduled for {selectedEmail.scheduledFor ? formatDate(selectedEmail.scheduledFor) : "later"}. The email will be sent immediately.</>
-                  : "This action cannot be undone and the email will be sent immediately."}
+              ?{" "}
+              {selectedEmail?.status === "pending" ? (
+                <>
+                  This is originally scheduled for{" "}
+                  {selectedEmail.scheduledFor
+                    ? formatDate(selectedEmail.scheduledFor)
+                    : "later"}
+                  . The email will be sent immediately.
+                </>
+              ) : (
+                "This action cannot be undone and the email will be sent immediately."
+              )}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -2188,9 +2251,13 @@ export default function ScheduledEmailsTab() {
               }}
               disabled={isResendingEmail}
             >
-              {isResendingEmail 
-                ? (selectedEmail?.status === "pending" ? "Sending..." : "Resending...") 
-                : (selectedEmail?.status === "pending" ? "Yes, Send Email Now" : "Yes, Resend Email")}
+              {isResendingEmail
+                ? selectedEmail?.status === "pending"
+                  ? "Sending..."
+                  : "Resending..."
+                : selectedEmail?.status === "pending"
+                  ? "Yes, Send Email Now"
+                  : "Yes, Resend Email"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
