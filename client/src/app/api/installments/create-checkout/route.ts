@@ -39,6 +39,15 @@ const INSTALLMENT_FIELD_MAP: Record<InstallmentId, InstallmentFieldMap> = {
   p4: { dueDate: "p4DueDate", amount: "p4Amount", datePaid: "p4DatePaid" },
 };
 
+// Maps each installment term to its late fee penalty field in the booking document
+const INSTALLMENT_PENALTY_FIELD: Record<InstallmentId, string | null> = {
+  full_payment: null,
+  p1: "p1LateFeesPenalty",
+  p2: "p2LateFeesPenalty",
+  p3: "p3LateFeesPenalty",
+  p4: "p4LateFeesPenalty",
+};
+
 export async function POST(req: NextRequest) {
   try {
     const { access_token, installment_id } = await req.json();
@@ -106,6 +115,11 @@ export async function POST(req: NextRequest) {
     const amount = booking[fields.amount];
     const datePaid = booking[fields.datePaid];
 
+    // Read late fee penalty server-side from Firestore (client cannot inflate the charge)
+    const penaltyField = INSTALLMENT_PENALTY_FIELD[installment_id as InstallmentId];
+    const lateFeesPenalty = penaltyField ? Number(booking[penaltyField] || 0) : 0;
+    const totalAmount = Number(amount) + lateFeesPenalty;
+
     // 3. Validate installment exists
     if (!dueDate || !amount) {
       console.log(`❌ Installment ${installment_id} not found in booking`);
@@ -115,7 +129,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    console.log(`📅 Installment details: Due ${dueDate}, Amount: €${amount}`);
+    console.log(
+      `📅 Installment details: Due ${dueDate}, Base: £${amount}` +
+        (lateFeesPenalty > 0 ? `, Late Fee: £${lateFeesPenalty}, Total: £${totalAmount}` : ""),
+    );
 
     // 4. Check if already paid (check both sources)
     const tokenStatus = booking.paymentTokens?.[installment_id]?.status;
@@ -264,7 +281,9 @@ export async function POST(req: NextRequest) {
       payment: {
         type: "installment",
         installmentTerm: installment_id,
-        amount: amount,
+        amount: totalAmount,
+        baseAmount: amount,
+        lateFeeAmount: lateFeesPenalty,
         currency: "GBP",
         status: "installment_pending",
       },
@@ -321,10 +340,16 @@ export async function POST(req: NextRequest) {
           price_data: {
             currency: "gbp",
             product_data: {
-              name: `${booking.tourPackageName} - ${installmentDisplayName}`,
-              description: `Booking ID: ${booking.bookingId}`,
+              name:
+                lateFeesPenalty > 0
+                  ? `${booking.tourPackageName} - ${installmentDisplayName} (inc. late fee)`
+                  : `${booking.tourPackageName} - ${installmentDisplayName}`,
+              description:
+                lateFeesPenalty > 0
+                  ? `Booking ID: ${booking.bookingId} | Base: £${Number(amount).toFixed(2)} | Late Fee: £${lateFeesPenalty.toFixed(2)}`
+                  : `Booking ID: ${booking.bookingId}`,
             },
-            unit_amount: Math.round(amount * 100), // Convert to cents
+            unit_amount: Math.round(totalAmount * 100), // Convert to pence (base + late fee)
           },
           quantity: 1,
         },
@@ -338,6 +363,7 @@ export async function POST(req: NextRequest) {
           stripe_payment_doc_id: stripePaymentDoc.id,
           booking_id: booking.bookingId,
           tour_name: booking.tourPackageName,
+          late_fee_amount: lateFeesPenalty.toString(),
         },
       },
       success_url: `${baseUrl}/booking-status/${access_token}?payment_success=true&installment=${installment_id}`,

@@ -91,6 +91,14 @@ interface BookingData {
   p4DueDate?: string;
   p4Amount?: number;
   p4DatePaid?: any;
+  p1LateFeesPenalty?: number;
+  p2LateFeesPenalty?: number;
+  p3LateFeesPenalty?: number;
+  p4LateFeesPenalty?: number;
+  p1LateFeeAppliedAt?: any;
+  p2LateFeeAppliedAt?: any;
+  p3LateFeeAppliedAt?: any;
+  p4LateFeeAppliedAt?: any;
   sentEmailLink?: string;
   eventName?: string;
   discountRate?: number;
@@ -385,6 +393,14 @@ export default function BookingStatusPage() {
         p4DueDate: bookingData.p4DueDate,
         p4Amount: bookingData.p4Amount,
         p4DatePaid: bookingData.p4DatePaid,
+        p1LateFeesPenalty: bookingData.p1LateFeesPenalty,
+        p1LateFeeAppliedAt: bookingData.p1LateFeeAppliedAt,
+        p2LateFeesPenalty: bookingData.p2LateFeesPenalty,
+        p2LateFeeAppliedAt: bookingData.p2LateFeeAppliedAt,
+        p3LateFeesPenalty: bookingData.p3LateFeesPenalty,
+        p3LateFeeAppliedAt: bookingData.p3LateFeeAppliedAt,
+        p4LateFeesPenalty: bookingData.p4LateFeesPenalty,
+        p4LateFeeAppliedAt: bookingData.p4LateFeeAppliedAt,
         sentEmailLink: bookingData.sentEmailLink,
         eventName: bookingData.eventName,
         discountRate: bookingData.discountRate,
@@ -924,6 +940,17 @@ export default function BookingStatusPage() {
   const buildPaymentTerms = () => {
     const terms: any[] = [];
 
+    const toNumber = (value: any): number => {
+      if (typeof value === "number") {
+        return Number.isFinite(value) ? value : 0;
+      }
+      if (typeof value === "string") {
+        const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+      return 0;
+    };
+
     const installments = [
       { id: "full_payment", term: "Full Payment", prefix: "fullPayment" },
       { id: "p1", term: "P1", prefix: "p1" },
@@ -936,6 +963,10 @@ export default function BookingStatusPage() {
       const dueDate = booking[`${prefix}DueDate` as keyof BookingData];
       const amount = booking[`${prefix}Amount` as keyof BookingData];
       const datePaid = booking[`${prefix}DatePaid` as keyof BookingData];
+      const lateFeeAppliedAt =
+        id === "full_payment"
+          ? null
+          : booking[`${prefix}LateFeeAppliedAt` as keyof BookingData];
 
       if (!amount) return; // Skip if installment doesn't exist
 
@@ -949,7 +980,7 @@ export default function BookingStatusPage() {
       let status = "pending";
       let statusInfo: any = {};
 
-      if (tokenData?.status === "success" || datePaid) {
+      if (tokenData?.status === "success" && datePaid) {
         status = "paid";
         statusInfo = {
           paidAt: tokenData?.paidAt || datePaid,
@@ -976,11 +1007,18 @@ export default function BookingStatusPage() {
         status = "overdue";
       }
 
+      const penalty =
+        id === "full_payment"
+          ? 0
+          : toNumber(booking[`${prefix}LateFeesPenalty` as keyof BookingData]);
+
       terms.push({
         id,
         term,
         dueDate: dueDate || "",
-        amount,
+        amount: toNumber(amount),
+        penalty,
+        lateFeeAppliedAt,
         status,
         ...statusInfo,
       });
@@ -990,6 +1028,9 @@ export default function BookingStatusPage() {
   };
 
   const paymentTerms = buildPaymentTerms();
+  const hasAnyPenalty = paymentTerms.some(
+    (term) => Number(term.penalty || 0) > 0,
+  );
   const availablePaymentPlans = getAvailablePaymentPlans();
 
   const formatFileSize = (bytes: number) => {
@@ -1194,7 +1235,9 @@ export default function BookingStatusPage() {
 
                 <div className="w-full">
                   <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto shadow-sm">
-                    <table className="w-full min-w-[420px] sm:min-w-[500px]">
+                    <table
+                      className={`w-full ${hasAnyPenalty ? "min-w-[520px] sm:min-w-[640px]" : "min-w-[420px] sm:min-w-[500px]"}`}
+                    >
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-900 whitespace-nowrap">
@@ -1368,7 +1411,7 @@ export default function BookingStatusPage() {
                       <thead className="bg-gray-50">
                         <tr>
                           <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-900 whitespace-nowrap">
-                            Payment
+                            Term
                           </th>
                           <th className="text-left py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-900 whitespace-nowrap">
                             Due Date
@@ -1376,6 +1419,11 @@ export default function BookingStatusPage() {
                           <th className="text-right py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-900 whitespace-nowrap">
                             Amount
                           </th>
+                          {hasAnyPenalty && (
+                            <th className="text-right py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-900 whitespace-nowrap">
+                              Total Amount
+                            </th>
+                          )}
                           <th className="text-center py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm font-semibold text-gray-900 whitespace-nowrap">
                             Status
                           </th>
@@ -1410,6 +1458,23 @@ export default function BookingStatusPage() {
                               <td className="py-2 sm:py-3 px-2 sm:px-4 text-right font-semibold text-xs sm:text-sm text-gray-900 whitespace-nowrap">
                                 £{term.amount.toFixed(2)}
                               </td>
+                              {hasAnyPenalty && (
+                                <td className="py-2 sm:py-3 px-2 sm:px-4 text-right font-semibold text-xs sm:text-sm text-gray-900 whitespace-nowrap">
+                                  <div className="flex flex-col items-end gap-0.5">
+                                    <span>
+                                      £
+                                      {(
+                                        term.amount + (term.penalty || 0)
+                                      ).toFixed(2)}
+                                    </span>
+                                    {term.penalty > 0 && (
+                                      <span className="text-[10px] font-normal text-red-600">
+                                        + £{term.penalty.toFixed(2)} late fee
+                                      </span>
+                                    )}
+                                  </div>
+                                </td>
+                              )}
 
                               {/* Status Badge */}
                               <td className="py-2 sm:py-3 px-2 sm:px-4 text-center">
@@ -1501,7 +1566,10 @@ export default function BookingStatusPage() {
                                     return (
                                       <Button
                                         onClick={() =>
-                                          handleOpenPayNowModal(term.id, term.amount)
+                                          handleOpenPayNowModal(
+                                            term.id,
+                                            term.amount + (term.penalty || 0),
+                                          )
                                         }
                                         disabled={paymentProcessing !== null}
                                         size="sm"

@@ -92,8 +92,15 @@ export async function POST(req: NextRequest) {
     const installmentId = paymentData.payment?.installmentTerm;
 
     // 4. Recalculate everything from scratch to prevent double-counting
-    const totalCost =
+    const baseCost =
       booking.discountedTourCost || booking.originalTourCost || 0;
+    // Late fees increase total amount owed (mirrors remaining-balance.ts rule)
+    const allAppliedLateFees = ["p1", "p2", "p3", "p4"].reduce(
+      (sum: number, id: string) =>
+        sum + (Number(booking[`${id}LateFeesPenalty`]) || 0),
+      0,
+    );
+    const totalCost = baseCost + allAppliedLateFees;
 
     // Start with reservation fee
     let calculatedPaid = booking.reservationFee || 0;
@@ -208,6 +215,8 @@ export async function POST(req: NextRequest) {
       if (isCurrentPayment || isAlreadyPaid) {
         const amount = booking[`${id}Amount`] || 0;
         calculatedPaid += amount;
+        // Mirror paid.ts: late fee is counted as paid when its installment is paid
+        calculatedPaid += Number(booking[`${id}LateFeesPenalty`] || 0);
         installmentsPaidCount++;
       }
     });
@@ -286,6 +295,7 @@ export async function POST(req: NextRequest) {
         id === installmentId;
       if (isPaid) {
         paidTerms += booking[`${id}Amount`] || 0;
+        paidTerms += Number(booking[`${id}LateFeesPenalty`] || 0);
       }
     });
 
