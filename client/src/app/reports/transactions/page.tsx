@@ -53,12 +53,13 @@ interface DetailRow {
   grossRevenue: number;
   expectedRevenue: number;
   outstanding: number;
+  refundedAmount: number;
   netRevenue: number;
 }
 
 type SortKey = keyof Pick<
   DetailRow,
-  "bookingCode" | "tourName" | "installment" | "dueDate" | "amount" | "grossRevenue" | "netRevenue" | "expectedRevenue" | "outstanding" | "status"
+  "bookingCode" | "tourName" | "installment" | "dueDate" | "amount" | "grossRevenue" | "netRevenue" | "expectedRevenue" | "outstanding" | "refundedAmount" | "status"
 >;
 
 type SortDir = "asc" | "desc";
@@ -70,6 +71,10 @@ function fmt(amount: number): string {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
+}
+
+function fmtSigned(amount: number): string {
+  return amount < 0 ? `−${fmt(amount)}` : fmt(amount);
 }
 
 function fmtDate(d: string | null): string {
@@ -123,6 +128,7 @@ function buildDetailRows(report: FinancialReport, startDate: string, endDate: st
         grossRevenue: reservationEv.grossRevenue,
         expectedRevenue: 0,
         outstanding: 0,
+        refundedAmount: 0,
         netRevenue: reservationEv.grossRevenue,
       });
     }
@@ -183,7 +189,34 @@ function buildDetailRows(report: FinancialReport, startDate: string, endDate: st
         grossRevenue: isPaid ? amount : 0,
         expectedRevenue: (!isPaid && !isOverdue) ? amount : 0,
         outstanding: isOverdue ? amount : 0,
+        refundedAmount: 0,
         netRevenue: isPaid ? amount : 0,
+      });
+    }
+
+    const refundEvents = events.filter(
+      (e) => e.eventType === "cancellation" && e.refundedAmount < 0
+    );
+
+    for (const refundEv of refundEvents) {
+      if (refundEv.date < startDate || refundEv.date > endDate) continue;
+
+      const refundValue = Math.abs(refundEv.refundedAmount);
+      rows.push({
+        bookingId: summary.bookingId,
+        bookingCode: summary.bookingCode,
+        tourName: summary.tourName,
+        installment: "Refund",
+        dueDate: refundEv.date,
+        paidDate: refundEv.date,
+        lastPaidDate: null,
+        amount: refundValue,
+        status: "paid",
+        grossRevenue: 0,
+        expectedRevenue: 0,
+        outstanding: 0,
+        refundedAmount: refundValue,
+        netRevenue: -refundValue,
       });
     }
   }
@@ -442,8 +475,8 @@ function TransactionsDetailPageContent() {
     netRevenue:   allRows.reduce((s, r) => s + r.netRevenue, 0),
     expected:     allRows.reduce((s, r) => s + r.expectedRevenue, 0),
     outstanding:  allRows.reduce((s, r) => s + r.outstanding, 0),
-    refunded:     metrics?.totalRefunded ?? 0,
-  }), [allRows, metrics]);
+    refunded:     allRows.reduce((s, r) => s + r.refundedAmount, 0),
+  }), [allRows]);
 
   // Extend trend data with netRevenue = grossRevenue - refundedAmount
   const trendData = useMemo(
@@ -547,7 +580,7 @@ function TransactionsDetailPageContent() {
             >
               <CardContent className="pt-4">
                 <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">Gross Revenue</p>
-                <p className="text-xl font-bold text-gray-900">{fmt(rowTotals.grossRevenue)}</p>
+                <p className="text-xl font-bold text-green-700">{fmt(rowTotals.grossRevenue)}</p>
               </CardContent>
             </Card>
             {/* Outstanding */}
@@ -872,8 +905,20 @@ function TransactionsDetailPageContent() {
             )}
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-y-auto max-h-[640px]">
-              <table className="w-full text-sm">
+            <div className="overflow-y-auto overflow-x-hidden max-h-[640px]">
+              <table className="w-full table-fixed text-sm">
+                <colgroup>
+                  <col className="w-[14%]" />
+                  <col className="w-[14%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[11%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[9%]" />
+                  <col className="w-[8%]" />
+                  <col className="w-[10%]" />
+                  <col className="w-[10%]" />
+                </colgroup>
                 <thead className="bg-gray-50 sticky top-0 z-10">
                   <tr className="border-b border-gray-200">
                     <SortHeader label="Booking ID" col="bookingCode" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} className="pl-3" />
@@ -884,7 +929,8 @@ function TransactionsDetailPageContent() {
                     <SortHeader label="Gross" col="grossRevenue" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} className="text-right" />
                     <SortHeader label="Net Rev" col="netRevenue" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} className="text-right" />
                     <SortHeader label="Expected" col="expectedRevenue" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} className="text-right" />
-                    <SortHeader label="Outstanding" col="outstanding" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} className="text-right pr-3" />
+                    <SortHeader label="Outstanding" col="outstanding" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} className="text-right" />
+                    <SortHeader label="Refund" col="refundedAmount" sortKey={sortKey} sortDir={sortDir} onSort={handleSort} className="text-right pr-3" />
                   </tr>
                   {filteredRows.length > 0 && (
                     <tr className="border-b-2 border-gray-300 bg-gray-100">
@@ -895,13 +941,18 @@ function TransactionsDetailPageContent() {
                         {fmt(filteredRows.reduce((s, r) => s + r.grossRevenue, 0))}
                       </td>
                       <td className="px-2 py-2 text-right text-xs font-bold text-purple-700">
-                        {fmt(filteredRows.reduce((s, r) => s + r.netRevenue, 0))}
+                        {fmtSigned(filteredRows.reduce((s, r) => s + r.netRevenue, 0))}
                       </td>
                       <td className="px-2 py-2 text-right text-xs font-bold text-blue-600">
                         {fmt(filteredRows.reduce((s, r) => s + r.expectedRevenue, 0))}
                       </td>
-                      <td className="px-2 py-2 pr-3 text-right text-xs font-bold text-orange-600">
+                      <td className="px-2 py-2 text-right text-xs font-bold text-orange-600">
                         {fmt(filteredRows.reduce((s, r) => s + r.outstanding, 0))}
+                      </td>
+                      <td className="px-2 py-2 pr-3 text-right text-xs font-bold text-red-600">
+                        {filteredRows.reduce((s, r) => s + r.refundedAmount, 0) > 0
+                          ? `−${fmt(filteredRows.reduce((s, r) => s + r.refundedAmount, 0))}`
+                          : "—"}
                       </td>
                     </tr>
                   )}
@@ -909,7 +960,7 @@ function TransactionsDetailPageContent() {
                 <tbody className="divide-y divide-gray-100">
                   {filteredRows.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="text-center py-12 text-gray-400 text-sm">
+                      <td colSpan={10} className="text-center py-12 text-gray-400 text-sm">
                         No payment data for this period.
                       </td>
                     </tr>
@@ -919,25 +970,25 @@ function TransactionsDetailPageContent() {
                         key={`${row.bookingId}-${row.installment}-${i}`}
                         className="hover:bg-gray-50 transition-colors"
                       >
-                        <td className="px-2 py-3 pl-3 whitespace-nowrap">
+                        <td className="px-2 py-3 pl-3">
                           <button
                             onClick={() => router.push(`/bookings?bookingId=${row.bookingId}`)}
-                            className="font-mono text-xs text-blue-700 font-semibold hover:underline hover:text-blue-900 text-left"
+                            className="font-mono text-xs text-blue-700 font-semibold hover:underline hover:text-blue-900 text-left block truncate max-w-full"
                             title={`Open booking ${row.bookingId}`}
                           >
                             {row.bookingId}
                           </button>
                           {row.bookingCode && row.bookingCode !== row.bookingId && (
-                            <span className="block text-gray-400 font-normal text-xs">{row.bookingCode}</span>
+                            <span className="block text-gray-400 font-normal text-xs truncate" title={row.bookingCode}>{row.bookingCode}</span>
                           )}
                         </td>
-                        <td className="px-2 py-3 text-gray-900 max-w-[160px] truncate">
+                        <td className="px-2 py-3 text-gray-900 truncate" title={row.tourName}>
                           {row.tourName}
                         </td>
-                        <td className="px-2 py-3 text-gray-700 font-medium whitespace-nowrap">
+                        <td className="px-2 py-3 text-gray-700 font-medium truncate" title={row.installment}>
                           {row.installment}
                         </td>
-                        <td className="px-2 py-3 text-gray-600 whitespace-nowrap">
+                        <td className="px-2 py-3 text-gray-600">
                           {row.status === "paid" && row.paidDate ? (
                             <>
                               <span className="text-green-700 font-medium">{fmtDate(row.paidDate)}</span>
@@ -966,17 +1017,20 @@ function TransactionsDetailPageContent() {
                         <td className="px-2 py-3 text-center">
                           <StatusBadge status={row.status} />
                         </td>
-                        <td className="px-2 py-3 text-right text-green-700 font-medium whitespace-nowrap">
+                        <td className="px-2 py-3 text-right text-green-700 font-medium">
                           {row.grossRevenue > 0 ? fmt(row.grossRevenue) : "—"}
                         </td>
-                        <td className="px-2 py-3 text-right text-purple-700 font-medium whitespace-nowrap">
-                          {row.netRevenue > 0 ? fmt(row.netRevenue) : "—"}
+                        <td className="px-2 py-3 text-right text-purple-700 font-medium">
+                          {row.netRevenue !== 0 ? fmtSigned(row.netRevenue) : "—"}
                         </td>
-                        <td className="px-2 py-3 text-right text-blue-600 whitespace-nowrap">
+                        <td className="px-2 py-3 text-right text-blue-600">
                           {row.expectedRevenue > 0 ? fmt(row.expectedRevenue) : "—"}
                         </td>
-                        <td className="px-2 py-3 pr-3 text-right text-orange-600 font-medium whitespace-nowrap">
+                        <td className="px-2 py-3 text-right text-orange-600 font-medium">
                           {row.outstanding > 0 ? fmt(row.outstanding) : "—"}
+                        </td>
+                        <td className="px-2 py-3 pr-3 text-right text-red-600 font-medium">
+                          {row.refundedAmount > 0 ? `−${fmt(row.refundedAmount)}` : "—"}
                         </td>
                       </tr>
                     ))

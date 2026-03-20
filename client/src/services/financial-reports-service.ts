@@ -495,6 +495,9 @@ function aggregateMetrics(
     if (rangedSummaryEvents.length === 0) continue;
 
     const tourGross = rangedSummaryEvents.reduce((s, e) => s + e.grossRevenue, 0);
+    const tourRefunded = Math.abs(
+      rangedSummaryEvents.reduce((s, e) => s + e.refundedAmount, 0)
+    );
     const tourNet =
       tourGross +
       rangedSummaryEvents.reduce((s, e) => s + e.refundedAmount, 0);
@@ -502,12 +505,14 @@ function aggregateMetrics(
     const existing = tourMap.get(summary.tourName);
     if (existing) {
       existing.grossRevenue += tourGross;
+      existing.refundedAmount += tourRefunded;
       existing.netRevenue += tourNet;
       existing.bookingCount += 1;
     } else {
       tourMap.set(summary.tourName, {
         tourName: summary.tourName,
         grossRevenue: tourGross,
+        refundedAmount: tourRefunded,
         netRevenue: tourNet,
         bookingCount: 1,
         percentage: 0,

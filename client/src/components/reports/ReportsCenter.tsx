@@ -494,7 +494,7 @@ export default function ReportsCenter() {
               <CardHeader>
                 <CardTitle>Revenue by Tour Package</CardTitle>
                 <CardDescription>
-                  Net revenue and booking count per tour
+                  Gross, Net, and Refunded amounts per tour with booking count
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -515,6 +515,7 @@ export default function ReportsCenter() {
                       layout="vertical"
                       margin={{ top: 5, right: 80, left: 10, bottom: 5 }}
                       barCategoryGap="35%"
+                      barGap={3}
                     >
                       <CartesianGrid
                         strokeDasharray="3 3"
@@ -523,6 +524,8 @@ export default function ReportsCenter() {
                       />
                       <XAxis
                         type="number"
+                        domain={[0, "dataMax"]}
+                        reversed={false}
                         tickFormatter={(v) =>
                           `£${(v as number).toLocaleString("en-GB", {
                             notation: "compact",
@@ -551,11 +554,14 @@ export default function ReportsCenter() {
                               <p className="font-semibold text-gray-700 mb-1 max-w-[200px] break-words">
                                 {d.tourName}
                               </p>
+                              <p className="text-green-700 font-semibold">
+                                Gross: {formatCurrency(d.grossRevenue)}
+                              </p>
                               <p className="text-blue-600 font-bold">
                                 Net: {formatCurrency(d.netRevenue)}
                               </p>
-                              <p className="text-gray-500">
-                                Gross: {formatCurrency(d.grossRevenue)}
+                              <p className="text-red-600 font-semibold">
+                                Refunded: {formatCurrency(d.refundedAmount)}
                               </p>
                               <p className="text-gray-500">
                                 {d.bookingCount} booking
@@ -567,9 +573,24 @@ export default function ReportsCenter() {
                         }}
                       />
                       <Bar
+                        dataKey="grossRevenue"
+                        name="Gross Revenue"
+                        fill="#16a34a"
+                        barSize={10}
+                        radius={[0, 0, 0, 0]}
+                      />
+                      <Bar
                         dataKey="netRevenue"
                         name="Net Revenue"
-                        fill="#3b82f6"
+                        fill="#2563eb"
+                        barSize={10}
+                        radius={[0, 0, 0, 0]}
+                      />
+                      <Bar
+                        dataKey="refundedAmount"
+                        name="Refunded"
+                        fill="#ef4444"
+                        barSize={10}
                         radius={[0, 4, 4, 0]}
                       />
                     </BarChart>

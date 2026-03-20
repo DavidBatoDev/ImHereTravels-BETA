@@ -108,6 +108,7 @@ export interface FinancialReportMetrics {
 export interface TourRevenueSummary {
   tourName: string;
   grossRevenue: number;
+  refundedAmount: number;
   netRevenue: number;
   bookingCount: number;
   percentage: number; // share of total gross revenue

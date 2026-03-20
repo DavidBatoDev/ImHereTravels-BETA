@@ -95,7 +95,7 @@ const navigation = [
     description: "File management",
   },
   {
-    name: "Reports (Coming Soon)",
+    name: "Reports",
     href: "/reports",
     icon: BarChart3,
     description: "Analytics & insights",
