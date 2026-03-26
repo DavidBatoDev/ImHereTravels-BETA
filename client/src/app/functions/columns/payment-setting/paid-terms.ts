@@ -1,4 +1,5 @@
 import { BookingSheetColumn } from "@/types/booking-sheet-column";
+import { hasPaidDate, roundCurrency, toNumber } from "../payment-calculation-helpers";
 
 export const paidTermsColumn: BookingSheetColumn = {
   id: "paidTerms",
@@ -209,53 +210,46 @@ export default async function getPaidTerms(
 ): Promise<number | string> {
   // Return empty if no tour package selected
   if (!tourPackageName) return "";
-
-  // Helper to convert to number
-  const toNumber = (value: any): number => {
-    if (typeof value === "number") return value;
-    if (typeof value === "string") {
-      const parsed = parseFloat(value);
-      return isNaN(parsed) ? 0 : parsed;
-    }
-    return 0;
-  };
+  void reservationFee;
 
   // Get credit amount (default to 0 if invalid)
   const creditAmt = toNumber(manualCredit);
+  const hasManualCredit = creditAmt > 0;
 
-  // Calculate each payment term (only if date paid exists)
-  const fullPaid = fullPaymentDatePaid ? toNumber(fullPaymentAmount) : 0;
+  // Calculate each payment term (manual credit can count even before a date is entered)
+  const fullPaid =
+    hasPaidDate(fullPaymentDatePaid) || (hasManualCredit && creditFrom === "Full Payment")
+      ? creditFrom === "Full Payment" && hasManualCredit
+        ? creditAmt
+        : toNumber(fullPaymentAmount)
+      : 0;
 
-  const p1Paid = p1DatePaid
-    ? creditFrom === "P1"
+  const p1Paid = hasPaidDate(p1DatePaid) || (hasManualCredit && creditFrom === "P1")
+    ? creditFrom === "P1" && hasManualCredit
       ? creditAmt
       : toNumber(p1Amount)
     : 0;
 
-  const p2Paid = p2DatePaid
-    ? creditFrom === "P2"
+  const p2Paid = hasPaidDate(p2DatePaid) || (hasManualCredit && creditFrom === "P2")
+    ? creditFrom === "P2" && hasManualCredit
       ? creditAmt
       : toNumber(p2Amount)
     : 0;
 
-  const p3Paid = p3DatePaid
-    ? creditFrom === "P3"
+  const p3Paid = hasPaidDate(p3DatePaid) || (hasManualCredit && creditFrom === "P3")
+    ? creditFrom === "P3" && hasManualCredit
       ? creditAmt
       : toNumber(p3Amount)
     : 0;
 
-  const p4Paid = p4DatePaid
-    ? creditFrom === "P4"
+  const p4Paid = hasPaidDate(p4DatePaid) || (hasManualCredit && creditFrom === "P4")
+    ? creditFrom === "P4" && hasManualCredit
       ? creditAmt
       : toNumber(p4Amount)
     : 0;
 
-  // Calculate reservation paid (reservation fee + credit if applied to reservation)
-  const resFee = toNumber(reservationFee);
-  const resPaid = resFee + (creditFrom === "Reservation" ? creditAmt : 0);
-
-  // Sum all payments
+  // Sum installment/full-term payments (reservation is intentionally excluded for paid terms)
   const totalPaid = fullPaid + p1Paid + p2Paid + p3Paid + p4Paid;
 
-  return totalPaid;
+  return roundCurrency(totalPaid);
 }

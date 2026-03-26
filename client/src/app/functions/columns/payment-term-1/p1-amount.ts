@@ -1,4 +1,9 @@
 import { BookingSheetColumn } from "@/types/booking-sheet-column";
+import {
+  getCreditOrder,
+  roundCurrency,
+  toNumber,
+} from "../payment-calculation-helpers";
 
 export const p1AmountColumn: BookingSheetColumn = {
   id: "p1Amount",
@@ -202,21 +207,21 @@ export default function getP1AmountFunction(
   if (!p1DueDate) return "";
 
   // Automatically use discounted cost if available (from active discount events)
-  const discCost = discountedTourCost ?? 0;
-  const origCost = originalTourCost ?? 0;
-  const total = (discCost > 0 ? discCost : origCost) - (reservationFee ?? 0);
+  const discCost = toNumber(discountedTourCost);
+  const origCost = toNumber(originalTourCost);
+  const total = (discCost > 0 ? discCost : origCost) - toNumber(reservationFee);
   const credit_from = creditFrom ?? "";
-  const credit_amt = creditAmount ?? 0;
+  const credit_amt = toNumber(creditAmount);
 
   // Case: No payment plan or condition → return unpaid balance divided by 4
   if (!paymentPlan && !paymentCondition) {
     const paidSum =
-      (fullPaymentDatePaid ? fullPaymentAmount ?? 0 : 0) +
-      (p2DatePaid ? p2Amount ?? 0 : 0) +
-      (p3DatePaid ? p3Amount ?? 0 : 0) +
-      (p4DatePaid ? p4Amount ?? 0 : 0);
+      (fullPaymentDatePaid ? toNumber(fullPaymentAmount) : 0) +
+      (p2DatePaid ? toNumber(p2Amount) : 0) +
+      (p3DatePaid ? toNumber(p3Amount) : 0) +
+      (p4DatePaid ? toNumber(p4Amount) : 0);
 
-    return Math.round(((total - paidSum) / 4) * 100) / 100;
+    return roundCurrency((total - paidSum) / 4);
   }
 
   // Determine number of terms (P1–P4)
@@ -228,49 +233,17 @@ export default function getP1AmountFunction(
     P4: 4,
   };
   const terms = termsMap[paymentPlan ?? ""] ?? 1;
+  if (terms < 1) return "";
 
-  // Build credit detection string
-  const cf = `,${credit_from},`;
-  const pOne = cf.includes(",P1,");
-  const paid1 = !!p1DueDate;
-  const paid2 = !!p2DatePaid;
-  const paid3 = !!p3DatePaid;
-  const paid4 = !!p4DatePaid;
-
-  const credited = Math.min(terms, Number(pOne) + Number(paid1));
-  const unpaidCount =
-    terms - Number(paid1) - Number(paid2) - Number(paid3) - Number(paid4);
-  const adjustedDenom = Math.max(1, unpaidCount - credited);
-
-  // Assign numeric order to credit source
-  const k =
-    credit_amt > 0 && credit_from === "Reservation"
-      ? 0
-      : credit_amt > 0 && credit_from === "P1"
-      ? 1
-      : credit_amt > 0 && credit_from === "P2"
-      ? 2
-      : credit_amt > 0 && credit_from === "P3"
-      ? 3
-      : credit_amt > 0 && credit_from === "P4"
-      ? 4
-      : 0;
-
+  const creditOrder = getCreditOrder(credit_from, credit_amt);
   const base = total / terms;
 
-  let amount: number;
-  if (k === 0 && credit_amt > 0) {
+  let amount = base;
+  if (creditOrder === 0) {
     amount = (total - credit_amt) / terms;
-  } else if (k === 1 && credit_amt > 0) {
+  } else if (creditOrder === 1) {
     amount = credit_amt;
-  } else if (k > 1 && credit_amt > 0) {
-    amount = base;
-  } else if (credit_amt > 0) {
-    amount = (total - base * (k - 1) - credit_amt) / Math.max(1, terms - k);
-  } else {
-    // No credit applied, just divide total by terms
-    amount = total / terms;
   }
 
-  return Math.round((isNaN(amount) ? 0 : amount) * 100) / 100;
+  return roundCurrency(amount);
 }

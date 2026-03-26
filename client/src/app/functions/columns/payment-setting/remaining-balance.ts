@@ -1,4 +1,9 @@
 import { BookingSheetColumn } from "@/types/booking-sheet-column";
+import {
+  hasPaidDate,
+  roundCurrency,
+  toNumber,
+} from "../payment-calculation-helpers";
 
 export const remainingBalanceColumn: BookingSheetColumn = {
   id: "remainingBalance",
@@ -269,52 +274,60 @@ export default function getRemainingBalanceFunction(
 ): number | "" {
   if (!tourPackageName) return "";
 
-  const toNumber = (value: unknown): number => {
-    if (typeof value === "number") {
-      return Number.isFinite(value) ? value : 0;
-    }
-
-    if (typeof value === "string") {
-      const normalized = value.replace(/[^\d.-]/g, "").trim();
-      if (!normalized) return 0;
-      const parsed = Number(normalized);
-      return Number.isFinite(parsed) ? parsed : 0;
-    }
-
-    return 0;
-  };
-
-  const isPaid = (value: unknown): boolean => {
-    if (value == null) return false;
-    if (typeof value === "string") {
-      const normalized = value.trim().toLowerCase();
-      return (
-        normalized !== "" && normalized !== "null" && normalized !== "undefined"
-      );
-    }
-    return true;
-  };
-
   // Normalize numeric inputs to avoid undefined values
   const origCost = toNumber(originalTourCost);
   const discCost = toNumber(discountedTourCost);
   const resFee = toNumber(reservationFee);
   const credit = toNumber(creditAmount);
+  const hasManualCredit = credit > 0;
+  const creditFromValue = creditFrom ?? "";
 
   // Determine which total cost to use (discounted or original)
   // Automatically use discounted cost if available (from active discount events)
   const baseCost = discCost > 0 ? discCost : origCost;
 
   // Subtract reservation fee and any credit from reservation
-  const total = baseCost - resFee - (creditFrom === "Reservation" ? credit : 0);
+  const total =
+    baseCost -
+    resFee -
+    (creditFromValue === "Reservation" && hasManualCredit ? credit : 0);
+
+  const p1IsPaid =
+    hasPaidDate(p1DatePaid) || (hasManualCredit && creditFromValue === "P1");
+  const p2IsPaid =
+    hasPaidDate(p2DatePaid) || (hasManualCredit && creditFromValue === "P2");
+  const p3IsPaid =
+    hasPaidDate(p3DatePaid) || (hasManualCredit && creditFromValue === "P3");
+  const p4IsPaid =
+    hasPaidDate(p4DatePaid) || (hasManualCredit && creditFromValue === "P4");
 
   // Total paid amount so far (treat missing amounts as 0)
   const paid =
-    (isPaid(fullPaymentDate) ? toNumber(fullPaymentAmount) : 0) +
-    (isPaid(p1DatePaid) ? toNumber(p1Amount) : 0) +
-    (isPaid(p2DatePaid) ? toNumber(p2Amount) : 0) +
-    (isPaid(p3DatePaid) ? toNumber(p3Amount) : 0) +
-    (isPaid(p4DatePaid) ? toNumber(p4Amount) : 0);
+    (hasPaidDate(fullPaymentDate)
+      ? toNumber(fullPaymentAmount)
+      : hasManualCredit && creditFromValue === "Full Payment"
+        ? credit
+        : 0) +
+    (p1IsPaid
+      ? hasManualCredit && creditFromValue === "P1"
+        ? credit
+        : toNumber(p1Amount)
+      : 0) +
+    (p2IsPaid
+      ? hasManualCredit && creditFromValue === "P2"
+        ? credit
+        : toNumber(p2Amount)
+      : 0) +
+    (p3IsPaid
+      ? hasManualCredit && creditFromValue === "P3"
+        ? credit
+        : toNumber(p3Amount)
+      : 0) +
+    (p4IsPaid
+      ? hasManualCredit && creditFromValue === "P4"
+        ? credit
+        : toNumber(p4Amount)
+      : 0);
 
   // All applied late fees increase total amount due.
   const totalLateFees =
@@ -325,18 +338,18 @@ export default function getRemainingBalanceFunction(
 
   // Only treat a term's late fee as paid when that term is marked paid.
   const paidLateFees =
-    (isPaid(p1DatePaid) ? toNumber(p1LateFeesPenalty) : 0) +
-    (isPaid(p2DatePaid) ? toNumber(p2LateFeesPenalty) : 0) +
-    (isPaid(p3DatePaid) ? toNumber(p3LateFeesPenalty) : 0) +
-    (isPaid(p4DatePaid) ? toNumber(p4LateFeesPenalty) : 0);
+    (hasPaidDate(p1DatePaid) ? toNumber(p1LateFeesPenalty) : 0) +
+    (hasPaidDate(p2DatePaid) ? toNumber(p2LateFeesPenalty) : 0) +
+    (hasPaidDate(p3DatePaid) ? toNumber(p3LateFeesPenalty) : 0) +
+    (hasPaidDate(p4DatePaid) ? toNumber(p4LateFeesPenalty) : 0);
 
   const totalDue = total + totalLateFees;
 
   // Remaining balance - round to 2 decimal places
-  const remaining = Math.round((totalDue - (paid + paidLateFees)) * 100) / 100;
+  const remaining = roundCurrency(totalDue - (paid + paidLateFees));
 
   // Special rule for P1 plan
-  if (paymentPlan === "P1" && isPaid(p1DatePaid)) {
+  if (paymentPlan === "P1" && p1IsPaid) {
     return 0;
   }
 

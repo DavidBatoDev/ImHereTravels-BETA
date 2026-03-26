@@ -1,4 +1,9 @@
 import { BookingSheetColumn } from "@/types/booking-sheet-column";
+import {
+  hasPaidDate,
+  roundCurrency,
+  toNumber,
+} from "../payment-calculation-helpers";
 
 export const paidColumn: BookingSheetColumn = {
   id: "paid",
@@ -201,90 +206,58 @@ export default function getTotalPaidAmountFunction(
 ): number | string {
   if (!tourPackageName) return "";
 
-  const isPaid = (d: any): boolean => {
-    if (d == null) return false;
-    if (typeof d === "object" && d?.type === "firestore/timestamp/1.0")
-      return true;
-    if (typeof d?.seconds === "number") return true;
-    if (d instanceof Date && !isNaN(d.getTime())) return true;
-    if (typeof d === "string") {
-      const normalized = d.trim().toLowerCase();
-      return (
-        normalized !== "" && normalized !== "null" && normalized !== "undefined"
-      );
-    }
-    return false;
-  };
-
-  const num = (n: any) => {
-    if (typeof n === "number") {
-      return Number.isFinite(n) ? n : 0;
-    }
-
-    if (typeof n === "string") {
-      const normalized = n.replace(/[^\d.-]/g, "").trim();
-      if (!normalized) return 0;
-      const parsed = Number(normalized);
-      return Number.isFinite(parsed) ? parsed : 0;
-    }
-
-    const parsed = Number(n);
-    return !isNaN(parsed) ? parsed : 0;
-  };
-
   const creditFromStr = (creditFrom || "").trim();
+  const creditAmt = toNumber(creditAmount);
+  const hasManualCredit = creditAmt > 0;
+
+  const p1IsPaid = hasPaidDate(p1DatePaid) || (hasManualCredit && creditFromStr === "P1");
+  const p2IsPaid = hasPaidDate(p2DatePaid) || (hasManualCredit && creditFromStr === "P2");
+  const p3IsPaid = hasPaidDate(p3DatePaid) || (hasManualCredit && creditFromStr === "P3");
+  const p4IsPaid = hasPaidDate(p4DatePaid) || (hasManualCredit && creditFromStr === "P4");
 
   // Reservation Fee
   const resPaid =
-    num(reservationFee) +
-    (creditFromStr === "Reservation" ? num(creditAmount) : 0);
+    toNumber(reservationFee) +
+    (creditFromStr === "Reservation" && hasManualCredit ? creditAmt : 0);
 
   // Full Payment
   const fullPaid =
-    isPaid(fullPaymentDate) || creditFromStr === "Full Payment"
-      ? creditFromStr === "Full Payment"
-        ? num(creditAmount)
-        : num(fullPaymentAmount)
+    hasPaidDate(fullPaymentDate) || (hasManualCredit && creditFromStr === "Full Payment")
+      ? creditFromStr === "Full Payment" && hasManualCredit
+        ? creditAmt
+        : toNumber(fullPaymentAmount)
       : 0;
 
   // Partial Payments
-  const p1_paid =
-    isPaid(p1DatePaid) || creditFromStr === "P1"
-      ? creditFromStr === "P1"
-        ? num(creditAmount)
-        : num(p1Amount)
-      : 0;
+  const p1_paid = p1IsPaid
+    ? creditFromStr === "P1" && hasManualCredit
+      ? creditAmt
+      : toNumber(p1Amount)
+    : 0;
 
-  const p2_paid =
-    isPaid(p2DatePaid) || creditFromStr === "P2"
-      ? creditFromStr === "P2"
-        ? num(creditAmount)
-        : num(p2Amount)
-      : 0;
+  const p2_paid = p2IsPaid
+    ? creditFromStr === "P2" && hasManualCredit
+      ? creditAmt
+      : toNumber(p2Amount)
+    : 0;
 
-  const p3_paid =
-    isPaid(p3DatePaid) || creditFromStr === "P3"
-      ? creditFromStr === "P3"
-        ? num(creditAmount)
-        : num(p3Amount)
-      : 0;
+  const p3_paid = p3IsPaid
+    ? creditFromStr === "P3" && hasManualCredit
+      ? creditAmt
+      : toNumber(p3Amount)
+    : 0;
 
-  const p4_paid =
-    isPaid(p4DatePaid) || creditFromStr === "P4"
-      ? creditFromStr === "P4"
-        ? num(creditAmount)
-        : num(p4Amount)
-      : 0;
+  const p4_paid = p4IsPaid
+    ? creditFromStr === "P4" && hasManualCredit
+      ? creditAmt
+      : toNumber(p4Amount)
+    : 0;
 
-  // Count late fee penalties only when their corresponding term is considered paid.
-  const p1PenaltyPaid =
-    isPaid(p1DatePaid) || creditFromStr === "P1" ? num(p1LateFeesPenalty) : 0;
-  const p2PenaltyPaid =
-    isPaid(p2DatePaid) || creditFromStr === "P2" ? num(p2LateFeesPenalty) : 0;
-  const p3PenaltyPaid =
-    isPaid(p3DatePaid) || creditFromStr === "P3" ? num(p3LateFeesPenalty) : 0;
-  const p4PenaltyPaid =
-    isPaid(p4DatePaid) || creditFromStr === "P4" ? num(p4LateFeesPenalty) : 0;
+  // Late fees are counted as paid only when an actual date-paid is present.
+  const p1PenaltyPaid = hasPaidDate(p1DatePaid) ? toNumber(p1LateFeesPenalty) : 0;
+  const p2PenaltyPaid = hasPaidDate(p2DatePaid) ? toNumber(p2LateFeesPenalty) : 0;
+  const p3PenaltyPaid = hasPaidDate(p3DatePaid) ? toNumber(p3LateFeesPenalty) : 0;
+  const p4PenaltyPaid = hasPaidDate(p4DatePaid) ? toNumber(p4LateFeesPenalty) : 0;
 
   const totalPaid =
     resPaid +
@@ -298,5 +271,5 @@ export default function getTotalPaidAmountFunction(
     p3PenaltyPaid +
     p4PenaltyPaid;
 
-  return Number(totalPaid.toFixed(2));
+  return roundCurrency(totalPaid);
 }
