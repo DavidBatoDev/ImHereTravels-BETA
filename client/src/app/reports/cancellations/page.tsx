@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { Suspense, useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
 import {
@@ -259,7 +260,7 @@ function CancellationsDetailPageContent() {
 
   // Which lines are currently visible in the chart
   const [activeLines, setActiveLines] = useState<Set<ChartLine>>(
-    new Set<ChartLine>(["kept", "refunded"])
+    new Set<ChartLine>(["grossRevenue", "kept", "refunded", "cancelledCount"])
   );
 
   const toggleLine = (key: ChartLine) =>
@@ -743,13 +744,13 @@ function CancellationsDetailPageContent() {
                         className="hover:bg-gray-50 transition-colors"
                       >
                         <td className="px-3 py-3 pl-4 whitespace-nowrap">
-                          <button
-                            onClick={() => router.push(`/bookings?bookingId=${row.bookingId}`)}
+                          <Link
+                            href={`/bookings?bookingId=${row.bookingId}`}
                             title={`Open booking ${row.bookingId}`}
                             className="font-mono text-xs text-blue-600 hover:text-blue-800 hover:underline font-semibold text-left leading-tight"
                           >
                             {row.bookingId}
-                          </button>
+                          </Link>
                           {row.bookingCode && row.bookingCode !== row.bookingId && (
                             <div className="text-[10px] text-gray-400 font-mono leading-tight mt-0.5">
                               {row.bookingCode}
