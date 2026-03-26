@@ -71,6 +71,8 @@ interface BookingData {
   originalTourCost: number;
   discountedTourCost?: number;
   reservationFee?: number;
+  manualCredit?: number;
+  creditFrom?: string;
   paid: number;
   remainingBalance: number;
   paymentProgress: number | string;
@@ -373,6 +375,8 @@ export default function BookingStatusPage() {
         originalTourCost: bookingData.originalTourCost,
         discountedTourCost: bookingData.discountedTourCost,
         reservationFee: bookingData.reservationFee,
+        manualCredit: bookingData.manualCredit,
+        creditFrom: bookingData.creditFrom,
         paid,
         remainingBalance: bookingData.remainingBalance,
         paymentProgress: paymentProgressValue,
@@ -734,6 +738,10 @@ export default function BookingStatusPage() {
   const totalCost = discountedTourCost || originalTourCost;
   const paidAmount = toNumber(booking.paid);
   const remainingBalanceAmount = toNumber(booking.remainingBalance);
+  const manualCreditAmount = toNumber(booking.manualCredit, 0);
+  const creditFromLabel = (booking.creditFrom || "").toString().trim();
+  const showManualCreditInTable =
+    manualCreditAmount > 0 && creditFromLabel.length > 0;
   const paymentProgressValue =
     typeof booking.paymentProgress === "string"
       ? parseFloat(booking.paymentProgress.replace(/%/g, "")) || 0
@@ -963,6 +971,7 @@ export default function BookingStatusPage() {
       const dueDate = booking[`${prefix}DueDate` as keyof BookingData];
       const amount = booking[`${prefix}Amount` as keyof BookingData];
       const datePaid = booking[`${prefix}DatePaid` as keyof BookingData];
+      const hasPaidDate = !!getDateFromValue(datePaid);
       const lateFeeAppliedAt =
         id === "full_payment"
           ? null
@@ -980,15 +989,21 @@ export default function BookingStatusPage() {
       let status = "pending";
       let statusInfo: any = {};
 
-      if (tokenData?.status === "success" && datePaid) {
+      if (revolutData?.status === "approved") {
+        status = "paid";
+        statusInfo = {
+          paidAt: revolutData.approvedAt || datePaid,
+        };
+      } else if (tokenData?.status === "success") {
         status = "paid";
         statusInfo = {
           paidAt: tokenData?.paidAt || datePaid,
         };
-      } else if (revolutData?.status === "approved") {
+      } else if (hasPaidDate) {
+        // Fallback for admin/manual updates where Date Paid exists without token metadata.
         status = "paid";
         statusInfo = {
-          paidAt: revolutData.approvedAt,
+          paidAt: datePaid,
         };
       } else if (revolutData?.status === "pending") {
         status = "for_verification";
@@ -1618,6 +1633,25 @@ export default function BookingStatusPage() {
                             </tr>
                           );
                         })}
+                        {showManualCreditInTable && (
+                          <tr className="border-t border-amber-200 bg-amber-50/70">
+                            <td
+                              colSpan={hasAnyPenalty ? 6 : 5}
+                              className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm"
+                            >
+                              <span className="font-semibold text-amber-800">
+                                Manual Credit Applied:
+                              </span>{" "}
+                              <span className="font-bold text-amber-900">
+                                {"\u00A3"}
+                                {manualCreditAmount.toFixed(2)}
+                              </span>{" "}
+                              <span className="text-amber-800">
+                                (Credit From: {creditFromLabel})
+                              </span>
+                            </td>
+                          </tr>
+                        )}
                       </tbody>
                     </table>
                   </div>
@@ -1866,3 +1900,4 @@ export default function BookingStatusPage() {
     </div>
   );
 }
+
