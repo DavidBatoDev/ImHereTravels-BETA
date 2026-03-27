@@ -115,7 +115,16 @@ export async function POST(req: NextRequest) {
       reservationFee: bookingData.reservationFee || 250,
       isMainBooker: bookingData.isMainBooking !== false,
       creditAmount: bookingData.manualCredit || 0,
+      creditFrom: bookingData.creditFrom || "",
       reminderDaysBefore: 7, // 7 days before due date
+      p1Amount: bookingData.p1Amount ?? null,
+      p2Amount: bookingData.p2Amount ?? null,
+      p3Amount: bookingData.p3Amount ?? null,
+      p4Amount: bookingData.p4Amount ?? null,
+      p1DatePaid: bookingData.p1DatePaid,
+      p2DatePaid: bookingData.p2DatePaid,
+      p3DatePaid: bookingData.p3DatePaid,
+      p4DatePaid: bookingData.p4DatePaid,
     };
 
     // Calculate all payment plan fields

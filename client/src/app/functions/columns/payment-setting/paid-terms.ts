@@ -1,5 +1,10 @@
 import { BookingSheetColumn } from "@/types/booking-sheet-column";
-import { hasPaidDate, roundCurrency, toNumber } from "../payment-calculation-helpers";
+import {
+  getAppliedManualCreditAmount,
+  hasPaidDate,
+  roundCurrency,
+  toNumber,
+} from "../payment-calculation-helpers";
 
 export const paidTermsColumn: BookingSheetColumn = {
   id: "paidTerms",
@@ -213,38 +218,47 @@ export default async function getPaidTerms(
   void reservationFee;
 
   // Get credit amount (default to 0 if invalid)
-  const creditAmt = toNumber(manualCredit);
-  const hasManualCredit = creditAmt > 0;
+  const creditFromValue = (creditFrom || "").trim();
+  const appliedCredit = getAppliedManualCreditAmount(
+    creditFromValue,
+    manualCredit,
+    fullPaymentDatePaid,
+    p1DatePaid,
+    p2DatePaid,
+    p3DatePaid,
+    p4DatePaid,
+  );
+  const creditAppliedTo = (source: string): boolean =>
+    appliedCredit > 0 && creditFromValue === source;
 
-  // Calculate each payment term (manual credit can count even before a date is entered)
-  const fullPaid =
-    hasPaidDate(fullPaymentDatePaid) || (hasManualCredit && creditFrom === "Full Payment")
-      ? creditFrom === "Full Payment" && hasManualCredit
-        ? creditAmt
-        : toNumber(fullPaymentAmount)
-      : 0;
+  // Calculate each payment term (manual credit from Px requires matching date paid)
+  const fullPaid = hasPaidDate(fullPaymentDatePaid)
+    ? creditAppliedTo("Full Payment")
+      ? appliedCredit
+      : toNumber(fullPaymentAmount)
+    : 0;
 
-  const p1Paid = hasPaidDate(p1DatePaid) || (hasManualCredit && creditFrom === "P1")
-    ? creditFrom === "P1" && hasManualCredit
-      ? creditAmt
+  const p1Paid = hasPaidDate(p1DatePaid)
+    ? creditAppliedTo("P1")
+      ? appliedCredit
       : toNumber(p1Amount)
     : 0;
 
-  const p2Paid = hasPaidDate(p2DatePaid) || (hasManualCredit && creditFrom === "P2")
-    ? creditFrom === "P2" && hasManualCredit
-      ? creditAmt
+  const p2Paid = hasPaidDate(p2DatePaid)
+    ? creditAppliedTo("P2")
+      ? appliedCredit
       : toNumber(p2Amount)
     : 0;
 
-  const p3Paid = hasPaidDate(p3DatePaid) || (hasManualCredit && creditFrom === "P3")
-    ? creditFrom === "P3" && hasManualCredit
-      ? creditAmt
+  const p3Paid = hasPaidDate(p3DatePaid)
+    ? creditAppliedTo("P3")
+      ? appliedCredit
       : toNumber(p3Amount)
     : 0;
 
-  const p4Paid = hasPaidDate(p4DatePaid) || (hasManualCredit && creditFrom === "P4")
-    ? creditFrom === "P4" && hasManualCredit
-      ? creditAmt
+  const p4Paid = hasPaidDate(p4DatePaid)
+    ? creditAppliedTo("P4")
+      ? appliedCredit
       : toNumber(p4Amount)
     : 0;
 

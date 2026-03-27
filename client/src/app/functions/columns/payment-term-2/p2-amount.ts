@@ -1,6 +1,7 @@
 import { BookingSheetColumn } from "@/types/booking-sheet-column";
 import {
-  getCreditOrder,
+  allocateInstallmentAmountsWithPaidLocks,
+  getPaymentPlanTerms,
   roundCurrency,
   toNumber,
 } from "../payment-calculation-helpers";
@@ -144,6 +145,15 @@ export const p2AmountColumn: BookingSheetColumn = {
         value: "",
       },
       {
+        name: "p2Amount",
+        type: "number",
+        columnReference: "P2 Amount",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
+      {
         name: "p3DatePaid",
         type: "any",
         columnReference: "P3 Date Paid",
@@ -199,6 +209,7 @@ export default function getP2AmountFunction(
   p1DatePaid?: string | Date,
   p1Amount?: number,
   p2DatePaid?: string | Date,
+  p2Amount?: number,
   p3DatePaid?: string | Date,
   p3Amount?: number,
   p4DatePaid?: string | Date,
@@ -230,25 +241,18 @@ export default function getP2AmountFunction(
 
   // LET(
   //   terms, SWITCH($AM1003,"",1,"P1",1,"P2",2,"P3",3,"P4",4,""),
-  const termsMap: Record<string, number> = {
-    "": 1,
-    P1: 1,
-    P2: 2,
-    P3: 3,
-    P4: 4,
-  };
-  const terms = termsMap[paymentPlan ?? ""] ?? 1;
-  const creditOrder = getCreditOrder(credit_from, credit_amt);
-  const base = total / terms;
-  let amount = base;
-  if (creditOrder === 0) {
-    amount = (total - credit_amt) / terms;
-  } else if (creditOrder === 2) {
-    amount = credit_amt;
-  }
+  const terms = getPaymentPlanTerms(paymentPlan);
+  const allocations = allocateInstallmentAmountsWithPaidLocks(
+    total,
+    terms,
+    credit_from,
+    credit_amt,
+    [p1Amount, p2Amount, p3Amount, p4Amount],
+    [p1DatePaid, p2DatePaid, p3DatePaid, p4DatePaid],
+  );
 
   // IF(terms<2,"", amount)
   if (terms < 2) return "";
 
-  return roundCurrency(amount);
+  return roundCurrency(allocations[1] ?? 0);
 }

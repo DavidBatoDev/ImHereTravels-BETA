@@ -1,5 +1,6 @@
 import { BookingSheetColumn } from "@/types/booking-sheet-column";
 import {
+  getAppliedManualCreditAmount,
   hasPaidDate,
   roundCurrency,
   toNumber,
@@ -278,9 +279,18 @@ export default function getRemainingBalanceFunction(
   const origCost = toNumber(originalTourCost);
   const discCost = toNumber(discountedTourCost);
   const resFee = toNumber(reservationFee);
-  const credit = toNumber(creditAmount);
-  const hasManualCredit = credit > 0;
   const creditFromValue = creditFrom ?? "";
+  const appliedCredit = getAppliedManualCreditAmount(
+    creditFromValue,
+    creditAmount,
+    fullPaymentDate,
+    p1DatePaid,
+    p2DatePaid,
+    p3DatePaid,
+    p4DatePaid,
+  );
+  const creditAppliedTo = (source: string): boolean =>
+    appliedCredit > 0 && creditFromValue === source;
 
   // Determine which total cost to use (discounted or original)
   // Automatically use discounted cost if available (from active discount events)
@@ -290,42 +300,33 @@ export default function getRemainingBalanceFunction(
   const total =
     baseCost -
     resFee -
-    (creditFromValue === "Reservation" && hasManualCredit ? credit : 0);
-
-  const p1IsPaid =
-    hasPaidDate(p1DatePaid) || (hasManualCredit && creditFromValue === "P1");
-  const p2IsPaid =
-    hasPaidDate(p2DatePaid) || (hasManualCredit && creditFromValue === "P2");
-  const p3IsPaid =
-    hasPaidDate(p3DatePaid) || (hasManualCredit && creditFromValue === "P3");
-  const p4IsPaid =
-    hasPaidDate(p4DatePaid) || (hasManualCredit && creditFromValue === "P4");
+    (creditAppliedTo("Reservation") ? appliedCredit : 0);
 
   // Total paid amount so far (treat missing amounts as 0)
   const paid =
     (hasPaidDate(fullPaymentDate)
-      ? toNumber(fullPaymentAmount)
-      : hasManualCredit && creditFromValue === "Full Payment"
-        ? credit
-        : 0) +
-    (p1IsPaid
-      ? hasManualCredit && creditFromValue === "P1"
-        ? credit
+      ? creditAppliedTo("Full Payment")
+        ? appliedCredit
+        : toNumber(fullPaymentAmount)
+      : 0) +
+    (hasPaidDate(p1DatePaid)
+      ? creditAppliedTo("P1")
+        ? appliedCredit
         : toNumber(p1Amount)
       : 0) +
-    (p2IsPaid
-      ? hasManualCredit && creditFromValue === "P2"
-        ? credit
+    (hasPaidDate(p2DatePaid)
+      ? creditAppliedTo("P2")
+        ? appliedCredit
         : toNumber(p2Amount)
       : 0) +
-    (p3IsPaid
-      ? hasManualCredit && creditFromValue === "P3"
-        ? credit
+    (hasPaidDate(p3DatePaid)
+      ? creditAppliedTo("P3")
+        ? appliedCredit
         : toNumber(p3Amount)
       : 0) +
-    (p4IsPaid
-      ? hasManualCredit && creditFromValue === "P4"
-        ? credit
+    (hasPaidDate(p4DatePaid)
+      ? creditAppliedTo("P4")
+        ? appliedCredit
         : toNumber(p4Amount)
       : 0);
 
@@ -349,7 +350,7 @@ export default function getRemainingBalanceFunction(
   const remaining = roundCurrency(totalDue - (paid + paidLateFees));
 
   // Special rule for P1 plan
-  if (paymentPlan === "P1" && p1IsPaid) {
+  if (paymentPlan === "P1" && hasPaidDate(p1DatePaid)) {
     return 0;
   }
 

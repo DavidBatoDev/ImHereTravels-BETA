@@ -1,6 +1,7 @@
 import { BookingSheetColumn } from "@/types/booking-sheet-column";
 import {
-  getCreditOrder,
+  allocateInstallmentAmountsWithPaidLocks,
+  getPaymentPlanTerms,
   roundCurrency,
   toNumber,
 } from "../payment-calculation-helpers";
@@ -117,6 +118,24 @@ export const p1AmountColumn: BookingSheetColumn = {
         value: "",
       },
       {
+        name: "p1DatePaid",
+        type: "any",
+        columnReference: "P1 Date Paid",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
+      {
+        name: "p1Amount",
+        type: "number",
+        columnReference: "P1 Amount",
+        isOptional: true,
+        hasDefault: false,
+        isRest: false,
+        value: "",
+      },
+      {
         name: "p2DatePaid",
         type: "any",
         columnReference: "P2 Date Paid",
@@ -197,6 +216,8 @@ export default function getP1AmountFunction(
   paymentCondition?: string,
   fullPaymentDatePaid?: string | Date,
   fullPaymentAmount?: number,
+  p1DatePaid?: string | Date,
+  p1Amount?: number,
   p2DatePaid?: string | Date,
   p2Amount?: number,
   p3DatePaid?: string | Date,
@@ -225,25 +246,16 @@ export default function getP1AmountFunction(
   }
 
   // Determine number of terms (P1–P4)
-  const termsMap: Record<string, number> = {
-    "": 1,
-    P1: 1,
-    P2: 2,
-    P3: 3,
-    P4: 4,
-  };
-  const terms = termsMap[paymentPlan ?? ""] ?? 1;
+  const terms = getPaymentPlanTerms(paymentPlan);
   if (terms < 1) return "";
+  const allocations = allocateInstallmentAmountsWithPaidLocks(
+    total,
+    terms,
+    credit_from,
+    credit_amt,
+    [p1Amount, p2Amount, p3Amount, p4Amount],
+    [p1DatePaid, p2DatePaid, p3DatePaid, p4DatePaid],
+  );
 
-  const creditOrder = getCreditOrder(credit_from, credit_amt);
-  const base = total / terms;
-
-  let amount = base;
-  if (creditOrder === 0) {
-    amount = (total - credit_amt) / terms;
-  } else if (creditOrder === 1) {
-    amount = credit_amt;
-  }
-
-  return roundCurrency(amount);
+  return roundCurrency(allocations[0] ?? 0);
 }
