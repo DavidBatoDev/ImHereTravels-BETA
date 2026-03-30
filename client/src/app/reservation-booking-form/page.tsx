@@ -2150,9 +2150,13 @@ const Page = () => {
       return;
     }
 
-    setTourDates(pkg?.travelDates ?? []);
-    // If the previously selected tourDate is not valid for this package, clear it.
-    if (tourDate && !pkg.travelDates.includes(tourDate)) {
+    const nonPastTourDates = (pkg?.travelDates ?? []).filter(
+      (date) => calculateDaysBetween(date) >= 0,
+    );
+
+    setTourDates(nonPastTourDates);
+    // If the previously selected tourDate is not available anymore, clear it.
+    if (tourDate && !nonPastTourDates.includes(tourDate)) {
       setTourDate("");
     }
   }, [
