@@ -2215,6 +2215,21 @@ export default function EditBookingModal({
   // Get form value for a column (LOCAL FIRST pattern) - memoized for performance
   const getFormValue = useCallback(
     (column: SheetColumn): any => {
+      if (column.id === "flexitourCounter") {
+        const parsedUsed = Number(formData.flexitourUsedChanges ?? 0);
+        const parsedMax = Number(formData.flexitourMaxChanges ?? 3);
+        const usedChanges =
+          Number.isFinite(parsedUsed) && parsedUsed >= 0
+            ? Math.floor(parsedUsed)
+            : 0;
+        const maxChanges =
+          Number.isFinite(parsedMax) && parsedMax > 0
+            ? Math.floor(parsedMax)
+            : 3;
+
+        return `Used ${usedChanges}/${maxChanges}`;
+      }
+
       // For function fields: ONLY use formData (Firebase source of truth), ignore local edits
       if (column.dataType === "function") {
         return formData[column.id as keyof Booking] || "";
@@ -2423,7 +2438,9 @@ export default function EditBookingModal({
       const isLocked = formData.lockPricing === true;
       const isPricingField =
         column.id === "tourPackageName" || column.id === "tourDate";
-      const isReadOnly = isFunction || (isLocked && isPricingField);
+      const isFlexitourCounter = column.id === "flexitourCounter";
+      const isReadOnly =
+        isFunction || isFlexitourCounter || (isLocked && isPricingField);
 
       const baseClasses = cn(
         "w-full text-[11px] sm:text-xs",
@@ -4348,6 +4365,9 @@ export default function EditBookingModal({
           hideClose
           className="max-w-2xl w-[calc(100%-2rem)] sm:w-full z-[100000]"
         >
+          <DialogTitle className="sr-only">
+            Confirm Enable Payment Reminder
+          </DialogTitle>
           <div className="flex flex-col space-y-6">
             <div className="flex items-center justify-between border-b border-border pb-4">
               <div className="flex items-center gap-3">

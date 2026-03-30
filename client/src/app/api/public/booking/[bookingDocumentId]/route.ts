@@ -194,6 +194,10 @@ export async function GET(
       // Group Booking Info
       bookingType: bookingData.bookingType,
       isMainBooker: bookingData.isMainBooker,
+      flexitourMaxChanges: bookingData.flexitourMaxChanges,
+      flexitourUsedChanges: bookingData.flexitourUsedChanges,
+      flexitourHistory: bookingData.flexitourHistory,
+      flexitourLastChangedAt: bookingData.flexitourLastChangedAt,
 
       // Payment Reminders
       enablePaymentReminder: bookingData.enablePaymentReminder,

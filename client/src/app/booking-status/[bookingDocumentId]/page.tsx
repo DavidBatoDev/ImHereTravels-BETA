@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Image from "next/image";
+import Link from "next/link";
 import { format } from "date-fns";
 import {
   collection,
@@ -109,6 +110,15 @@ interface BookingData {
   cancellationEmailSentDate?: any;
   bookingType: string;
   isMainBooker: boolean;
+  flexitourMaxChanges?: number;
+  flexitourUsedChanges?: number;
+  flexitourHistory?: Array<{
+    fromTourDate?: any;
+    toTourDate?: any;
+    changedAt?: any;
+    changedBy?: string;
+  }>;
+  flexitourLastChangedAt?: any;
   enablePaymentReminder: boolean;
   paymentTokens?: {
     full_payment?: PaymentTokenData;
@@ -166,6 +176,7 @@ export default function BookingStatusPage() {
   >([]);
   const [selectingPlanId, setSelectingPlanId] = useState<string | null>(null);
   const [confirmPlanOpen, setConfirmPlanOpen] = useState(false);
+  const [confirmFlexitourOpen, setConfirmFlexitourOpen] = useState(false);
   const [pendingPlan, setPendingPlan] = useState<{
     id: string;
     label: string;
@@ -183,6 +194,79 @@ export default function BookingStatusPage() {
     id: "full_payment" | "p1" | "p2" | "p3" | "p4";
     amount: number;
   } | null>(null);
+  const [flexitourDateOptions, setFlexitourDateOptions] = useState<
+    Array<{ value: string; label: string }>
+  >([]);
+  const [flexitourSelectedDate, setFlexitourSelectedDate] = useState("");
+  const [flexitourLoadingDates, setFlexitourLoadingDates] = useState(false);
+  const [flexitourSubmitting, setFlexitourSubmitting] = useState(false);
+  const [flexitourMessage, setFlexitourMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
+
+  // Booking Status page must always stay in light mode, including portal dialogs.
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+
+    const previous = {
+      htmlClass: html.className,
+      bodyClass: body.className,
+      htmlTheme: html.getAttribute("data-theme"),
+      bodyTheme: body.getAttribute("data-theme"),
+      htmlColorScheme: html.style.colorScheme,
+      bodyColorScheme: body.style.colorScheme,
+    };
+
+    const enforceLightMode = () => {
+      html.classList.remove("dark");
+      body.classList.remove("dark");
+      html.classList.add("force-light");
+      body.classList.add("force-light");
+      html.setAttribute("data-theme", "light");
+      body.setAttribute("data-theme", "light");
+      html.style.colorScheme = "light";
+      body.style.colorScheme = "light";
+    };
+
+    enforceLightMode();
+
+    const observer = new MutationObserver(() => {
+      if (
+        html.classList.contains("dark") ||
+        body.classList.contains("dark") ||
+        html.getAttribute("data-theme") === "dark" ||
+        body.getAttribute("data-theme") === "dark"
+      ) {
+        enforceLightMode();
+      }
+    });
+
+    observer.observe(html, {
+      attributes: true,
+      attributeFilter: ["class", "data-theme"],
+    });
+    observer.observe(body, {
+      attributes: true,
+      attributeFilter: ["class", "data-theme"],
+    });
+
+    return () => {
+      observer.disconnect();
+      html.className = previous.htmlClass;
+      body.className = previous.bodyClass;
+
+      if (previous.htmlTheme === null) html.removeAttribute("data-theme");
+      else html.setAttribute("data-theme", previous.htmlTheme);
+
+      if (previous.bodyTheme === null) body.removeAttribute("data-theme");
+      else body.setAttribute("data-theme", previous.bodyTheme);
+
+      html.style.colorScheme = previous.htmlColorScheme;
+      body.style.colorScheme = previous.bodyColorScheme;
+    };
+  }, []);
 
   // Check for payment success/cancel messages in URL
   useEffect(() => {
@@ -411,6 +495,10 @@ export default function BookingStatusPage() {
         discountType: bookingData.discountType,
         bookingType: bookingData.bookingType,
         isMainBooker: bookingData.isMainBooker,
+        flexitourMaxChanges: bookingData.flexitourMaxChanges,
+        flexitourUsedChanges: bookingData.flexitourUsedChanges,
+        flexitourHistory: bookingData.flexitourHistory,
+        flexitourLastChangedAt: bookingData.flexitourLastChangedAt,
         enablePaymentReminder: bookingData.enablePaymentReminder,
         preDeparturePack: preDeparturePack ?? undefined,
         revolutPayments: bookingData.revolutPayments,
@@ -559,6 +647,153 @@ export default function BookingStatusPage() {
     return () => unsub();
   }, []);
 
+  // Load valid Flexitour dates from the selected tour package.
+  useEffect(() => {
+    let didCancel = false;
+
+    const parseDate = (value: any): Date | null => {
+      if (!value) return null;
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime()) ? null : value;
+      }
+
+      if (typeof value === "string") {
+        const trimmed = value.trim();
+        if (!trimmed) return null;
+
+        if (/^\d{8}$/.test(trimmed)) {
+          const year = Number(trimmed.slice(0, 4));
+          const monthIndex = Number(trimmed.slice(4, 6)) - 1;
+          const day = Number(trimmed.slice(6, 8));
+          const parsed = new Date(Date.UTC(year, monthIndex, day));
+          return Number.isNaN(parsed.getTime()) ? null : parsed;
+        }
+
+        if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+          const [year, month, day] = trimmed.split("-").map(Number);
+          const parsed = new Date(Date.UTC(year, month - 1, day));
+          return Number.isNaN(parsed.getTime()) ? null : parsed;
+        }
+
+        const parsed = new Date(trimmed);
+        return Number.isNaN(parsed.getTime()) ? null : parsed;
+      }
+
+      if (typeof value === "object") {
+        if ("seconds" in value && typeof value.seconds === "number") {
+          return new Date(value.seconds * 1000);
+        }
+        if ("toDate" in value && typeof value.toDate === "function") {
+          try {
+            const parsed = value.toDate();
+            return parsed instanceof Date && !Number.isNaN(parsed.getTime())
+              ? parsed
+              : null;
+          } catch {
+            return null;
+          }
+        }
+      }
+
+      return null;
+    };
+
+    const toDateKey = (date: Date): string => {
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+      const day = String(date.getUTCDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    };
+
+    const getDaysBetweenToday = (date: Date): number => {
+      const today = new Date();
+      today.setUTCHours(0, 0, 0, 0);
+
+      const target = new Date(
+        Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+      );
+      const diffMs = target.getTime() - today.getTime();
+      return Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    };
+
+    const fetchFlexitourOptions = async () => {
+      if (!booking?.tourPackageName) {
+        setFlexitourDateOptions([]);
+        setFlexitourSelectedDate("");
+        return;
+      }
+
+      setFlexitourLoadingDates(true);
+
+      try {
+        const tourPackageQuery = query(
+          collection(db, "tourPackages"),
+          where("name", "==", booking.tourPackageName),
+          limit(1),
+        );
+        const tourPackageSnap = await getDocs(tourPackageQuery);
+
+        if (didCancel) return;
+
+        if (tourPackageSnap.empty) {
+          setFlexitourDateOptions([]);
+          setFlexitourSelectedDate("");
+          return;
+        }
+
+        const currentTourDate =
+          parseDate(booking.tourDate) || parseDate(booking.formattedDate);
+        const currentDateKey = currentTourDate ? toDateKey(currentTourDate) : "";
+
+        const travelDates =
+          (tourPackageSnap.docs[0].data()?.travelDates as any[]) || [];
+        const optionMap = new Map<string, string>();
+
+        travelDates.forEach((travelDate) => {
+          if (!travelDate || travelDate.isAvailable !== true) return;
+
+          const startDate = parseDate(travelDate.startDate);
+          if (!startDate) return;
+
+          if (getDaysBetweenToday(startDate) < 2) return;
+
+          const value = toDateKey(startDate);
+          if (value === currentDateKey) return;
+
+          optionMap.set(value, format(startDate, "MMM dd, yyyy"));
+        });
+
+        const options = Array.from(optionMap.entries())
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([value, label]) => ({ value, label }));
+
+        setFlexitourDateOptions(options);
+        setFlexitourSelectedDate((previous) => {
+          if (previous && options.some((option) => option.value === previous)) {
+            return previous;
+          }
+          return options[0]?.value || "";
+        });
+      } catch (err) {
+        console.error("Failed to load Flexitour dates:", err);
+        if (!didCancel) {
+          setFlexitourDateOptions([]);
+          setFlexitourSelectedDate("");
+        }
+      } finally {
+        if (!didCancel) {
+          setFlexitourLoadingDates(false);
+        }
+      }
+    };
+
+    void fetchFlexitourOptions();
+
+    return () => {
+      didCancel = true;
+    };
+  }, [booking?.tourPackageName, booking?.tourDate, booking?.formattedDate]);
+
   // Handle installment payment
   const handlePayInstallment = async (
     installmentId: "full_payment" | "p1" | "p2" | "p3" | "p4",
@@ -680,9 +915,62 @@ export default function BookingStatusPage() {
     }
   };
 
+  const handleFlexitourSubmit = async () => {
+    if (!booking || !flexitourSelectedDate) return;
+
+    setFlexitourSubmitting(true);
+    setFlexitourMessage(null);
+
+    try {
+      const response = await fetch(
+        `/api/public/booking/${bookingDocumentId}/flexitour`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            newTourDate: flexitourSelectedDate,
+            ...(email ? { email } : {}),
+          }),
+        },
+      );
+
+      const result = await response.json();
+      if (!response.ok || !result?.success) {
+        throw new Error(
+          result?.error || "Failed to update your Flexitour tour date.",
+        );
+      }
+
+      setFlexitourMessage({
+        type: "success",
+        text:
+          result?.message ||
+          "Flexitour updated. Your payment schedule is being refreshed.",
+      });
+    } catch (err: any) {
+      console.error("Flexitour update failed:", err);
+      setFlexitourMessage({
+        type: "error",
+        text:
+          err?.message ||
+          "Unable to process Flexitour right now. Please try again.",
+      });
+    } finally {
+      setFlexitourSubmitting(false);
+    }
+  };
+
+  const handleFlexitourReview = () => {
+    if (flexitourActionDisabled) return;
+    setConfirmFlexitourOpen(true);
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen bg-light-grey flex items-center justify-center">
+      <div
+        className="force-light min-h-screen bg-light-grey flex items-center justify-center"
+        style={{ colorScheme: "light" }}
+      >
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-crimson-red mx-auto mb-4"></div>
           <p className="text-muted-foreground">Loading your booking...</p>
@@ -693,7 +981,10 @@ export default function BookingStatusPage() {
 
   if (error || !booking) {
     return (
-      <div className="min-h-screen bg-light-grey">
+      <div
+        className="force-light min-h-screen bg-light-grey"
+        style={{ colorScheme: "light" }}
+      >
         <header className="bg-gradient-to-r from-crimson-red to-crimson-red/90 text-white print:bg-crimson-red">
           <div className="container mx-auto px-4 py-6">
             <Image
@@ -785,6 +1076,70 @@ export default function BookingStatusPage() {
     if (date) return format(date, "MMM dd, yyyy");
     return booking.formattedDate || "---";
   })();
+
+  const toDateKey = (date: Date): string => {
+    const year = date.getUTCFullYear();
+    const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+    const day = String(date.getUTCDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const currentTourDateKey = (() => {
+    const date =
+      getDateFromValue(booking.tourDate) ||
+      getDateFromValue(booking.formattedDate);
+    return date ? toDateKey(date) : "";
+  })();
+
+  const toNonNegativeInteger = (value: unknown, fallback: number): number => {
+    const parsed =
+      typeof value === "number"
+        ? value
+        : typeof value === "string"
+          ? Number(value)
+          : Number.NaN;
+
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.max(0, Math.floor(parsed));
+  };
+
+  const flexitourMaxChanges = toNonNegativeInteger(
+    booking.flexitourMaxChanges,
+    3,
+  );
+  const flexitourUsedChanges = toNonNegativeInteger(
+    booking.flexitourUsedChanges,
+    0,
+  );
+  const flexitourRemainingChanges = Math.max(
+    0,
+    flexitourMaxChanges - flexitourUsedChanges,
+  );
+  const isGroupBooking =
+    booking.bookingType === "Duo Booking" ||
+    booking.bookingType === "Group Booking";
+  const flexitourMainBookerOnly = isGroupBooking && !booking.isMainBooker;
+  const flexitourLimitReached = flexitourUsedChanges >= flexitourMaxChanges;
+  const flexitourHasOptions = flexitourDateOptions.length > 0;
+  const flexitourSelectedIsUnchanged =
+    !!flexitourSelectedDate && flexitourSelectedDate === currentTourDateKey;
+  const flexitourActionDisabled =
+    flexitourSubmitting ||
+    flexitourLoadingDates ||
+    flexitourMainBookerOnly ||
+    flexitourLimitReached ||
+    !flexitourHasOptions ||
+    !flexitourSelectedDate ||
+    flexitourSelectedIsUnchanged;
+  const selectedFlexitourOption = flexitourDateOptions.find(
+    (option) => option.value === flexitourSelectedDate,
+  );
+  const selectedFlexitourLabel =
+    selectedFlexitourOption?.label || flexitourSelectedDate || "---";
+  const flexitourRemainingAfterChange = Math.max(
+    0,
+    flexitourRemainingChanges - 1,
+  );
 
   const calculateDaysBetween = (dateValue: any): number => {
     const tour = getDateFromValue(dateValue);
@@ -1055,7 +1410,10 @@ export default function BookingStatusPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden">
+    <div
+      className="force-light min-h-screen bg-white overflow-x-hidden"
+      style={{ colorScheme: "light" }}
+    >
       {/* Header */}
       <header className="bg-white text-gray-900 shadow-md print:shadow-none">
         <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-5">
@@ -1236,6 +1594,114 @@ export default function BookingStatusPage() {
 
             <Separator />
 
+            {/* Flexitour */}
+            <div className="border border-gray-200 rounded-lg p-3 sm:p-4 bg-gray-50/70">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <h3 className="text-sm sm:text-base font-hk-grotesk font-bold text-gray-900 flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-crimson-red" />
+                  Flexitour
+                </h3>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-white text-gray-700 border border-gray-200 text-[11px] px-2 py-0.5">
+                    Used: {flexitourUsedChanges}/{flexitourMaxChanges}
+                  </Badge>
+                  <Badge className="bg-white text-gray-700 border border-gray-200 text-[11px] px-2 py-0.5">
+                    Remaining: {flexitourRemainingChanges}
+                  </Badge>
+                </div>
+              </div>
+
+              <p className="mt-2 text-xs text-gray-600">
+                Need to move your trip? Select a new package date and review
+                your change before confirming.
+              </p>
+
+              <div className="mt-3 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 sm:gap-3 items-start">
+                <select
+                  value={flexitourSelectedDate}
+                  onChange={(event) =>
+                    setFlexitourSelectedDate(event.target.value)
+                  }
+                  disabled={
+                    flexitourLoadingDates ||
+                    flexitourMainBookerOnly ||
+                    flexitourLimitReached ||
+                    !flexitourHasOptions
+                  }
+                  className="w-full h-9 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 disabled:bg-gray-100 disabled:text-gray-500"
+                >
+                  {!flexitourHasOptions && (
+                    <option value="">
+                      {flexitourLoadingDates
+                        ? "Loading available dates..."
+                        : "No valid dates available"}
+                    </option>
+                  )}
+                  {flexitourHasOptions &&
+                    flexitourDateOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                </select>
+
+                <Button
+                  onClick={handleFlexitourReview}
+                  disabled={flexitourActionDisabled}
+                  size="sm"
+                  className="bg-crimson-red hover:bg-crimson-red/90 text-white w-full sm:w-auto"
+                >
+                  {flexitourSubmitting ? "Updating..." : "Review Date Change"}
+                </Button>
+              </div>
+
+              {isGroupBooking && !booking.isMainBooker && (
+                <p className="mt-2 text-xs text-amber-700">
+                  Only the main booker can change dates for this{" "}
+                  {booking.bookingType.toLowerCase()}.
+                </p>
+              )}
+
+              {isGroupBooking && booking.isMainBooker && (
+                <p className="mt-2 text-xs text-blue-700">
+                  This change will update linked group bookings.
+                </p>
+              )}
+
+              {flexitourLimitReached && (
+                <p className="mt-2 text-xs text-red-700">
+                  Flexitour limit reached. No more date changes are available.
+                </p>
+              )}
+
+              {!flexitourLoadingDates &&
+                !flexitourHasOptions &&
+                !flexitourLimitReached && (
+                  <p className="mt-2 text-xs text-red-700">
+                    There are currently no valid future dates for this package.
+                  </p>
+                )}
+
+              {flexitourSelectedIsUnchanged && (
+                <p className="mt-2 text-xs text-amber-700">
+                  Please choose a different tour date from your current
+                  schedule.
+                </p>
+              )}
+
+              {flexitourMessage && (
+                <div
+                  className={`mt-2 rounded-md border px-3 py-2 text-xs sm:text-sm ${
+                    flexitourMessage.type === "success"
+                      ? "bg-green-50 border-green-200 text-green-900"
+                      : "bg-red-50 border-red-200 text-red-900"
+                  }`}
+                >
+                  {flexitourMessage.text}
+                </div>
+              )}
+            </div>
+
             {/* Payment Options (when no payment plan yet) */}
             {!booking.paymentPlan && availablePaymentPlans.length > 0 && (
               <div>
@@ -1389,6 +1855,57 @@ export default function BookingStatusPage() {
                     className="bg-crimson-red hover:bg-crimson-red/90 text-white"
                   >
                     {selectingPlanId ? "Selecting..." : "Confirm Plan"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+
+            <AlertDialog
+              open={confirmFlexitourOpen}
+              onOpenChange={setConfirmFlexitourOpen}
+            >
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Confirm Tour Date Change</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    You are about to change your tour date from{" "}
+                    <span className="font-semibold text-foreground">
+                      {tourDateLabel}
+                    </span>{" "}
+                    to{" "}
+                    <span className="font-semibold text-foreground">
+                      {selectedFlexitourLabel}
+                    </span>
+                    .
+                  </AlertDialogDescription>
+                  <div className="mt-3 rounded-md bg-blue-50 border border-blue-200 p-3 text-sm text-blue-900">
+                    Your payment schedule and pending payment reminder dates
+                    will be adjusted automatically.
+                  </div>
+                  <div className="mt-3 rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+                    Remaining Flexitour changes after this update:{" "}
+                    <span className="font-semibold">
+                      {flexitourRemainingAfterChange}
+                    </span>
+                    .
+                    {isGroupBooking && booking.isMainBooker
+                      ? " This also updates linked group bookings."
+                      : ""}
+                  </div>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={flexitourSubmitting}>
+                    Cancel
+                  </AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      setConfirmFlexitourOpen(false);
+                      handleFlexitourSubmit();
+                    }}
+                    disabled={flexitourSubmitting}
+                    className="bg-crimson-red hover:bg-crimson-red/90 text-white"
+                  >
+                    {flexitourSubmitting ? "Updating..." : "Yes, Change Date"}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -1831,33 +2348,27 @@ export default function BookingStatusPage() {
               </h4>
               <ul className="space-y-1 sm:space-y-1.5 text-xs sm:text-sm text-white/70">
                 <li>
-                  <a href="/" className="hover:text-white transition-colors">
+                  <Link href="/" className="hover:text-white transition-colors">
                     Home
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="/tours"
-                    className="hover:text-white transition-colors"
-                  >
+                  <Link href="/tours" className="hover:text-white transition-colors">
                     Our Tours
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a
-                    href="/about"
-                    className="hover:text-white transition-colors"
-                  >
+                  <Link href="/about" className="hover:text-white transition-colors">
                     About Us
-                  </a>
+                  </Link>
                 </li>
                 <li>
-                  <a
+                  <Link
                     href="/contact"
                     className="hover:text-white transition-colors"
                   >
                     Contact
-                  </a>
+                  </Link>
                 </li>
               </ul>
             </div>

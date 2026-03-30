@@ -635,6 +635,21 @@ export default function BookingDetailModal({
   const getColumnValue = (column: SheetColumn) => {
     if (!currentBooking) return null;
 
+    if (column.id === "flexitourCounter") {
+      const parsedUsed = Number((currentBooking as any).flexitourUsedChanges ?? 0);
+      const parsedMax = Number((currentBooking as any).flexitourMaxChanges ?? 3);
+      const usedChanges =
+        Number.isFinite(parsedUsed) && parsedUsed >= 0
+          ? Math.floor(parsedUsed)
+          : 0;
+      const maxChanges =
+        Number.isFinite(parsedMax) && parsedMax > 0
+          ? Math.floor(parsedMax)
+          : 3;
+
+      return `Used ${usedChanges}/${maxChanges}`;
+    }
+
     const value = (currentBooking as any)[column.id];
     if (value === null || value === undefined) return null;
 

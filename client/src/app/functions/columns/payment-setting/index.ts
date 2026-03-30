@@ -4,6 +4,7 @@ import { bookingStatusColumn as _bookingStatusColumn } from "./booking-status";
 import { creditFromColumn as _creditFromColumn } from "./credit-from";
 import { discountedTourCostColumn as _discountedTourCostColumn } from "./discounted-tour-cost";
 import { enablePaymentReminderColumn as _enablePaymentReminderColumn } from "./enable-payment-reminder";
+import { flexitourCounterColumn as _flexitourCounterColumn } from "./flexitour-counter";
 import { guestInfoEmailSentLinkColumn as _guestInfoEmailSentLinkColumn } from "./guest-info-email-sent-link";
 import { manualCreditColumn as _manualCreditColumn } from "./manual-credit";
 import { originalTourCostColumn as _originalTourCostColumn } from "./original-tour-cost";
@@ -25,6 +26,7 @@ export const discountedTourCostColumn = withOrder(_discountedTourCostColumn);
 export const enablePaymentReminderColumn = withOrder(
   _enablePaymentReminderColumn,
 );
+export const flexitourCounterColumn = withOrder(_flexitourCounterColumn);
 export const guestInfoEmailSentLinkColumn = withOrder(
   _guestInfoEmailSentLinkColumn,
 );

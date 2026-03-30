@@ -6802,7 +6802,7 @@ const Page = () => {
                       <div
                         role="status"
                         aria-live="polite"
-                        className="mt-6 rounded-md bg-spring-green/10 border border-spring-green/30 p-4 text-sm text-creative-midnight"
+                        className="mt-6 rounded-md border border-spring-green/30 bg-spring-green/10 p-4 text-sm text-green-900 dark:text-green-100"
                       >
                         <div className="flex items-start gap-3">
                           <div className="flex items-center justify-center h-8 w-8 rounded-full bg-spring-green text-white">
@@ -6825,7 +6825,7 @@ const Page = () => {
                             <div className="font-medium">
                               You're on the list
                             </div>
-                            <div className="text-xs text-muted-foreground">
+                            <div className="text-xs text-green-800/90 dark:text-green-200">
                               We'll send a confirmation to{" "}
                               <span className="font-medium">{email}</span> if
                               provided.

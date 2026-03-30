@@ -91,6 +91,7 @@ export const COLUMN_ORDERS: Record<string, number> = {
   paymentPlan: 43,
   paymentMethod: 44,
   enablePaymentReminder: 45,
+  flexitourCounter: 45.5,
   sentInitialReminderLink: 46,
   bookingStatus: 47,
   paymentProgress: 48,

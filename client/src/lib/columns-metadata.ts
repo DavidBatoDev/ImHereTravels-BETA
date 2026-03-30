@@ -41,6 +41,7 @@ export const ALL_COLUMN_IDS = [
   "paymentPlan",
   "paymentMethod",
   "enablePaymentReminder",
+  "flexitourCounter",
 
   // Discounts
   "eventName",

@@ -286,6 +286,32 @@
     --sidebar-border: 220 25% 20%;
     --sidebar-ring: 0 78% 67%;
   }
+
+  /* Force a light token set for routes/components that must never inherit dark mode. */
+  .force-light {
+    color-scheme: light;
+    --background: 30 11% 94%;
+    --foreground: 0 0% 13%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 13%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 0 0% 13%;
+    --primary: 0 75% 53%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 263 84% 39%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 210 19% 88%;
+    --muted-foreground: 0 0% 40%;
+    --accent: 210 19% 90%;
+    --accent-foreground: 0 0% 13%;
+    --destructive: 0 75% 53%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 19% 85%;
+    --input: 210 19% 96%;
+    --ring: 0 75% 53%;
+    --card-surface: 0 0% 100%;
+    --field-border: 263 50% 80%;
+  }
 }
 
 /* Gmail-rendered email content */
