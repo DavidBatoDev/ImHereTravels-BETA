@@ -1250,7 +1250,7 @@ export default function EditBookingModal({
               const refCol = columns.find(
                 (c) => c.columnName === arg.columnReference,
               );
-              if (refCol) {
+              if (refCol && refCol.id !== col.id) {
                 const list = map.get(refCol.id) || [];
                 list.push(col);
                 map.set(refCol.id, list);
@@ -1264,7 +1264,7 @@ export default function EditBookingModal({
               if (ref !== "ID" && ref !== "Row") {
                 // Find the column ID for the referenced column name
                 const refCol = columns.find((c) => c.columnName === ref);
-                if (refCol) {
+                if (refCol && refCol.id !== col.id) {
                   const list = map.get(refCol.id) || [];
                   list.push(col);
                   map.set(refCol.id, list);

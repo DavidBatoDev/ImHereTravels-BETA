@@ -30,7 +30,7 @@ import {
   FaPhone,
   FaCalendarAlt,
   FaWallet,
-  FaEuroSign,
+  FaPoundSign,
   FaClock,
   FaFileInvoice,
   FaHashtag,
@@ -483,9 +483,9 @@ export default function BookingDetailModal({
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-GB", {
       style: "currency",
-      currency: "EUR",
+      currency: "GBP",
     }).format(amount);
   };
 
@@ -1263,7 +1263,7 @@ export default function BookingDetailModal({
                                             <FaCalendarAlt className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
                                           )}
                                           {column.dataType === "currency" && (
-                                            <FaEuroSign className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
+                                            <FaPoundSign className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
                                           )}
                                           {column.dataType === "boolean" && (
                                             <BsPersonCheck className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
@@ -1341,7 +1341,7 @@ export default function BookingDetailModal({
                                               <FaCalendarAlt className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
                                             )}
                                             {column.dataType === "currency" && (
-                                              <FaEuroSign className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
+                                              <FaPoundSign className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />
                                             )}
                                             {column.dataType === "boolean" && (
                                               <BsPersonCheck className="h-2.5 w-2.5 sm:h-3 sm:w-3 text-crimson-red" />

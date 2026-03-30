@@ -37,31 +37,19 @@ export const reservationFeeColumn: BookingSheetColumn = {
 
 // Column Function Implementation
 /**
- * Excel equivalent:
- * =IF(M1003="","",INDEX(
- *     '{INDEX} Tour Packages'!$A:$ZQ,
- *     MATCH($M1003, '{INDEX} Tour Packages'!$A:$A, 0),
- *     MATCH(AH$3, '{INDEX} Tour Packages'!$4:$4, 0)
- *   ))
- *
  * Description:
- * - Retrieves a formatted string combining the tour package's `currency` and `deposit` amount.
- * - Equivalent to returning `${currency}${deposit}` based on the selected tour package name (`M1003`).
+ * - Retrieves the reservation fee (`pricing.deposit`) for a given tour package.
  * - If the tour package name is blank or not found, returns an empty string.
- * - NEW: If booking has locked pricing, returns stored value instead of fetching from tourPackages.
- *
- * Example:
- * - Firestore fields: pricing.currency = "EUR", pricing.deposit = 250
- * - Returns: "EUR250"
+ * - If booking has locked pricing, returns stored value instead of fetching from tourPackages.
  *
  * Parameters:
- * - tourPackageName → string representing the name of the selected tour package.
- * - tourDate → optional date for matching custom deposit pricing
- * - bookingContext → optional booking context containing locked pricing information
+ * - tourPackageName -> selected tour package name.
+ * - tourDate -> optional date for matching custom deposit pricing.
+ * - bookingContext -> optional booking context containing locked pricing info.
  *
  * Returns:
- * - string → formatted value like "EUR250"
- * - "" → if no match or invalid input
+ * - number -> reservation fee amount
+ * - "" -> if no match or invalid input
  */
 
 export default async function getTourCurrencyAndDeposit(
@@ -72,13 +60,13 @@ export default async function getTourCurrencyAndDeposit(
     lockPricing?: boolean;
     priceSource?: string;
   },
-): Promise<string | ""> {
+): Promise<number | ""> {
   // If booking has locked pricing, return the stored value
   if (
     bookingContext?.lockPricing &&
     bookingContext?.reservationFee !== undefined
   ) {
-    return String(bookingContext.reservationFee);
+    return bookingContext.reservationFee;
   }
 
   if (!tourPackageName) return "";
@@ -139,8 +127,6 @@ export default async function getTourCurrencyAndDeposit(
     }
   }
 
-  const { currency } = matchedPackage.pricing;
-
-  // Return formatted currency+deposit (e.g., "EUR250")
-  return currency && depositAmount ? depositAmount : "";
+  if (depositAmount === undefined || depositAmount === null) return "";
+  return Number(depositAmount);
 }
