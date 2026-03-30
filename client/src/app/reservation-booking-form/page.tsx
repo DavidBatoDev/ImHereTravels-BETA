@@ -37,115 +37,45 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import BookingConfirmationDocument from "./BookingConfirmationDocument";
-import jsPDF from "jspdf";
 import Receipt from "./Receipt";
 import { generateBookingConfirmationPDF } from "./generatePdf";
 import "react-phone-number-input/style.css";
 import PhoneInput, {
   isValidPhoneNumber,
   getCountries,
-  getCountryCallingCode,
 } from "react-phone-number-input";
 import en from "react-phone-number-input/locale/en";
-import type { Country } from "react-phone-number-input";
-
-// Safe wrapper for getCountryCallingCode with fallback
-const safeGetCountryCallingCode = (countryCode: string): string => {
-  try {
-    return getCountryCallingCode(countryCode as Country);
-  } catch (error) {
-    console.warn(`Unknown country code for phone: ${countryCode}`);
-    return "1"; // Default to US/Canada code
-  }
-};
-
-// Country data with Alpha-3 codes and phone number max lengths
-const countryData: Record<
-  string,
-  { alpha3: string; flag: string; maxLength: number }
-> = {
-  US: { alpha3: "USA", flag: "\uD83C\uDDFA\uD83C\uDDF8", maxLength: 10 },
-  GB: { alpha3: "GBR", flag: "\uD83C\uDDEC\uD83C\uDDE7", maxLength: 10 },
-  PH: { alpha3: "PHL", flag: "\uD83C\uDDF5\uD83C\uDDED", maxLength: 10 },
-  JP: { alpha3: "JPN", flag: "\uD83C\uDDEF\uD83C\uDDF5", maxLength: 10 },
-  CN: { alpha3: "CHN", flag: "\uD83C\uDDE8\uD83C\uDDF3", maxLength: 11 },
-  IN: { alpha3: "IND", flag: "\uD83C\uDDEE\uD83C\uDDF3", maxLength: 10 },
-  AU: { alpha3: "AUS", flag: "\uD83C\uDDE6\uD83C\uDDFA", maxLength: 9 },
-  CA: { alpha3: "CAN", flag: "\uD83C\uDDE8\uD83C\uDDE6", maxLength: 10 },
-  DE: { alpha3: "DEU", flag: "\uD83C\uDDE9\uD83C\uDDEA", maxLength: 11 },
-  FR: { alpha3: "FRA", flag: "\uD83C\uDDEB\uD83C\uDDF7", maxLength: 9 },
-  IT: { alpha3: "ITA", flag: "\uD83C\uDDEE\uD83C\uDDF9", maxLength: 10 },
-  ES: { alpha3: "ESP", flag: "\uD83C\uDDEA\uD83C\uDDF8", maxLength: 9 },
-  BR: { alpha3: "BRA", flag: "\uD83C\uDDE7\uD83C\uDDF7", maxLength: 11 },
-  MX: { alpha3: "MEX", flag: "\uD83C\uDDF2\uD83C\uDDFD", maxLength: 10 },
-  KR: { alpha3: "KOR", flag: "\uD83C\uDDF0\uD83C\uDDF7", maxLength: 10 },
-  SG: { alpha3: "SGP", flag: "\uD83C\uDDF8\uD83C\uDDEC", maxLength: 8 },
-  MY: { alpha3: "MYS", flag: "\uD83C\uDDF2\uD83C\uDDFE", maxLength: 10 },
-  TH: { alpha3: "THA", flag: "\uD83C\uDDF9\uD83C\uDDED", maxLength: 9 },
-  VN: { alpha3: "VNM", flag: "\uD83C\uDDFB\uD83C\uDDF3", maxLength: 10 },
-  ID: { alpha3: "IDN", flag: "\uD83C\uDDEE\uD83C\uDDE9", maxLength: 11 },
-  NZ: { alpha3: "NZL", flag: "\uD83C\uDDF3\uD83C\uDDFF", maxLength: 9 },
-  AE: { alpha3: "ARE", flag: "\uD83C\uDDE6\uD83C\uDDEA", maxLength: 9 },
-  SA: { alpha3: "SAU", flag: "\uD83C\uDDF8\uD83C\uDDE6", maxLength: 9 },
-  ZA: { alpha3: "ZAF", flag: "\uD83C\uDDFF\uD83C\uDDE6", maxLength: 9 },
-  RU: { alpha3: "RUS", flag: "\uD83C\uDDF7\uD83C\uDDFA", maxLength: 10 },
-  TR: { alpha3: "TUR", flag: "\uD83C\uDDF9\uD83C\uDDF7", maxLength: 10 },
-  NL: { alpha3: "NLD", flag: "\uD83C\uDDF3\uD83C\uDDF1", maxLength: 9 },
-  SE: { alpha3: "SWE", flag: "\uD83C\uDDF8\uD83C\uDDEA", maxLength: 9 },
-  CH: { alpha3: "CHE", flag: "\uD83C\uDDE8\uD83C\uDDED", maxLength: 9 },
-  PL: { alpha3: "POL", flag: "\uD83C\uDDF5\uD83C\uDDF1", maxLength: 9 },
-  BE: { alpha3: "BEL", flag: "\uD83C\uDDE7\uD83C\uDDEA", maxLength: 9 },
-  AT: { alpha3: "AUT", flag: "\uD83C\uDDE6\uD83C\uDDF9", maxLength: 10 },
-  NO: { alpha3: "NOR", flag: "\uD83C\uDDF3\uD83C\uDDF4", maxLength: 8 },
-  DK: { alpha3: "DNK", flag: "\uD83C\uDDE9\uD83C\uDDF0", maxLength: 8 },
-  FI: { alpha3: "FIN", flag: "\uD83C\uDDEB\uD83C\uDDEE", maxLength: 9 },
-  IE: { alpha3: "IRL", flag: "\uD83C\uDDEE\uD83C\uDDEA", maxLength: 9 },
-  PT: { alpha3: "PRT", flag: "\uD83C\uDDF5\uD83C\uDDF9", maxLength: 9 },
-  GR: { alpha3: "GRC", flag: "\uD83C\uDDEC\uD83C\uDDF7", maxLength: 10 },
-  CZ: { alpha3: "CZE", flag: "\uD83C\uDDE8\uD83C\uDDFF", maxLength: 9 },
-  HU: { alpha3: "HUN", flag: "\uD83C\uDDED\uD83C\uDDFA", maxLength: 9 },
-  RO: { alpha3: "ROU", flag: "\uD83C\uDDF7\uD83C\uDDF4", maxLength: 9 },
-  IL: { alpha3: "ISR", flag: "\uD83C\uDDEE\uD83C\uDDF1", maxLength: 9 },
-  EG: { alpha3: "EGY", flag: "\uD83C\uDDEA\uD83C\uDDEC", maxLength: 10 },
-  AR: { alpha3: "ARG", flag: "\uD83C\uDDE6\uD83C\uDDF7", maxLength: 10 },
-  CL: { alpha3: "CHL", flag: "\uD83C\uDDE8\uD83C\uDDF1", maxLength: 9 },
-  CO: { alpha3: "COL", flag: "\uD83C\uDDE8\uD83C\uDDF4", maxLength: 10 },
-  PE: { alpha3: "PER", flag: "\uD83C\uDDF5\uD83C\uDDEA", maxLength: 9 },
-  HK: { alpha3: "HKG", flag: "\uD83C\uDDED\uD83C\uDDF0", maxLength: 8 },
-  TW: { alpha3: "TWN", flag: "\uD83C\uDDF9\uD83C\uDDFC", maxLength: 9 },
-  PK: { alpha3: "PAK", flag: "\uD83C\uDDF5\uD83C\uDDF0", maxLength: 10 },
-  BD: { alpha3: "BGD", flag: "\uD83C\uDDE7\uD83C\uDDE9", maxLength: 10 },
-  NG: { alpha3: "NGA", flag: "\uD83C\uDDF3\uD83C\uDDEC", maxLength: 10 },
-  KE: { alpha3: "KEN", flag: "\uD83C\uDDF0\uD83C\uDDEA", maxLength: 9 },
-  UA: { alpha3: "UKR", flag: "\uD83C\uDDFA\uD83C\uDDE6", maxLength: 9 },
-};
-
-// Helper to get country data
-const getCountryData = (countryCode: string) => {
-  return (
-    countryData[countryCode] || {
-      alpha3: countryCode.toUpperCase(),
-      flag: countryCode
-        .toUpperCase()
-        .split("")
-        .map((char) => String.fromCodePoint(127397 + char.charCodeAt(0)))
-        .join(""),
-      maxLength: 15, // default max length
-    }
-  );
-};
+import {
+  calculateDaysBetween,
+  fixTermName,
+  getAvailablePaymentPlans,
+  getAvailablePaymentTerm,
+  getCountryData,
+  isTourAllDatesTooSoon,
+  parseStoredPhoneNumber,
+  safeGetCountryCallingCode,
+} from "./bookingForm.utils";
+import {
+  isStepOneReady,
+  validateStepOne,
+  type StepOneValidationInput,
+} from "./bookingForm.validation";
+import type {
+  GuestDetails,
+  PaymentTerm,
+  PersonPaymentPlan,
+  TourPackage,
+  ValidationErrors,
+} from "./bookingForm.types";
 
 const Page = () => {
   const DEBUG = true;
   const [email, setEmail] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [errors, setErrors] = useState<{ [k: string]: string }>({});
-  const [submitted, setSubmitted] = useState(false);
+  const [errors, setErrors] = useState<ValidationErrors>({});
   // Section 1 specific state
   const [birthdate, setBirthdate] = useState<string>("");
   const [nationality, setNationality] = useState("");
@@ -159,17 +89,7 @@ const Page = () => {
 
   // New state for guest personal details
   const [activeGuestTab, setActiveGuestTab] = useState(1); // Track which guest form is active
-  const [guestDetails, setGuestDetails] = useState<
-    Array<{
-      email: string;
-      firstName: string;
-      lastName: string;
-      birthdate: string;
-      nationality: string;
-      whatsAppNumber: string;
-      whatsAppCountry: string;
-    }>
-  >([]);
+  const [guestDetails, setGuestDetails] = useState<GuestDetails[]>([]);
 
   // dynamic tour packages and dates loaded from Firestore
   // Auto-update WhatsApp country code when nationality changes
@@ -182,41 +102,10 @@ const Page = () => {
     }
   }, [nationality]);
 
-  const [tourPackages, setTourPackages] = useState<
-    Array<{
-      id: string;
-      slug?: string;
-      name: string;
-      travelDates: string[];
-      status?: "active" | "inactive";
-      stripePaymentLink?: string;
-      deposit?: number; // reservation fee from pricing.deposit
-      price: number; // total tour price
-      coverImage?: string; // tour cover image URL
-      duration?: string; // e.g., "5 days, 4 nights"
-      highlights?: (string | { text: string; image?: string })[]; // tour highlights (string or object with optional image)
-      destinations?: string[]; // list of destinations
-      media?: {
-        coverImage?: string;
-        gallery?: string[];
-      };
-      description?: string;
-      region?: string;
-      country?: string;
-      rating?: number;
-      travelDateDetails?: Array<{
-        date: string;
-        customDeposit?: number;
-        customOriginal?: number;
-        hasCustomDeposit?: boolean;
-      }>;
-    }>
-  >([]);
+  const [tourPackages, setTourPackages] = useState<TourPackage[]>([]);
   const [tourDates, setTourDates] = useState<string[]>([]);
   const [isLoadingPackages, setIsLoadingPackages] = useState(true);
   const [sessionLoading, setSessionLoading] = useState(true);
-  const [tourImageLoading, setTourImageLoading] = useState(false);
-  const [tourImageError, setTourImageError] = useState(false);
   const [isCreatingPayment, setIsCreatingPayment] = useState(false);
   const [step2Processing, setStep2Processing] = useState(false);
   const [step2StatusMsg, setStep2StatusMsg] = useState<string | null>(null);
@@ -226,30 +115,12 @@ const Page = () => {
 
   // Tour selection modal state
   const [showTourModal, setShowTourModal] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [activeFilter, setActiveFilter] = useState("all");
-  const [selectedTourId, setSelectedTourId] = useState<string | null>(null);
-  const [filteredTours, setFilteredTours] = useState<typeof tourPackages>([]);
-  const [popularityData, setPopularityData] = useState<Record<string, number>>(
-    {},
-  );
-  const [currentHighlightIndex, setCurrentHighlightIndex] = useState(0);
   const [highlightsExpanded, setHighlightsExpanded] = useState(false);
   const [carouselIndex, setCarouselIndex] = useState(0);
   const [isCarouselPaused, setIsCarouselPaused] = useState(false);
 
   // Payment terms from Firestore
-  const [paymentTerms, setPaymentTerms] = useState<
-    Array<{
-      id: string;
-      name: string;
-      description: string;
-      paymentPlanType: string;
-      monthsRequired?: number;
-      monthlyPercentages?: number[];
-      color: string;
-    }>
-  >([]);
+  const [paymentTerms, setPaymentTerms] = useState<PaymentTerm[]>([]);
 
   // Selected payment plan
   const [selectedPaymentPlan, setSelectedPaymentPlan] = useState<string>("");
@@ -258,12 +129,6 @@ const Page = () => {
   const [fetchedPaymentPlanLabel, setFetchedPaymentPlanLabel] =
     useState<string>("");
 
-  // Per-person payment plans (for multi-booking)
-  interface PersonPaymentPlan {
-    plan: string;
-    tourCostShare: number;
-    reservationFeeShare: number;
-  }
   const [paymentPlans, setPaymentPlans] = useState<PersonPaymentPlan[]>([]);
   const [activePaymentTab, setActivePaymentTab] = useState(0); // 0 = main booker, 1+ = guests
 
@@ -367,7 +232,7 @@ const Page = () => {
                   (1000 * 60 * 60 * 24),
               )
             : 0;
-          const planCount = getAvailablePaymentPlans().length;
+          const planCount = availablePaymentPlans.length;
           return `Pick from ${planCount} payment plan${
             planCount !== 1 ? "s" : ""
           } based on your tour date (${daysDiff} days away)`;
@@ -816,7 +681,7 @@ const Page = () => {
           if (whatsAppStr.startsWith("+")) {
             // Find which country code matches
             const countries = getCountries();
-            let foundCountry: Country | null = null;
+            let foundCountry: string | null = null;
             let foundNumber = "";
 
             for (const country of countries) {
@@ -1200,8 +1065,6 @@ const Page = () => {
   // Reset image loading state when tour package changes
   useEffect(() => {
     if (selectedPackage) {
-      setTourImageLoading(true);
-      setTourImageError(false);
       console.log("Selected Package:", {
         name: selectedPackage.name,
         coverImage: selectedPackage.coverImage,
@@ -1294,7 +1157,6 @@ const Page = () => {
     } catch (err) {
       console.debug("Failed to read tour query param:", err);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoadingPackages, tourPackages]);
 
   // Sync `tour` query param when the selected tour (tourPackage) changes
@@ -1392,72 +1254,7 @@ const Page = () => {
     }
   }, [tourDate, router, isLoadingPackages, paymentDocId]);
 
-  // Calculate days between reservation date (today) and tour date
-  const calculateDaysBetween = (tourDateStr: string): number => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tour = new Date(tourDateStr);
-    tour.setHours(0, 0, 0, 0);
-    const diffTime = tour.getTime() - today.getTime();
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return diffDays;
-  };
-
-  const isTourAllDatesTooSoon = (pkg?: { travelDates?: string[] }): boolean => {
-    if (!pkg) return false;
-    const validDates = (pkg.travelDates ?? []).filter(Boolean);
-    return (
-      validDates.length > 0 &&
-      validDates.every((date) => calculateDaysBetween(date) < 2)
-    );
-  };
-
-  // Determine available payment term based on days between
-  const getAvailablePaymentTerm = (): {
-    term: string;
-    isLastMinute: boolean;
-    isInvalid: boolean;
-  } => {
-    if (!tourDate) return { term: "", isLastMinute: false, isInvalid: false };
-
-    const daysBetween = calculateDaysBetween(tourDate);
-
-    if (daysBetween < 2) {
-      return { term: "invalid", isLastMinute: false, isInvalid: true };
-    } else if (daysBetween >= 2 && daysBetween < 30) {
-      return { term: "full_payment", isLastMinute: true, isInvalid: false };
-    } else {
-      const today = new Date();
-      const tourDateObj = new Date(tourDate);
-      const fullPaymentDue = new Date(tourDateObj);
-      fullPaymentDue.setDate(fullPaymentDue.getDate() - 30);
-
-      const yearDiff = fullPaymentDue.getFullYear() - today.getFullYear();
-      const monthDiff = fullPaymentDue.getMonth() - today.getMonth();
-      const monthCount = Math.max(0, yearDiff * 12 + monthDiff);
-
-      if (monthCount >= 4) {
-        return { term: "P4", isLastMinute: false, isInvalid: false };
-      } else if (monthCount === 3) {
-        return { term: "P3", isLastMinute: false, isInvalid: false };
-      } else if (monthCount === 2) {
-        return { term: "P2", isLastMinute: false, isInvalid: false };
-      } else if (monthCount === 1) {
-        return { term: "P1", isLastMinute: false, isInvalid: false };
-      } else {
-        return { term: "full_payment", isLastMinute: true, isInvalid: false };
-      }
-    }
-  };
-
-  // Helper function to fix spelling in term names
-  const fixTermName = (name: string) => {
-    return name
-      .replace(/Instalment/g, "Installment")
-      .replace(/instalments/g, "installments");
-  };
-
-  const availablePaymentTerm = getAvailablePaymentTerm();
+  const availablePaymentTerm = getAvailablePaymentTerm(tourDate);
 
   const selectedPaymentPlanLabel = fetchedPaymentPlanLabel
     ? fetchedPaymentPlanLabel
@@ -1468,110 +1265,16 @@ const Page = () => {
           paymentTerms.find((p) => p.id === selectedPaymentPlan)?.name ||
             "Selected",
         );
-
-  // Generate payment schedule for a given plan
-  const generatePaymentSchedule = (
-    planType: string,
-    monthsRequired: number,
-  ): Array<{ date: string; amount: number }> => {
-    if (!tourDate || !selectedPackage) return [];
-
-    const totalTourPrice =
-      ((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) *
-      numberOfPeople;
-    const remainingBalance = totalTourPrice - depositAmount;
-    const monthlyAmount = remainingBalance / monthsRequired;
-    const schedule: Array<{ date: string; amount: number }> = [];
-
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-
-    let nextMonth = currentMonth + 1;
-    let nextYear = currentYear;
-    if (nextMonth > 11) {
-      nextMonth = 0;
-      nextYear++;
-    }
-
-    for (let i = 0; i < monthsRequired; i++) {
-      let paymentMonth = nextMonth + i;
-      let paymentYear = nextYear;
-
-      while (paymentMonth > 11) {
-        paymentMonth -= 12;
-        paymentYear++;
-      }
-
-      const dateStr = `${paymentYear}-${String(paymentMonth + 1).padStart(
-        2,
-        "0",
-      )}-02`;
-
-      schedule.push({
-        date: dateStr,
-        amount:
-          i === monthsRequired - 1
-            ? remainingBalance - monthlyAmount * (monthsRequired - 1)
-            : monthlyAmount,
-      });
-    }
-
-    return schedule;
-  };
-
-  // Helper function to get friendly descriptions
-  const getFriendlyDescription = (monthsRequired: number) => {
-    switch (monthsRequired) {
-      case 1:
-        return "Ready to pay in full? Pick me.";
-      case 2:
-        return "Want to split it into two payments? This is it!";
-      case 3:
-        return "If you like, you can make three equal payments, too!";
-      case 4:
-        return "Since you're booking early, take advantage of 4 easy payments. No extra charges!";
-      default:
-        return "";
-    }
-  };
-
-  // Get available payment plan options based on the calculated term
-  const getAvailablePaymentPlans = () => {
-    const { term } = getAvailablePaymentTerm();
-    const remainingBalance =
-      ((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) *
-        numberOfPeople -
-      depositAmount;
-    if (!availablePaymentTerm.term || availablePaymentTerm.isInvalid) return [];
-    if (availablePaymentTerm.isLastMinute)
-      return [
-        {
-          type: "full_payment",
-          label: "Full Payment Required Within 48hrs",
-          description: "Complete payment of remaining balance within 2 days",
-          color: "#f59e0b",
-        },
-      ];
-
-    const termMap: { [key: string]: number } = { P1: 1, P2: 2, P3: 3, P4: 4 };
-    const maxMonths = termMap[availablePaymentTerm.term] || 0;
-
-    return paymentTerms
-      .filter((term) => term.monthsRequired && term.monthsRequired <= maxMonths)
-      .map((term) => ({
-        id: term.id,
-        type: term.paymentPlanType,
-        label: fixTermName(term.name),
-        description: getFriendlyDescription(term.monthsRequired!),
-        monthsRequired: term.monthsRequired!,
-        color: term.color,
-        schedule: generatePaymentSchedule(
-          term.paymentPlanType,
-          term.monthsRequired!,
-        ),
-      }));
-  };
+  const totalTourPrice =
+    ((selectedDateDetail?.customOriginal ?? selectedPackage?.price) || 0) *
+    numberOfPeople;
+  const availablePaymentPlans = getAvailablePaymentPlans({
+    availablePaymentTerm,
+    paymentTerms,
+    tourDate,
+    totalTourPrice,
+    depositAmount,
+  });
 
   // helper: animate the guests container height using the Web Animations API (with a fallback)
   const animateHeight = (from: number, to: number) => {
@@ -1601,15 +1304,6 @@ const Page = () => {
     });
   };
 
-  // Animate any content change inside the guests block (size, Duo->Group, etc.)
-  const animateGuestsContentChange = async (applyState: () => void) => {
-    const startH = guestsWrapRef.current?.getBoundingClientRect().height ?? 0;
-    applyState();
-    await new Promise((r) => requestAnimationFrame(r));
-    const targetH = guestsContentRef.current?.scrollHeight ?? 0;
-    await animateHeight(startH, targetH);
-  };
-
   // shared field classes with enhanced styling
   const fieldBase =
     "mt-1 block w-full px-4 py-3 rounded-lg bg-input text-foreground placeholder:text-muted-foreground/60 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:bg-muted/40 disabled:cursor-not-allowed disabled:text-muted-foreground";
@@ -1617,7 +1311,6 @@ const Page = () => {
     `border-2 ${err ? "border-destructive" : "border-border"}`;
   const fieldFocus =
     "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 focus:shadow-md hover:border-primary/50 disabled:focus:outline-none disabled:focus:ring-0 disabled:hover:border-primary/50 disabled:hover:shadow-sm";
-  const fieldSuccess = "border-green-500 disabled:border-green-500";
   const fieldWithIcon = "pl-11";
 
   // Helper to check if field is valid
@@ -1631,8 +1324,6 @@ const Page = () => {
     return false;
   };
 
-  const guestsVisible = guestsHeight;
-
   // Get all nationalities from world-countries library
   const nationalityOptions = getNationalityOptions();
 
@@ -1641,21 +1332,6 @@ const Page = () => {
     { label: "Duo Booking", value: "Duo Booking" },
     { label: "Group Booking", value: "Group Booking" },
   ];
-  const tourPackageOptions = tourPackages.map((p) => {
-    const allDatesTooSoon = isTourAllDatesTooSoon(p);
-    const isDisabled = p.status === "inactive" || allDatesTooSoon;
-
-    return {
-      label: p.name,
-      value: p.id,
-      disabled: isDisabled,
-      description: isDisabled
-        ? p.status === "inactive"
-          ? "Tour currently not available — please check back soon."
-          : "All dates for this tour are too soon — please check back later."
-        : undefined,
-    };
-  });
 
   const tourDateOptions = (tourDates ?? []).map((d: string) => {
     const daysBetween = calculateDaysBetween(d);
@@ -1952,7 +1628,7 @@ const Page = () => {
             payload.media?.coverImage ||
             payload.coverImage ||
             payload.image ||
-            null;
+            undefined;
 
           // Get highlights from details.highlights (new structure) or root highlights (old structure)
           const highlights =
@@ -2012,7 +1688,7 @@ const Page = () => {
             deposit: payload.pricing?.deposit ?? 250,
             price: payload.pricing?.original ?? 2050,
             coverImage: coverImage,
-            duration: payload.duration || null,
+            duration: payload.duration || undefined,
             highlights: highlights,
             destinations:
               payload.destinations || payload.details?.destinations || [],
@@ -2208,27 +1884,13 @@ const Page = () => {
                 if (data.customer?.nationality)
                   setNationality(data.customer.nationality);
                 if (data.customer?.whatsAppNumber) {
-                  // Parse the stored WhatsApp number to extract country and number
-                  const fullNumber = data.customer.whatsAppNumber;
-                  if (fullNumber && fullNumber.startsWith("+")) {
-                    // Find matching country by calling code
-                    let foundCountry = false;
-                    for (const country of getCountries()) {
-                      const callingCode = safeGetCountryCallingCode(country);
-                      if (fullNumber.startsWith(`+${callingCode}`)) {
-                        setWhatsAppCountry(country);
-                        setWhatsAppNumber(
-                          fullNumber.slice(callingCode.length + 1),
-                        );
-                        foundCountry = true;
-                        break;
-                      }
-                    }
-                    if (!foundCountry) {
-                      // Fallback: just remove the + and set as-is
-                      setWhatsAppNumber(fullNumber.replace(/^\+/, ""));
-                    }
-                  }
+                  const parsedPhone = parseStoredPhoneNumber(
+                    data.customer.whatsAppNumber,
+                    getCountries(),
+                    whatsAppCountry,
+                  );
+                  setWhatsAppCountry(parsedPhone.countryCode);
+                  setWhatsAppNumber(parsedPhone.nationalNumber);
                 }
                 const loadedBookingType =
                   data.booking?.type || "Single Booking";
@@ -2363,27 +2025,13 @@ const Page = () => {
               if (data.customer?.nationality)
                 setNationality(data.customer.nationality);
               if (data.customer?.whatsAppNumber) {
-                // Parse the stored WhatsApp number to extract country and number
-                const fullNumber = data.customer.whatsAppNumber;
-                if (fullNumber && fullNumber.startsWith("+")) {
-                  // Find matching country by calling code
-                  let foundCountry = false;
-                  for (const country of getCountries()) {
-                    const callingCode = safeGetCountryCallingCode(country);
-                    if (fullNumber.startsWith(`+${callingCode}`)) {
-                      setWhatsAppCountry(country);
-                      setWhatsAppNumber(
-                        fullNumber.slice(callingCode.length + 1),
-                      );
-                      foundCountry = true;
-                      break;
-                    }
-                  }
-                  if (!foundCountry) {
-                    // Fallback: just remove the + and set as-is
-                    setWhatsAppNumber(fullNumber.replace(/^\+/, ""));
-                  }
-                }
+                const parsedPhone = parseStoredPhoneNumber(
+                  data.customer.whatsAppNumber,
+                  getCountries(),
+                  whatsAppCountry,
+                );
+                setWhatsAppCountry(parsedPhone.countryCode);
+                setWhatsAppNumber(parsedPhone.nationalNumber);
               }
               const loadedBookingType = data.booking?.type || "Single Booking";
               const loadedGroupSize = data.booking?.groupSize || 3;
@@ -2630,170 +2278,6 @@ const Page = () => {
       return () => clearTimeout(t);
     }
   }, [tourPackage]);
-
-  // Helper function to check if tour is available
-  const isTourAvailable = (tour: (typeof tourPackages)[0]) => {
-    // Check if tour status is Active
-    if (tour.status !== "active") {
-      return false;
-    }
-
-    // Check if all tour dates are too soon (within 2 days)
-    if (tour.travelDates && tour.travelDates.length > 0) {
-      const today = new Date();
-      const twoDaysFromNow = new Date();
-      twoDaysFromNow.setDate(today.getDate() + 2);
-
-      const availableDates = tour.travelDates.filter((dateStr) => {
-        const tourDate = new Date(dateStr);
-        return tourDate > twoDaysFromNow;
-      });
-
-      // If no dates are available (all too soon)
-      if (availableDates.length === 0) {
-        return false;
-      }
-    }
-
-    return true;
-  };
-
-  // Get availability message
-  const getAvailabilityMessage = (tour: (typeof tourPackages)[0]) => {
-    if (tour.status !== "active") {
-      return "Currently Unavailable";
-    }
-
-    if (tour.travelDates && tour.travelDates.length > 0) {
-      const today = new Date();
-      const twoDaysFromNow = new Date();
-      twoDaysFromNow.setDate(today.getDate() + 2);
-
-      const availableDates = tour.travelDates.filter((dateStr) => {
-        const tourDate = new Date(dateStr);
-        return tourDate > twoDaysFromNow;
-      });
-
-      if (availableDates.length === 0) {
-        return "All dates too soon - check back later";
-      }
-    }
-
-    return null;
-  };
-
-  // Calculate tour popularity from bookings
-  useEffect(() => {
-    const calculatePopularity = async () => {
-      try {
-        const { collection, getDocs } = await import("firebase/firestore");
-        const bookingsRef = collection(db, "bookings");
-        const bookingsSnapshot = await getDocs(bookingsRef);
-
-        const tourBookingCounts: Record<string, number> = {};
-
-        bookingsSnapshot.docs.forEach((doc) => {
-          const booking = doc.data();
-          const tourName =
-            booking.tourPackageName ||
-            booking.tourName ||
-            booking.tourPackage ||
-            booking.tour;
-
-          if (tourName) {
-            tourBookingCounts[tourName] =
-              (tourBookingCounts[tourName] || 0) + 1;
-          }
-        });
-
-        if (DEBUG) {
-          console.log("📊 Tour popularity data:", tourBookingCounts);
-        }
-
-        setPopularityData(tourBookingCounts);
-      } catch (error) {
-        console.error("Error calculating popularity:", error);
-      }
-    };
-
-    if (!isLoadingPackages) {
-      calculatePopularity();
-    }
-  }, [isLoadingPackages]);
-
-  // Filter tours based on search and filters
-  useEffect(() => {
-    let filtered = tourPackages;
-
-    // Apply search
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (tour) =>
-          tour.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          tour.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          tour.destinations?.some((d) =>
-            d.toLowerCase().includes(searchQuery.toLowerCase()),
-          ),
-      );
-    }
-
-    // Apply category filter
-    if (activeFilter === "popular") {
-      // Sort by booking count (most popular first)
-      filtered = [...filtered].sort((a, b) => {
-        const aCount = popularityData[a.name] || 0;
-        const bCount = popularityData[b.name] || 0;
-        return bCount - aCount; // Descending order
-      });
-    } else if (activeFilter === "active") {
-      // Filter only active tours
-      filtered = filtered.filter((tour) => tour.status === "active");
-    } else if (activeFilter !== "all") {
-      // Apply region/country filter
-      filtered = filtered.filter(
-        (tour) =>
-          tour.region?.toLowerCase() === activeFilter ||
-          tour.country?.toLowerCase() === activeFilter,
-      );
-    }
-
-    // Sort alphabetically by default (except when showing popular)
-    if (activeFilter !== "popular") {
-      filtered = [...filtered].sort((a, b) => a.name.localeCompare(b.name));
-    }
-
-    setFilteredTours(filtered);
-  }, [searchQuery, activeFilter, tourPackages, popularityData]);
-
-  // Initialize selectedTourId when modal opens with pre-selected tour
-  useEffect(() => {
-    if (showTourModal && tourPackage) {
-      setSelectedTourId(tourPackage);
-    } else if (!showTourModal) {
-      // Reset selected tour when modal closes if it wasn't confirmed
-      if (selectedTourId !== tourPackage) {
-        setSelectedTourId(null);
-      }
-    }
-  }, [showTourModal, tourPackage, selectedTourId]);
-
-  // Rotate highlights in the tour preview card every 5 seconds, reset on interaction
-  useEffect(() => {
-    if (
-      selectedPackage &&
-      selectedPackage.highlights &&
-      selectedPackage.highlights.length > 1
-    ) {
-      const interval = setInterval(() => {
-        setCurrentHighlightIndex(
-          (prev) => (prev + 1) % (selectedPackage.highlights?.length || 1),
-        );
-      }, 5000);
-
-      return () => clearInterval(interval);
-    }
-  }, [selectedPackage]);
-
   // Prevent body scroll when modal is open
   useEffect(() => {
     const html = document.documentElement;
@@ -3121,24 +2605,6 @@ const Page = () => {
     selectedPackage,
     depositAmount,
   ]);
-
-  const handleAddGuest = () => {
-    // For group booking, limit guests to groupSize - 1 (booker + others)
-    if (bookingType === "Group Booking") {
-      const maxGuests = Math.max(0, groupSize - 1);
-      if (additionalGuests.length >= maxGuests) return;
-      setAdditionalGuests([...additionalGuests, ""]);
-      return;
-    }
-    // Duo booking only allows one additional guest
-    if (bookingType === "Duo Booking") {
-      if (additionalGuests.length >= 1) return;
-      setAdditionalGuests([...additionalGuests.slice(0, 1), ""]);
-      return;
-    }
-    return;
-  };
-
   const handleBookingTypeChange = async (value: string) => {
     const animateToState = async (applyState: () => void) => {
       const wasMounted = guestsMounted;
@@ -3290,15 +2756,8 @@ const Page = () => {
       return copy;
     });
   };
-
-  const handleGuestChange = (idx: number, value: string) => {
-    const copy = [...additionalGuests];
-    copy[idx] = value;
-    setAdditionalGuests(copy);
-  };
-
   const handleGuestDetailsUpdate = useCallback(
-    (index: number, data: (typeof guestDetails)[0]) => {
+    (index: number, data: GuestDetails) => {
       setGuestDetails((prev) => {
         const newGuests = [...prev];
         if (index >= 0 && index < newGuests.length) {
@@ -3309,155 +2768,33 @@ const Page = () => {
     },
     [],
   );
+  const buildStepOneValidationInput = (): StepOneValidationInput => ({
+    email,
+    firstName,
+    lastName,
+    birthdate,
+    nationality,
+    whatsAppNumber,
+    whatsAppCountry,
+    bookingType,
+    groupSize,
+    tourPackage,
+    tourDate,
+    guestDetails,
+  });
 
   const validate = () => {
-    console.log("🔍 Starting validation...");
-    const e: { [k: string]: string } = {};
-
-    console.log("📧 Validating email:", email);
-    if (!email) e.email = "Email is required";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
-      e.email = "Enter a valid email";
-
-    console.log("🎂 Validating birthdate:", birthdate);
-    if (!birthdate) e.birthdate = "Birthdate is required";
-    else {
-      // Validate age is 18 or older
-      const [year, month, day] = birthdate.split("-").map(Number);
-      const birthDate = new Date(year, month - 1, day);
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
-      if (
-        monthDiff < 0 ||
-        (monthDiff === 0 && today.getDate() < birthDate.getDate())
-      ) {
-        age--;
-      }
-      if (age < 18) e.birthdate = "Must be 18 years or older";
-    }
-    console.log("👤 Validating names:", { firstName, lastName });
-    if (!firstName) e.firstName = "First name is required";
-    if (!lastName) e.lastName = "Last name is required";
-
-    console.log("🌍 Validating nationality:", nationality);
-    if (!nationality) e.nationality = "Nationality is required";
-
-    console.log("🎫 Validating booking details:", {
-      bookingType,
-      tourPackage,
-      tourDate,
-    });
-    if (!bookingType) e.bookingType = "Booking type is required";
-    if (!tourPackage) e.tourPackage = "Tour name is required";
-    if (tourPackage && !tourDate) e.tourDate = "Tour date is required";
-
-    console.log("📱 Validating WhatsApp:", { whatsAppNumber, whatsAppCountry });
-    if (!whatsAppNumber) {
-      e.whatsAppNumber = "WhatsApp number is required";
-      console.log("❌ WhatsApp number is empty");
-    } else {
-      const fullNumber = `+${safeGetCountryCallingCode(whatsAppCountry)}${whatsAppNumber}`;
-      const isValid = isValidPhoneNumber(fullNumber);
-      console.log("📱 WhatsApp validation:", { fullNumber, isValid });
-      if (!isValid) {
-        e.whatsAppNumber = "Invalid WhatsApp number";
-        console.log("❌ WhatsApp number is invalid");
-      }
-    }
-
-    // Duo/Group guests validation - check guestDetails array
-    console.log("👥 Validating guest details:", {
-      bookingType,
-      guestDetailsLength: guestDetails.length,
-      guestDetails,
+    const nextErrors = validateStepOne(buildStepOneValidationInput(), {
+      log: true,
     });
 
-    if (bookingType === "Duo Booking" || bookingType === "Group Booking") {
-      const expectedLength = bookingType === "Duo Booking" ? 1 : groupSize - 1;
-      console.log(
-        `👥 Expected ${expectedLength} guests, found ${guestDetails.length}`,
-      );
-
-      if (guestDetails.length === 0) {
-        e.guests = "Guest details are required";
-        console.log("❌ No guest details found");
-      } else if (guestDetails.length !== expectedLength) {
-        e.guests = `Expected ${expectedLength} guest(s), but found ${guestDetails.length}`;
-        console.log(`❌ Wrong number of guests`);
-      } else {
-        // Validate each guest's details
-        guestDetails.forEach((guest, idx) => {
-          console.log(`👤 Validating guest ${idx + 1}:`, guest);
-
-          if (!guest.email) {
-            e[`guest-${idx}-email`] = `Guest ${idx + 1} email is required`;
-            console.log(`❌ Guest ${idx + 1} email missing`);
-          } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email)) {
-            e[`guest-${idx}-email`] = `Guest ${idx + 1} email is invalid`;
-            console.log(`❌ Guest ${idx + 1} email invalid`);
-          }
-
-          if (!guest.firstName) {
-            e[`guest-${idx}-firstName`] =
-              `Guest ${idx + 1} first name is required`;
-            console.log(`❌ Guest ${idx + 1} firstName missing`);
-          }
-
-          if (!guest.lastName) {
-            e[`guest-${idx}-lastName`] =
-              `Guest ${idx + 1} last name is required`;
-            console.log(`❌ Guest ${idx + 1} lastName missing`);
-          }
-
-          if (!guest.birthdate) {
-            e[`guest-${idx}-birthdate`] =
-              `Guest ${idx + 1} birthdate is required`;
-            console.log(`❌ Guest ${idx + 1} birthdate missing`);
-          }
-
-          if (!guest.nationality) {
-            e[`guest-${idx}-nationality`] =
-              `Guest ${idx + 1} nationality is required`;
-            console.log(`❌ Guest ${idx + 1} nationality missing`);
-          }
-
-          if (!guest.whatsAppNumber) {
-            e[`guest-${idx}-whatsAppNumber`] =
-              `Guest ${idx + 1} WhatsApp is required`;
-            console.log(`❌ Guest ${idx + 1} whatsAppNumber missing`);
-          } else {
-            const fullNumber = `+${safeGetCountryCallingCode(guest.whatsAppCountry)}${guest.whatsAppNumber}`;
-            const isValid = isValidPhoneNumber(fullNumber);
-            console.log(`📱 Guest ${idx + 1} WhatsApp validation:`, {
-              fullNumber,
-              isValid,
-            });
-            if (!isValid) {
-              e[`guest-${idx}-whatsAppNumber`] =
-                `Guest ${idx + 1} WhatsApp is invalid`;
-              console.log(`❌ Guest ${idx + 1} whatsAppNumber invalid`);
-            }
-          }
-        });
-      }
-    }
-
-    console.log("📋 Validation errors:", e);
-    console.log(
-      "✅ Validation result:",
-      Object.keys(e).length === 0 ? "PASSED" : "FAILED",
-    );
-
-    // Auto-focus the first guest tab that has an error so the user can see missing fields
-    const firstGuestErrorKey = Object.keys(e).find(
+    const firstGuestErrorKey = Object.keys(nextErrors).find(
       (key) => key === "guests" || key.startsWith("guest-"),
     );
     if (firstGuestErrorKey) {
       const match = firstGuestErrorKey.match(/^guest-(\d+)/);
       if (match) {
         const guestIdx = Number(match[1]);
-        // guestIdx is zero-based; tabs are 1 (main) then 2... for guests
         setActiveGuestTab(guestIdx + 2);
         console.log(
           "🔎 Focusing guest tab",
@@ -3467,53 +2804,11 @@ const Page = () => {
       }
     }
 
-    setErrors(e);
-    return Object.keys(e).length === 0;
+    setErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
   };
 
-  const onSubmit = (ev?: React.FormEvent) => {
-    ev?.preventDefault();
-
-    // Don't process form submission in Step 2 or 3 (payment/plan selection)
-    if (step === 2 || step === 3) {
-      return;
-    }
-
-    if (!validate()) return;
-    console.log({ email, firstName, lastName });
-    setSubmitted(true);
-  };
-
-  // Handle tour selection confirmation from modal
-  const handleConfirmTourSelection = () => {
-    const tour = tourPackages.find((t) => t.id === selectedTourId);
-    if (!tour) return;
-
-    if (isTourAllDatesTooSoon(tour)) {
-      alert(
-        "All available dates for this tour are too soon. Please choose another tour.",
-      );
-      return;
-    }
-
-    setTourPackage(tour.id);
-    setShowTourModal(false);
-    setSearchQuery("");
-    setActiveFilter("all");
-
-    // Scroll to tour date or next section after selection with smoother animation
-    setTimeout(() => {
-      const tourDateSection = document.querySelector(
-        '[aria-label="Tour Date"]',
-      );
-      if (tourDateSection) {
-        tourDateSection.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-      }
-    }, 400);
-  };
+  const stepOneReady = isStepOneReady(buildStepOneValidationInput());
 
   const handleConfirmBooking = async () => {
     try {
@@ -3543,7 +2838,7 @@ const Page = () => {
       );
 
       // Get the selected payment plan details for logging/reference
-      const availablePlans = getAvailablePaymentPlans();
+      const availablePlans = availablePaymentPlans;
       const firstPlan = paymentPlans[0];
       const selectedPlan = firstPlan?.plan
         ? availablePlans.find(
@@ -5986,7 +5281,7 @@ const Page = () => {
                               </p>
 
                               <div className="space-y-3">
-                                {getAvailablePaymentPlans().map((plan) => {
+                                {availablePaymentPlans.map((plan) => {
                                   const personPlan =
                                     paymentPlans[activePaymentTab];
                                   const isSelected =
@@ -6217,7 +5512,6 @@ const Page = () => {
                       setAdditionalGuests([]);
                       setGroupSize(3);
                       setErrors({});
-                      setSubmitted(false);
                       setTimeout(() => setClearing(false), 10);
 
                       // Smooth scroll to top after reset
@@ -6280,45 +5574,7 @@ const Page = () => {
                     });
                     checkExistingPaymentsAndMaybeProceed();
                   }}
-                  disabled={
-                    isCreatingPayment ||
-                    !email ||
-                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
-                    !birthdate ||
-                    !firstName ||
-                    !lastName ||
-                    !whatsAppNumber ||
-                    (whatsAppNumber &&
-                      !isValidPhoneNumber(
-                        `+${safeGetCountryCallingCode(
-                          whatsAppCountry,
-                        )}${whatsAppNumber}`,
-                      )) ||
-                    !nationality ||
-                    !bookingType ||
-                    !tourPackage ||
-                    !tourDate ||
-                    ((bookingType === "Duo Booking" ||
-                      bookingType === "Group Booking") &&
-                      (guestDetails.length === 0 ||
-                        guestDetails.length !==
-                          (bookingType === "Duo Booking" ? 1 : groupSize - 1) ||
-                        guestDetails.some(
-                          (guest) =>
-                            !guest.email ||
-                            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email) ||
-                            !guest.birthdate ||
-                            !guest.firstName ||
-                            !guest.lastName ||
-                            !guest.nationality ||
-                            !guest.whatsAppNumber ||
-                            !isValidPhoneNumber(
-                              `+${safeGetCountryCallingCode(
-                                guest.whatsAppCountry,
-                              )}${guest.whatsAppNumber}`,
-                            ),
-                        )))
-                  }
+                  disabled={isCreatingPayment || !stepOneReady}
                   className="group inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-primary to-crimson-red text-primary-foreground rounded-lg shadow-lg hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200 font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 disabled:hover:shadow-lg"
                 >
                   Continue to Payment
@@ -6883,3 +6139,7 @@ export default function ReservationBookingFormPage() {
     </>
   );
 }
+
+
+
+
