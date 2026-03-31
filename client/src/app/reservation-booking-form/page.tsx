@@ -3388,55 +3388,55 @@ const Page = () => {
       } else {
         // Validate each guest's details
         guestDetails.forEach((guest, idx) => {
-          console.log(`👤 Validating guest ${idx + 1}:`, guest);
+          console.log(`👤 Validating guest ${idx + 2}:`, guest);
 
           if (!guest.email) {
-            e[`guest-${idx}-email`] = `Guest ${idx + 1} email is required`;
-            console.log(`❌ Guest ${idx + 1} email missing`);
+            e[`guest-${idx}-email`] = `Guest ${idx + 2} email is required`;
+            console.log(`❌ Guest ${idx + 2} email missing`);
           } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(guest.email)) {
-            e[`guest-${idx}-email`] = `Guest ${idx + 1} email is invalid`;
-            console.log(`❌ Guest ${idx + 1} email invalid`);
+            e[`guest-${idx}-email`] = `Guest ${idx + 2} email is invalid`;
+            console.log(`❌ Guest ${idx + 2} email invalid`);
           }
 
           if (!guest.firstName) {
             e[`guest-${idx}-firstName`] =
-              `Guest ${idx + 1} first name is required`;
-            console.log(`❌ Guest ${idx + 1} firstName missing`);
+              `Guest ${idx + 2} first name is required`;
+            console.log(`❌ Guest ${idx + 2} firstName missing`);
           }
 
           if (!guest.lastName) {
             e[`guest-${idx}-lastName`] =
-              `Guest ${idx + 1} last name is required`;
-            console.log(`❌ Guest ${idx + 1} lastName missing`);
+              `Guest ${idx + 2} last name is required`;
+            console.log(`❌ Guest ${idx + 2} lastName missing`);
           }
 
           if (!guest.birthdate) {
             e[`guest-${idx}-birthdate`] =
-              `Guest ${idx + 1} birthdate is required`;
-            console.log(`❌ Guest ${idx + 1} birthdate missing`);
+              `Guest ${idx + 2} birthdate is required`;
+            console.log(`❌ Guest ${idx + 2} birthdate missing`);
           }
 
           if (!guest.nationality) {
             e[`guest-${idx}-nationality`] =
-              `Guest ${idx + 1} nationality is required`;
-            console.log(`❌ Guest ${idx + 1} nationality missing`);
+              `Guest ${idx + 2} nationality is required`;
+            console.log(`❌ Guest ${idx + 2} nationality missing`);
           }
 
           if (!guest.whatsAppNumber) {
             e[`guest-${idx}-whatsAppNumber`] =
-              `Guest ${idx + 1} WhatsApp is required`;
-            console.log(`❌ Guest ${idx + 1} whatsAppNumber missing`);
+              `Guest ${idx + 2} WhatsApp is required`;
+            console.log(`❌ Guest ${idx + 2} whatsAppNumber missing`);
           } else {
             const fullNumber = `+${safeGetCountryCallingCode(guest.whatsAppCountry)}${guest.whatsAppNumber}`;
             const isValid = isValidPhoneNumber(fullNumber);
-            console.log(`📱 Guest ${idx + 1} WhatsApp validation:`, {
+            console.log(`📱 Guest ${idx + 2} WhatsApp validation:`, {
               fullNumber,
               isValid,
             });
             if (!isValid) {
               e[`guest-${idx}-whatsAppNumber`] =
-                `Guest ${idx + 1} WhatsApp is invalid`;
-              console.log(`❌ Guest ${idx + 1} whatsAppNumber invalid`);
+                `Guest ${idx + 2} WhatsApp is invalid`;
+              console.log(`❌ Guest ${idx + 2} whatsAppNumber invalid`);
             }
           }
         });
@@ -5074,7 +5074,7 @@ const Page = () => {
                                 : "bg-card border border-border text-foreground hover:border-crimson-red/50"
                             }`}
                           >
-                            Guest {idx + 1}
+                            Guest {idx + 2}
                           </button>
                         ))}
                       </div>
@@ -5578,8 +5578,9 @@ const Page = () => {
                 {/* Guest Forms - Only show for Duo/Group Booking */}
                 {/* Guest Forms - Only show for Duo/Group Booking */}
                 {(bookingType === "Duo Booking" ||
-                  bookingType === "Group Booking") && (
-                  <AnimatePresence mode="wait">
+                  bookingType === "Group Booking") &&
+                  activeGuestTab !== 1 && (
+                  <AnimatePresence mode="wait" initial={false}>
                     {(() => {
                       const guestIndex = activeGuestTab - 2;
                       if (guestIndex >= 0 && guestIndex < guestDetails.length) {
@@ -6883,3 +6884,4 @@ export default function ReservationBookingFormPage() {
     </>
   );
 }
+

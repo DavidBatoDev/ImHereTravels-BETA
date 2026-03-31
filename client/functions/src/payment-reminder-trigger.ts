@@ -316,6 +316,10 @@ function getPaymentReminderSubject(
   tourPackage: string,
   dueDate: string,
 ): string {
+  if (isFullPaymentPlan(paymentPlan)) {
+    return `Reminder – Your Full Payment for ${tourPackage} is Due on ${dueDate}`;
+  }
+
   const termNumber = parseInt(term.replace("P", ""));
   const planNumber = parseInt(paymentPlan.replace("P", ""));
 
@@ -343,8 +347,26 @@ function getPaymentReminderSubject(
   return `Reminder – Your Payment for ${tourPackage} is Due on ${dueDate}`;
 }
 
+function normalizePaymentPlanValue(paymentPlan: string): string {
+  return (paymentPlan || "")
+    .toString()
+    .trim()
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+}
+
+function isFullPaymentPlan(paymentPlan: string): boolean {
+  return normalizePaymentPlanValue(paymentPlan) === "FULL PAYMENT";
+}
+
 // Helper function to get applicable payment terms based on payment plan
 function getApplicableTerms(paymentPlan: string): string[] {
+  if (isFullPaymentPlan(paymentPlan)) {
+    // Reuse P1 reminder/calendar columns for full payment plans.
+    return ["P1"];
+  }
+
   const allTerms = ["P1", "P2", "P3", "P4"];
 
   if (paymentPlan === "P2") {
@@ -368,6 +390,146 @@ function getColumnValue(
   const column = columns.find((col) => col.columnName === columnName);
   if (!column) return undefined;
   return booking[column.id];
+}
+
+function parseDateValue(rawValue: any): Date | null {
+  if (!rawValue) return null;
+
+  try {
+    if (rawValue instanceof Date && !isNaN(rawValue.getTime())) {
+      return rawValue;
+    }
+
+    if (
+      rawValue &&
+      typeof rawValue === "object" &&
+      typeof rawValue._seconds === "number"
+    ) {
+      return new Date(rawValue._seconds * 1000);
+    }
+
+    if (
+      rawValue &&
+      typeof rawValue === "object" &&
+      typeof rawValue.seconds === "number"
+    ) {
+      return new Date(rawValue.seconds * 1000);
+    }
+
+    if (
+      rawValue &&
+      typeof rawValue === "object" &&
+      typeof rawValue.toDate === "function"
+    ) {
+      const converted = rawValue.toDate();
+      if (converted instanceof Date && !isNaN(converted.getTime())) {
+        return converted;
+      }
+    }
+
+    if (typeof rawValue === "string" && rawValue.trim() !== "") {
+      const parsed = new Date(rawValue.trim());
+      if (!isNaN(parsed.getTime())) {
+        return parsed;
+      }
+    }
+  } catch (error) {
+    logger.warn("Error parsing date value:", error);
+  }
+
+  return null;
+}
+
+function getDateOnly(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function deriveReminderDateFromDueDate(
+  dueDateRaw: any,
+  reservationDateRaw: any,
+): Date | null {
+  const dueDate = parseDateValue(dueDateRaw);
+  if (!dueDate) return null;
+
+  const dueDateOnly = getDateOnly(dueDate);
+  const reminderCandidate = new Date(
+    dueDateOnly.getFullYear(),
+    dueDateOnly.getMonth(),
+    dueDateOnly.getDate() - 14,
+  );
+
+  const reservationDate = parseDateValue(reservationDateRaw);
+  if (!reservationDate) {
+    return reminderCandidate;
+  }
+
+  const reservationDateOnly = getDateOnly(reservationDate);
+  return reminderCandidate < reservationDateOnly
+    ? reservationDateOnly
+    : reminderCandidate;
+}
+
+function isFullPaymentAliasTerm(paymentPlan: string, term: string): boolean {
+  return isFullPaymentPlan(paymentPlan) && term === "P1";
+}
+
+function getDisplayTermLabel(paymentPlan: string, term: string): string {
+  return isFullPaymentAliasTerm(paymentPlan, term) ? "Full Payment" : term;
+}
+
+function getTermAmountValue(
+  booking: Record<string, any>,
+  paymentPlan: string,
+  term: string,
+): any {
+  if (isFullPaymentAliasTerm(paymentPlan, term)) {
+    return booking.fullPaymentAmount;
+  }
+  return getColumnValue(booking, `${term} Amount`, PAYMENT_REMINDER_COLUMNS);
+}
+
+function getTermDueDateValue(
+  booking: Record<string, any>,
+  paymentPlan: string,
+  term: string,
+): any {
+  if (isFullPaymentAliasTerm(paymentPlan, term)) {
+    return booking.fullPaymentDueDate;
+  }
+  return getColumnValue(booking, `${term} Due Date`, PAYMENT_REMINDER_COLUMNS);
+}
+
+function getTermDatePaidValue(
+  booking: Record<string, any>,
+  paymentPlan: string,
+  term: string,
+): any {
+  if (isFullPaymentAliasTerm(paymentPlan, term)) {
+    return booking.fullPaymentDatePaid;
+  }
+  return getColumnValue(booking, `${term} Date Paid`, PAYMENT_REMINDER_COLUMNS);
+}
+
+function getTermScheduledReminderDateValue(
+  booking: Record<string, any>,
+  paymentPlan: string,
+  term: string,
+): any {
+  if (isFullPaymentAliasTerm(paymentPlan, term)) {
+    return (
+      booking.p1ScheduledReminderDate ||
+      deriveReminderDateFromDueDate(
+        booking.fullPaymentDueDate,
+        booking.reservationDate || booking.createdAt,
+      ) ||
+      ""
+    );
+  }
+  return getColumnValue(
+    booking,
+    `${term} Scheduled Reminder Date`,
+    PAYMENT_REMINDER_COLUMNS,
+  );
 }
 
 /**
@@ -513,11 +675,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
           const calendarEventIds: Record<string, string> = {};
 
           for (const term of terms) {
-            const dueDateRaw = getColumnValue(
-              booking,
-              `${term} Due Date`,
-              PAYMENT_REMINDER_COLUMNS,
-            );
+            const dueDateRaw = getTermDueDateValue(booking, paymentPlan, term);
             const calendarEventId = getColumnValue(
               booking,
               `${term} Calendar Event ID`,
@@ -545,8 +703,9 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
 
             try {
               const dueDate = formatDate(dueDateRaw);
+              const displayTerm = getDisplayTermLabel(paymentPlan, term);
               const { eventId, eventLink } = await createCalendarEvent(
-                term,
+                displayTerm,
                 dueDate,
                 fullName || "",
                 tourPackage || "",
@@ -596,17 +755,9 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
 
           // Build term data for initial email template (array of objects for Nunjucks)
           const termData = terms.map((t) => ({
-            name: t,
-            amount: formatGBP(
-              getColumnValue(booking, `${t} Amount`, PAYMENT_REMINDER_COLUMNS),
-            ),
-            dueDate: formatDate(
-              getColumnValue(
-                booking,
-                `${t} Due Date`,
-                PAYMENT_REMINDER_COLUMNS,
-              ),
-            ),
+            name: getDisplayTermLabel(paymentPlan, t),
+            amount: formatGBP(getTermAmountValue(booking, paymentPlan, t)),
+            dueDate: formatDate(getTermDueDateValue(booking, paymentPlan, t)),
             calendarLink: calendarLinks[t] || "",
           }));
 
@@ -744,10 +895,10 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
           }
 
           // Check if scheduled reminder date exists
-          const scheduledReminderDate = getColumnValue(
+          const scheduledReminderDate = getTermScheduledReminderDateValue(
             booking,
-            `${term} Scheduled Reminder Date`,
-            PAYMENT_REMINDER_COLUMNS,
+            paymentPlan,
+            term,
           );
 
           if (!scheduledReminderDate) {
@@ -756,16 +907,8 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
           }
 
           // Get term details
-          const amount = getColumnValue(
-            booking,
-            `${term} Amount`,
-            PAYMENT_REMINDER_COLUMNS,
-          );
-          const dueDateRaw = getColumnValue(
-            booking,
-            `${term} Due Date`,
-            PAYMENT_REMINDER_COLUMNS,
-          );
+          const amount = getTermAmountValue(booking, paymentPlan, term);
+          const dueDateRaw = getTermDueDateValue(booking, paymentPlan, term);
 
           // Parse due date for this specific term
           // Due dates can be comma-separated: "Dec 2, 2025, Jan 2, 2026, Feb 2, 2026, Mar 2, 2026"
@@ -872,11 +1015,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
           };
 
           const termData = visibleTerms.map((t) => {
-            const tDueDateRaw = getColumnValue(
-              booking,
-              `${t} Due Date`,
-              PAYMENT_REMINDER_COLUMNS,
-            );
+            const tDueDateRaw = getTermDueDateValue(booking, paymentPlan, t);
             let tDueDate = tDueDateRaw;
 
             // Parse due date for each term
@@ -890,11 +1029,7 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
 
             const dueDateFormatted = formatDate(tDueDate);
             const datePaidFormatted = formatDate(
-              getColumnValue(
-                booking,
-                `${t} Date Paid`,
-                PAYMENT_REMINDER_COLUMNS,
-              ),
+              getTermDatePaidValue(booking, paymentPlan, t),
             );
 
             // A term is "Late" if unpaid and its due date passed before this email was sent
@@ -905,14 +1040,8 @@ export const onPaymentReminderEnabled = onDocumentUpdated(
             const penaltyValue = getTermLatePenalty(t);
 
             return {
-              term: t,
-              amount: formatGBP(
-                getColumnValue(
-                  booking,
-                  `${t} Amount`,
-                  PAYMENT_REMINDER_COLUMNS,
-                ),
-              ),
+              term: getDisplayTermLabel(paymentPlan, t),
+              amount: formatGBP(getTermAmountValue(booking, paymentPlan, t)),
               dueDate: dueDateFormatted,
               datePaid: datePaidFormatted,
               isLate,

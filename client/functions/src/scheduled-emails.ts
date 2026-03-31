@@ -74,6 +74,60 @@ function parseDueDateForTerm(dueDateRaw: any, termIndex: number): string {
   return dueDateRaw;
 }
 
+function normalizePaymentPlanValue(paymentPlan: any): string {
+  return (paymentPlan || "")
+    .toString()
+    .trim()
+    .replace(/_/g, " ")
+    .replace(/\s+/g, " ")
+    .toUpperCase();
+}
+
+function isFullPaymentPlan(paymentPlan: any): boolean {
+  return normalizePaymentPlanValue(paymentPlan) === "FULL PAYMENT";
+}
+
+function isFullPaymentAliasTerm(paymentPlan: any, term: string): boolean {
+  return isFullPaymentPlan(paymentPlan) && term === "P1";
+}
+
+function getDisplayTermLabel(paymentPlan: any, term: string): string {
+  return isFullPaymentAliasTerm(paymentPlan, term) ? "Full Payment" : term;
+}
+
+function getTermAmountValue(
+  bookingData: Record<string, any>,
+  paymentPlan: any,
+  term: string,
+): any {
+  if (isFullPaymentAliasTerm(paymentPlan, term)) {
+    return bookingData.fullPaymentAmount;
+  }
+  return bookingData[`${term.toLowerCase()}Amount`];
+}
+
+function getTermDueDateValue(
+  bookingData: Record<string, any>,
+  paymentPlan: any,
+  term: string,
+): any {
+  if (isFullPaymentAliasTerm(paymentPlan, term)) {
+    return bookingData.fullPaymentDueDate;
+  }
+  return bookingData[`${term.toLowerCase()}DueDate`];
+}
+
+function getTermDatePaidValue(
+  bookingData: Record<string, any>,
+  paymentPlan: any,
+  term: string,
+): any {
+  if (isFullPaymentAliasTerm(paymentPlan, term)) {
+    return bookingData.fullPaymentDatePaid;
+  }
+  return bookingData[`${term.toLowerCase()}DatePaid`];
+}
+
 // Helper function to format date
 function formatDate(dateValue: any): string {
   if (!dateValue) return "";
@@ -129,6 +183,9 @@ async function rerenderEmailTemplate(
     const bookingData = bookingDoc.data()!;
 
     // Update template variables with fresh data
+    const effectivePaymentPlan =
+      bookingData.availablePaymentTerms || bookingData.paymentPlan || "";
+
     const freshVariables: Record<string, any> = {
       ...templateVariables,
       // Update key fields with fresh data
@@ -143,7 +200,7 @@ async function rerenderEmailTemplate(
       discountedTourCost: bookingData.discountedTourCost,
       useDiscountedTourCost: bookingData.useDiscountedTourCost,
       paymentMethod: bookingData.paymentMethod || "Other",
-      paymentPlan: bookingData.availablePaymentTerms || "",
+      paymentPlan: effectivePaymentPlan,
       accessToken: bookingData.access_token || "",
     };
 
@@ -153,21 +210,33 @@ async function rerenderEmailTemplate(
       const termLower = term.toLowerCase();
       const termIndex = parseInt(term.replace("P", "")) - 1;
 
-      const dueDateRaw = (bookingData as any)[`${termLower}DueDate`];
+      const dueDateRaw = getTermDueDateValue(
+        bookingData as any,
+        effectivePaymentPlan,
+        term,
+      );
       const parsedDueDate = parseDueDateForTerm(dueDateRaw, termIndex);
+      const amountValue = getTermAmountValue(
+        bookingData as any,
+        effectivePaymentPlan,
+        term,
+      );
+      const datePaidValue = getTermDatePaidValue(
+        bookingData as any,
+        effectivePaymentPlan,
+        term,
+      );
 
-      freshVariables[`${termLower}Amount`] = (bookingData as any)[
-        `${termLower}Amount`
-      ];
+      freshVariables[`${termLower}Amount`] = amountValue;
       freshVariables[`${termLower}DueDate`] = parsedDueDate;
-      freshVariables[`${termLower}DatePaid`] = (bookingData as any)[
-        `${termLower}DatePaid`
-      ];
+      freshVariables[`${termLower}DatePaid`] = datePaidValue;
+      freshVariables.paymentTermDisplay = getDisplayTermLabel(
+        effectivePaymentPlan,
+        term,
+      );
 
       // Add formatted values for display
-      freshVariables.amount = formatGBP(
-        (bookingData as any)[`${termLower}Amount`],
-      );
+      freshVariables.amount = formatGBP(amountValue);
       freshVariables.dueDate = formatDate(parsedDueDate);
     }
 
@@ -176,11 +245,12 @@ async function rerenderEmailTemplate(
       const allTerms = ["P1", "P2", "P3", "P4"];
 
       // Determine which terms to show based on payment plan
-      const paymentPlanValue =
-        bookingData.availablePaymentTerms || bookingData.paymentPlan || "";
+      const paymentPlanValue = effectivePaymentPlan;
       let maxTermIndex = 0;
 
-      if (paymentPlanValue.includes("P4")) {
+      if (isFullPaymentPlan(paymentPlanValue)) {
+        maxTermIndex = 1;
+      } else if (paymentPlanValue.includes("P4")) {
         maxTermIndex = 4;
       } else if (paymentPlanValue.includes("P3")) {
         maxTermIndex = 3;
@@ -209,20 +279,25 @@ async function rerenderEmailTemplate(
 
       freshVariables.termData = visibleTerms.map((t) => {
         const tIndex = parseInt(t.replace("P", "")) - 1;
-        const tLower = t.toLowerCase();
-        const dueDateRaw = (bookingData as any)[`${tLower}DueDate`];
+        const dueDateRaw = getTermDueDateValue(
+          bookingData as any,
+          paymentPlanValue,
+          t,
+        );
         const parsedDueDate = parseDueDateForTerm(dueDateRaw, tIndex);
         const dueDateStr = formatDate(parsedDueDate);
         const datePaidStr = formatDate(
-          (bookingData as any)[`${tLower}DatePaid`] || "",
+          getTermDatePaidValue(bookingData as any, paymentPlanValue, t) || "",
         );
         const isLate =
           !datePaidStr && !!dueDateStr && new Date(dueDateStr) < sendDate;
         const penaltyValue = getTermLatePenalty(t);
 
         return {
-          term: t,
-          amount: formatGBP((bookingData as any)[`${tLower}Amount`] || 0),
+          term: getDisplayTermLabel(paymentPlanValue, t),
+          amount: formatGBP(
+            getTermAmountValue(bookingData as any, paymentPlanValue, t) || 0,
+          ),
           dueDate: dueDateStr,
           datePaid: datePaidStr,
           isLate,

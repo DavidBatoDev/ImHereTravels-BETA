@@ -41,6 +41,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "@/components/ui/use-toast";
 import { db } from "@/lib/firebase";
 import PayNowModal from "@/components/booking-status/PayNowModal";
 
@@ -119,6 +127,7 @@ interface BookingData {
     changedBy?: string;
   }>;
   flexitourLastChangedAt?: any;
+  flexitourP1SettlementMode?: boolean;
   enablePaymentReminder: boolean;
   paymentTokens?: {
     full_payment?: PaymentTokenData;
@@ -145,6 +154,29 @@ interface BookingData {
     size: number;
     uploadedAt: any;
   };
+}
+
+interface FlexitourPlanOption {
+  value: "Full Payment" | "P1" | "P2" | "P3" | "P4";
+  label: string;
+  description: string;
+  monthsRequired: number;
+}
+
+interface FlexitourPreviewRow {
+  id: "full_payment" | "p1" | "p2" | "p3" | "p4";
+  term: string;
+  dueDate: string;
+  amount: number;
+  status: "Paid" | "Pending";
+}
+
+interface FlexitourPreviewData {
+  previewRows: FlexitourPreviewRow[];
+  effectivePaymentPlan: "Full Payment" | "P1" | "P2" | "P3" | "P4";
+  displayMode: "standard" | "p1_settlement";
+  p1SettlementMode: boolean;
+  notes: string[];
 }
 
 export default function BookingStatusPage() {
@@ -198,12 +230,16 @@ export default function BookingStatusPage() {
     Array<{ value: string; label: string }>
   >([]);
   const [flexitourSelectedDate, setFlexitourSelectedDate] = useState("");
+  const [flexitourSelectedPlan, setFlexitourSelectedPlan] = useState("");
   const [flexitourLoadingDates, setFlexitourLoadingDates] = useState(false);
   const [flexitourSubmitting, setFlexitourSubmitting] = useState(false);
   const [flexitourMessage, setFlexitourMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
+  const [flexitourPreviewLoading, setFlexitourPreviewLoading] = useState(false);
+  const [flexitourPreview, setFlexitourPreview] =
+    useState<FlexitourPreviewData | null>(null);
 
   // Booking Status page must always stay in light mode, including portal dialogs.
   useEffect(() => {
@@ -499,6 +535,7 @@ export default function BookingStatusPage() {
         flexitourUsedChanges: bookingData.flexitourUsedChanges,
         flexitourHistory: bookingData.flexitourHistory,
         flexitourLastChangedAt: bookingData.flexitourLastChangedAt,
+        flexitourP1SettlementMode: bookingData.flexitourP1SettlementMode,
         enablePaymentReminder: bookingData.enablePaymentReminder,
         preDeparturePack: preDeparturePack ?? undefined,
         revolutPayments: bookingData.revolutPayments,
@@ -720,6 +757,8 @@ export default function BookingStatusPage() {
       if (!booking?.tourPackageName) {
         setFlexitourDateOptions([]);
         setFlexitourSelectedDate("");
+        setFlexitourSelectedPlan("");
+        setFlexitourPreview(null);
         return;
       }
 
@@ -738,6 +777,8 @@ export default function BookingStatusPage() {
         if (tourPackageSnap.empty) {
           setFlexitourDateOptions([]);
           setFlexitourSelectedDate("");
+          setFlexitourSelectedPlan("");
+          setFlexitourPreview(null);
           return;
         }
 
@@ -755,7 +796,7 @@ export default function BookingStatusPage() {
           const startDate = parseDate(travelDate.startDate);
           if (!startDate) return;
 
-          if (getDaysBetweenToday(startDate) < 2) return;
+          if (getDaysBetweenToday(startDate) < 3) return;
 
           const value = toDateKey(startDate);
           if (value === currentDateKey) return;
@@ -774,11 +815,15 @@ export default function BookingStatusPage() {
           }
           return options[0]?.value || "";
         });
+        setFlexitourSelectedPlan("");
+        setFlexitourPreview(null);
       } catch (err) {
         console.error("Failed to load Flexitour dates:", err);
         if (!didCancel) {
           setFlexitourDateOptions([]);
           setFlexitourSelectedDate("");
+          setFlexitourSelectedPlan("");
+          setFlexitourPreview(null);
         }
       } finally {
         if (!didCancel) {
@@ -916,7 +961,14 @@ export default function BookingStatusPage() {
   };
 
   const handleFlexitourSubmit = async () => {
-    if (!booking || !flexitourSelectedDate) return;
+    if (
+      !booking ||
+      !flexitourSelectedDate ||
+      !flexitourSelectedPlan ||
+      !flexitourSelectedPlanIsValid
+    ) {
+      return;
+    }
 
     setFlexitourSubmitting(true);
     setFlexitourMessage(null);
@@ -929,6 +981,7 @@ export default function BookingStatusPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             newTourDate: flexitourSelectedDate,
+            paymentPlan: flexitourSelectedPlan,
             ...(email ? { email } : {}),
           }),
         },
@@ -941,11 +994,14 @@ export default function BookingStatusPage() {
         );
       }
 
-      setFlexitourMessage({
-        type: "success",
-        text:
-          result?.message ||
-          "Flexitour updated. Your payment schedule is being refreshed.",
+      const successText =
+        result?.message ||
+        "Flexitour date updated successfully. Payment schedule is being refreshed.";
+      setFlexitourMessage(null);
+      setFlexitourPreview(null);
+      toast({
+        title: "Flexitour Updated",
+        description: successText,
       });
     } catch (err: any) {
       console.error("Flexitour update failed:", err);
@@ -960,9 +1016,46 @@ export default function BookingStatusPage() {
     }
   };
 
-  const handleFlexitourReview = () => {
+  const handleFlexitourReview = async () => {
     if (flexitourActionDisabled) return;
-    setConfirmFlexitourOpen(true);
+
+    setFlexitourPreviewLoading(true);
+    setFlexitourMessage(null);
+    setFlexitourPreview(null);
+
+    try {
+      const response = await fetch(
+        `/api/public/booking/${bookingDocumentId}/flexitour/preview`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            newTourDate: flexitourSelectedDate,
+            paymentPlan: flexitourSelectedPlan,
+            ...(email ? { email } : {}),
+          }),
+        },
+      );
+      const result = await response.json();
+      if (!response.ok || !result?.success || !result?.data) {
+        throw new Error(
+          result?.error || "Unable to preview your updated payment schedule.",
+        );
+      }
+
+      setFlexitourPreview(result.data as FlexitourPreviewData);
+      setConfirmFlexitourOpen(true);
+    } catch (err: any) {
+      console.error("Flexitour preview failed:", err);
+      setFlexitourMessage({
+        type: "error",
+        text:
+          err?.message ||
+          "Unable to preview your date change right now. Please try again.",
+      });
+    } finally {
+      setFlexitourPreviewLoading(false);
+    }
   };
 
   if (loading) {
@@ -1123,23 +1216,11 @@ export default function BookingStatusPage() {
   const flexitourHasOptions = flexitourDateOptions.length > 0;
   const flexitourSelectedIsUnchanged =
     !!flexitourSelectedDate && flexitourSelectedDate === currentTourDateKey;
-  const flexitourActionDisabled =
-    flexitourSubmitting ||
-    flexitourLoadingDates ||
-    flexitourMainBookerOnly ||
-    flexitourLimitReached ||
-    !flexitourHasOptions ||
-    !flexitourSelectedDate ||
-    flexitourSelectedIsUnchanged;
   const selectedFlexitourOption = flexitourDateOptions.find(
     (option) => option.value === flexitourSelectedDate,
   );
   const selectedFlexitourLabel =
     selectedFlexitourOption?.label || flexitourSelectedDate || "---";
-  const flexitourRemainingAfterChange = Math.max(
-    0,
-    flexitourRemainingChanges - 1,
-  );
 
   const calculateDaysBetween = (dateValue: any): number => {
     const tour = getDateFromValue(dateValue);
@@ -1151,16 +1232,15 @@ export default function BookingStatusPage() {
     return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
   };
 
-  const getAvailablePaymentTerm = () => {
-    const tourDateValue = booking.tourDate;
+  const getAvailablePaymentTerm = (tourDateValue: any) => {
     if (!tourDateValue)
       return { term: "", isLastMinute: false, isInvalid: false };
 
     const daysBetween = calculateDaysBetween(tourDateValue);
 
-    if (daysBetween < 2) {
+    if (daysBetween < 3) {
       return { term: "invalid", isLastMinute: false, isInvalid: true };
-    } else if (daysBetween >= 2 && daysBetween < 30) {
+    } else if (daysBetween >= 3 && daysBetween < 30) {
       return { term: "full_payment", isLastMinute: true, isInvalid: false };
     } else {
       const today = new Date();
@@ -1255,7 +1335,7 @@ export default function BookingStatusPage() {
   };
 
   const getAvailablePaymentPlans = () => {
-    const availablePaymentTerm = getAvailablePaymentTerm();
+    const availablePaymentTerm = getAvailablePaymentTerm(booking.tourDate);
     if (!availablePaymentTerm.term || availablePaymentTerm.isInvalid) return [];
 
     if (availablePaymentTerm.isLastMinute) {
@@ -1299,6 +1379,111 @@ export default function BookingStatusPage() {
       }));
   };
 
+  const hasPaidDate = (value: unknown): boolean => {
+    return !!getDateFromValue(value);
+  };
+  const formatDateLabel = (value: unknown): string => {
+    const parsed = getDateFromValue(value);
+    return parsed ? format(parsed, "MMM dd, yyyy") : "---";
+  };
+
+  const flexitourPaidInstallmentCount = [
+    booking.p1DatePaid,
+    booking.p2DatePaid,
+    booking.p3DatePaid,
+    booking.p4DatePaid,
+  ].filter(hasPaidDate).length;
+  const flexitourP1Paid = hasPaidDate(booking.p1DatePaid);
+  const flexitourFullPaymentPaid = hasPaidDate(booking.fullPaymentDatePaid);
+
+  const flexitourPlanOptions: FlexitourPlanOption[] = (() => {
+    if (!flexitourSelectedDate) return [];
+
+    const availablePaymentTerm = getAvailablePaymentTerm(flexitourSelectedDate);
+    if (!availablePaymentTerm.term || availablePaymentTerm.isInvalid) return [];
+
+    if (flexitourFullPaymentPaid) {
+      return [];
+    }
+
+    if (availablePaymentTerm.isLastMinute) {
+      return [
+        {
+          value: "Full Payment",
+          label: "Full Payment (within 48hrs)",
+          description: "Required for this selected travel date.",
+          monthsRequired: 1,
+        },
+      ];
+    }
+
+    const termMap: Record<string, number> = { P1: 1, P2: 2, P3: 3, P4: 4 };
+    const maxMonths = termMap[availablePaymentTerm.term] || 0;
+    const minMonths =
+      flexitourPaidInstallmentCount > 0 ? flexitourPaidInstallmentCount + 1 : 1;
+    const allowP1SettlementMode =
+      flexitourPaidInstallmentCount === 1 &&
+      flexitourP1Paid &&
+      maxMonths === 1;
+    const options: FlexitourPlanOption[] = [];
+
+    for (let months = 1; months <= maxMonths; months += 1) {
+      const allowP1SettlementOption =
+        allowP1SettlementMode && months === 1 && !flexitourFullPaymentPaid;
+      if (months < minMonths && !allowP1SettlementOption) continue;
+
+      const value = `P${months}` as FlexitourPlanOption["value"];
+      const matchingTerm = paymentTermOptions.find(
+        (term) => term.monthsRequired === months,
+      );
+      const fallbackLabel =
+        months === 1
+          ? "P1 - Single Installment"
+          : `P${months} - ${months} Installments`;
+
+      options.push({
+        value,
+        label: matchingTerm?.name ? fixTermName(matchingTerm.name) : fallbackLabel,
+        description: allowP1SettlementOption
+          ? "Settle your remaining balance as a second P1 row."
+          : getFriendlyDescription(months),
+        monthsRequired: months,
+      });
+    }
+
+    return options;
+  })();
+
+  const flexitourHasPlanOptions = flexitourPlanOptions.length > 0;
+  const flexitourSelectedPlanIsValid = flexitourPlanOptions.some(
+    (option) => option.value === flexitourSelectedPlan,
+  );
+  const selectedFlexitourPlanOption = flexitourPlanOptions.find(
+    (option) => option.value === flexitourSelectedPlan,
+  );
+  const flexitourHasSettlementP1Option =
+    flexitourPaidInstallmentCount > 0 &&
+    flexitourP1Paid &&
+    flexitourPlanOptions.some((option) => option.value === "P1");
+  const selectedFlexitourPlanLabel =
+    selectedFlexitourPlanOption?.label || flexitourSelectedPlan || "---";
+  const flexitourRemainingAfterChange = Math.max(
+    0,
+    flexitourRemainingChanges - 1,
+  );
+  const flexitourActionDisabled =
+    flexitourSubmitting ||
+    flexitourPreviewLoading ||
+    flexitourLoadingDates ||
+    flexitourMainBookerOnly ||
+    flexitourLimitReached ||
+    !flexitourHasOptions ||
+    !flexitourHasPlanOptions ||
+    !flexitourSelectedDate ||
+    !flexitourSelectedPlan ||
+    !flexitourSelectedPlanIsValid ||
+    flexitourSelectedIsUnchanged;
+
   // Build payment terms with status information
   const buildPaymentTerms = () => {
     const terms: any[] = [];
@@ -1323,6 +1508,8 @@ export default function BookingStatusPage() {
     ];
 
     installments.forEach(({ id, term, prefix }) => {
+      const displayTerm =
+        booking.flexitourP1SettlementMode === true && id === "p2" ? "P1" : term;
       const dueDate = booking[`${prefix}DueDate` as keyof BookingData];
       const amount = booking[`${prefix}Amount` as keyof BookingData];
       const datePaid = booking[`${prefix}DatePaid` as keyof BookingData];
@@ -1384,7 +1571,7 @@ export default function BookingStatusPage() {
 
       terms.push({
         id,
-        term,
+        term: displayTerm,
         dueDate: dueDate || "",
         amount: toNumber(amount),
         penalty,
@@ -1612,46 +1799,101 @@ export default function BookingStatusPage() {
               </div>
 
               <p className="mt-2 text-xs text-gray-600">
-                Need to move your trip? Select a new package date and review
-                your change before confirming.
+                Need to move your trip? Select a new package date, choose a
+                payment plan, then review before confirming.
               </p>
 
-              <div className="mt-3 grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2 sm:gap-3 items-start">
-                <select
-                  value={flexitourSelectedDate}
-                  onChange={(event) =>
-                    setFlexitourSelectedDate(event.target.value)
-                  }
-                  disabled={
-                    flexitourLoadingDates ||
-                    flexitourMainBookerOnly ||
-                    flexitourLimitReached ||
-                    !flexitourHasOptions
-                  }
-                  className="w-full h-9 rounded-md border border-gray-300 bg-white px-3 text-sm text-gray-900 disabled:bg-gray-100 disabled:text-gray-500"
-                >
-                  {!flexitourHasOptions && (
-                    <option value="">
-                      {flexitourLoadingDates
-                        ? "Loading available dates..."
-                        : "No valid dates available"}
-                    </option>
-                  )}
-                  {flexitourHasOptions &&
-                    flexitourDateOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                </select>
+              <div className="mt-3 space-y-2 sm:space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                      New tour date
+                    </p>
+                    <Select
+                      value={flexitourSelectedDate}
+                      onValueChange={(value) => {
+                        setFlexitourSelectedDate(value);
+                        setFlexitourSelectedPlan("");
+                        setFlexitourMessage(null);
+                        setFlexitourPreview(null);
+                      }}
+                      disabled={
+                        flexitourLoadingDates ||
+                        flexitourMainBookerOnly ||
+                        flexitourLimitReached ||
+                        !flexitourHasOptions
+                      }
+                    >
+                      <SelectTrigger className="h-9 bg-white text-gray-900 border-gray-300 transition-all duration-200 hover:border-crimson-red/60 focus:ring-crimson-red/25">
+                        <SelectValue
+                          placeholder={
+                            flexitourLoadingDates
+                              ? "Loading available dates..."
+                              : "No valid dates available"
+                          }
+                        />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border-gray-200 text-gray-900">
+                        {flexitourDateOptions.map((option) => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value}
+                            className="transition-colors duration-150"
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                      Payment plan
+                    </p>
+                    <Select
+                      value={flexitourSelectedPlan}
+                      onValueChange={(value) => {
+                        setFlexitourSelectedPlan(value);
+                        setFlexitourMessage(null);
+                        setFlexitourPreview(null);
+                      }}
+                      disabled={
+                        flexitourLoadingDates ||
+                        flexitourMainBookerOnly ||
+                        flexitourLimitReached ||
+                        !flexitourHasOptions ||
+                        !flexitourSelectedDate ||
+                        !flexitourHasPlanOptions
+                      }
+                    >
+                      <SelectTrigger className="h-9 bg-white text-gray-900 border-gray-300 transition-all duration-200 hover:border-crimson-red/60 focus:ring-crimson-red/25">
+                        <SelectValue placeholder="Select payment plan" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-white border-gray-200 text-gray-900">
+                        {flexitourPlanOptions.map((option) => (
+                          <SelectItem
+                            key={option.value}
+                            value={option.value}
+                            className="transition-colors duration-150"
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
 
                 <Button
                   onClick={handleFlexitourReview}
                   disabled={flexitourActionDisabled}
                   size="sm"
-                  className="bg-crimson-red hover:bg-crimson-red/90 text-white w-full sm:w-auto"
+                  className="bg-crimson-red hover:bg-crimson-red/90 text-white w-full sm:w-auto transition-transform duration-200 hover:-translate-y-0.5"
                 >
-                  {flexitourSubmitting ? "Updating..." : "Review Date Change"}
+                  {flexitourPreviewLoading
+                    ? "Preparing Preview..."
+                    : "Review Date Change"}
                 </Button>
               </div>
 
@@ -1682,10 +1924,35 @@ export default function BookingStatusPage() {
                   </p>
                 )}
 
+              {!flexitourLoadingDates &&
+                flexitourHasOptions &&
+                !flexitourHasPlanOptions &&
+                !flexitourLimitReached && (
+                  <p className="mt-2 text-xs text-red-700">
+                    No eligible payment plan is available for this selected date
+                    based on your already paid terms.
+                  </p>
+                )}
+
+              {flexitourPaidInstallmentCount > 0 && flexitourHasPlanOptions && (
+                <p className="mt-2 text-xs text-blue-700">
+                  {flexitourHasSettlementP1Option
+                    ? "Paid terms stay locked. P1 is available as a settlement row for your remaining balance."
+                    : `Paid terms stay locked. Plans up to P${flexitourPaidInstallmentCount} are hidden.`}
+                </p>
+              )}
+
               {flexitourSelectedIsUnchanged && (
                 <p className="mt-2 text-xs text-amber-700">
                   Please choose a different tour date from your current
                   schedule.
+                </p>
+              )}
+
+              {flexitourHasPlanOptions && !flexitourSelectedPlan && (
+                <p className="mt-2 text-xs text-amber-700">
+                  Select an available payment plan before reviewing your date
+                  change.
                 </p>
               )}
 
@@ -1878,10 +2145,84 @@ export default function BookingStatusPage() {
                     </span>
                     .
                   </AlertDialogDescription>
+                  <div className="mt-3 rounded-md bg-gray-50 border border-gray-200 p-3 text-sm text-gray-900">
+                    Selected plan:{" "}
+                    <span className="font-semibold">
+                      {selectedFlexitourPlanLabel}
+                    </span>
+                  </div>
                   <div className="mt-3 rounded-md bg-blue-50 border border-blue-200 p-3 text-sm text-blue-900">
                     Your payment schedule and pending payment reminder dates
                     will be adjusted automatically.
                   </div>
+                  <div className="mt-3 rounded-md bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-900">
+                    Paid terms will keep their existing due dates and amounts.
+                    Only unpaid terms will be recalculated.
+                  </div>
+                  {flexitourPreview?.previewRows?.length ? (
+                    <div className="mt-3 rounded-md border border-gray-200 bg-white p-3">
+                      <p className="text-sm font-semibold text-gray-900 mb-2">
+                        Adjusted payment schedule preview
+                      </p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full min-w-[320px] text-sm">
+                          <thead>
+                            <tr className="border-b border-gray-200 text-gray-500">
+                              <th className="py-1.5 text-left font-medium">
+                                Term
+                              </th>
+                              <th className="py-1.5 text-left font-medium">
+                                Due Date
+                              </th>
+                              <th className="py-1.5 text-right font-medium">
+                                Amount
+                              </th>
+                              <th className="py-1.5 text-right font-medium">
+                                Status
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {flexitourPreview.previewRows.map((row) => (
+                              <tr
+                                key={`${row.id}-${row.term}`}
+                                className="border-b border-gray-100 last:border-0"
+                              >
+                                <td className="py-1.5 font-semibold text-gray-900">
+                                  {row.term}
+                                </td>
+                                <td className="py-1.5 text-gray-700">
+                                  {formatDateLabel(row.dueDate)}
+                                </td>
+                                <td className="py-1.5 text-right font-semibold text-gray-900">
+                                  {"\u00A3"}
+                                  {row.amount.toFixed(2)}
+                                </td>
+                                <td className="py-1.5 text-right">
+                                  <span
+                                    className={
+                                      row.status === "Paid"
+                                        ? "text-green-700 font-medium"
+                                        : "text-gray-700"
+                                    }
+                                  >
+                                    {row.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : null}
+                  {flexitourPreview?.notes?.length ? (
+                    <div className="mt-3 rounded-md bg-slate-50 border border-slate-200 p-3 text-sm text-slate-700">
+                      {flexitourPreview.notes.map((note, index) => (
+                        <p key={index}>{note}</p>
+                      ))}
+                    </div>
+                  ) : null}
                   <div className="mt-3 rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
                     Remaining Flexitour changes after this update:{" "}
                     <span className="font-semibold">
