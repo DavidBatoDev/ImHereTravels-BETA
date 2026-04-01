@@ -7,6 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:booking-flow": "vitest run src/app/reservation-booking-form/utils/bookingFlow.test.ts",
     "migrate:001": "tsx migrations/migrate.ts 001",
     "migrate:002": "tsx migrations/migrate.ts 002",
     "migrate:003": "tsx migrations/migrate.ts 003",
@@ -205,6 +208,7 @@
     "playwright": "^1.43.1",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
+    "vitest": "^3.2.4",
     "tsx": "^4.19.2",
     "typescript": "^5"
   }
