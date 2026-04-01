@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import Image from "next/image";
-import Link from "next/link";
 import { format } from "date-fns";
 import {
   collection,
@@ -25,8 +24,8 @@ import {
   AlertCircle,
   Mail,
   Phone,
-  ExternalLink,
 } from "lucide-react";
+import { SiFacebook, SiInstagram, SiTiktok } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -178,6 +177,51 @@ interface FlexitourPreviewData {
   p1SettlementMode: boolean;
   notes: string[];
 }
+
+const CONTACT_US_URL = "https://imheretravels.com/contact-us/";
+const SUPPORT_EMAIL = "bella@imheretravels.com";
+const SUPPORT_PHONE_DISPLAY = "+63 998 247 6847";
+const SUPPORT_PHONE_TEL = "tel:+639982476847";
+const BOOKING_STATUS_UTM_SOURCE = "booking_status_page";
+
+const QUICK_LINKS = [
+  { label: "Home", href: "https://imheretravels.com/" },
+  {
+    label: "Our Tours",
+    href: "https://imheretravels.com/all-tours/philippine-sunrise/",
+  },
+  { label: "About Us", href: "https://imheretravels.com/about-us/" },
+  { label: "Contact Us", href: "https://imheretravels.com/contact-us/" },
+] as const;
+
+const SOCIAL_LINKS = [
+  {
+    label: "Instagram",
+    href: "https://www.instagram.com/imheretravels?utm_source=ig_web_button_share_sheet&igsh=ZDNlZDc0MzIxNw==",
+    Icon: SiInstagram,
+  },
+  {
+    label: "Facebook",
+    href: "https://www.facebook.com/people/Im-Here-Travels/100089932897402/",
+    Icon: SiFacebook,
+  },
+  {
+    label: "TikTok",
+    href: "https://www.tiktok.com/@imheretravels",
+    Icon: SiTiktok,
+  },
+] as const;
+
+const withUtmSource = (rawUrl: string) => {
+  try {
+    const url = new URL(rawUrl);
+    url.searchParams.set("utm_source", BOOKING_STATUS_UTM_SOURCE);
+    return url.toString();
+  } catch (error) {
+    console.warn("Failed to add UTM source to URL:", rawUrl, error);
+    return rawUrl;
+  }
+};
 
 export default function BookingStatusPage() {
   const params = useParams();
@@ -902,14 +946,6 @@ export default function BookingStatusPage() {
     setPayNowInstallment(null);
   };
 
-  const handleContactSupport = () => {
-    const subject = `Booking Inquiry - ${booking?.bookingId}`;
-    const body = `Hello ImHereTravels Team,\n\nI have a question regarding my booking:\n\nBooking ID: ${booking?.bookingId}\nName: ${booking?.fullName}\nTour: ${booking?.tourPackageName}\n\n[Your question here]\n\nThank you!`;
-    window.location.href = `mailto:support@imheretravels.com?subject=${encodeURIComponent(
-      subject,
-    )}&body=${encodeURIComponent(body)}`;
-  };
-
   const handleSelectPaymentPlan = async (plan: {
     id: string;
     label: string;
@@ -1615,13 +1651,17 @@ export default function BookingStatusPage() {
               />
             </div>
             <Button
-              onClick={() =>
-                (window.location.href = "mailto:bella@imheretravels.com")
-              }
+              asChild
               variant="default"
-              className="bg-crimson-red hover:bg-crimson-red/90 text-white shadow-sm rounded-full px-3 sm:px-6 lg:px-8 py-1.5 sm:py-2 lg:py-3 text-xs sm:text-sm lg:text-base font-medium whitespace-nowrap"
+              className="bg-crimson-red hover:bg-crimson-red/90 text-white shadow-sm rounded-full px-3 sm:px-6 lg:px-8 py-1.5 sm:py-2 lg:py-3 text-xs sm:text-sm lg:text-base font-medium whitespace-nowrap transition-colors focus-visible:ring-crimson-red/40 focus-visible:ring-offset-2"
             >
-              Contact Assistance
+              <a
+                href={CONTACT_US_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Contact Assistance
+              </a>
             </Button>
           </div>
         </div>
@@ -2626,10 +2666,10 @@ export default function BookingStatusPage() {
                   <div>
                     <p className="text-xs text-gray-500 mb-0.5">Email</p>
                     <a
-                      href="mailto:support@imheretravels.com"
-                      className="text-xs sm:text-sm font-semibold text-crimson-red hover:underline break-all"
+                      href={`mailto:${SUPPORT_EMAIL}`}
+                      className="text-xs sm:text-sm font-semibold text-crimson-red hover:underline break-all rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-crimson-red/40 focus-visible:ring-offset-2"
                     >
-                      bella@imheretravels.com
+                      {SUPPORT_EMAIL}
                     </a>
                   </div>
                 </div>
@@ -2640,26 +2680,35 @@ export default function BookingStatusPage() {
                   </div>
                   <div>
                     <p className="text-xs text-gray-500 mb-0.5">Phone</p>
-                    <p className="text-xs sm:text-sm font-semibold text-gray-900">
-                      +63 998 247 6847
-                    </p>
+                    <a
+                      href={SUPPORT_PHONE_TEL}
+                      className="text-xs sm:text-sm font-semibold text-gray-900 hover:text-crimson-red transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-crimson-red/40 focus-visible:ring-offset-2"
+                    >
+                      {SUPPORT_PHONE_DISPLAY}
+                    </a>
                   </div>
                 </div>
 
                 <Button
-                  onClick={handleContactSupport}
+                  asChild
                   variant="outline"
-                  className="w-full justify-start h-auto py-3 border-2 hover:border-crimson-red hover:bg-crimson-red/5"
+                  className="w-full justify-start h-auto py-3 border-2 hover:border-crimson-red hover:bg-crimson-red/5 transition-colors focus-visible:ring-crimson-red/40 focus-visible:ring-offset-2"
                 >
-                  <Mail className="h-4 w-4 mr-2" />
-                  <div className="text-left">
-                    <p className="text-xs sm:text-sm font-semibold">
-                      Contact Support
-                    </p>
-                    <p className="text-[10px] sm:text-xs text-gray-500">
-                      Send us a message
-                    </p>
-                  </div>
+                  <a
+                    href={CONTACT_US_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Mail className="h-4 w-4 mr-2" />
+                    <div className="text-left">
+                      <p className="text-xs sm:text-sm font-semibold">
+                        Contact Support
+                      </p>
+                      <p className="text-[10px] sm:text-xs text-gray-500">
+                        Send us a message
+                      </p>
+                    </div>
+                  </a>
                 </Button>
               </div>
             </div>
@@ -2688,29 +2737,18 @@ export default function BookingStatusPage() {
                 Quick Links
               </h4>
               <ul className="space-y-1 sm:space-y-1.5 text-xs sm:text-sm text-white/70">
-                <li>
-                  <Link href="/" className="hover:text-white transition-colors">
-                    Home
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/tours" className="hover:text-white transition-colors">
-                    Our Tours
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/about" className="hover:text-white transition-colors">
-                    About Us
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/contact"
-                    className="hover:text-white transition-colors"
-                  >
-                    Contact
-                  </Link>
-                </li>
+                {QUICK_LINKS.map((link) => (
+                  <li key={link.label}>
+                    <a
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:text-white transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-creative-midnight"
+                    >
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
               </ul>
             </div>
             <div>
@@ -2720,6 +2758,21 @@ export default function BookingStatusPage() {
               <p className="text-xs sm:text-sm text-white/70">
                 Stay connected for updates and special offers
               </p>
+              <ul className="mt-3 sm:mt-4 space-y-2 sm:space-y-2.5 text-xs sm:text-sm text-white/70">
+                {SOCIAL_LINKS.map((social) => (
+                  <li key={social.label}>
+                    <a
+                      href={withUtmSource(social.href)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 hover:text-white transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-creative-midnight"
+                    >
+                      <social.Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                      <span>{social.label}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
           <Separator className="my-4 sm:my-6 bg-white/20" />
