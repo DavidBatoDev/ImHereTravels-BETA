@@ -44,6 +44,19 @@ const hkGrotesk = localFont({
   display: "swap",
 });
 
+// Configure Cartograph CF as accent display font
+const cartograph = localFont({
+  src: [
+    {
+      path: "../../public/fonts/Cartograph/CartographCF-Bold.otf",
+      weight: "700",
+      style: "normal",
+    },
+  ],
+  variable: "--font-cartograph",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
   title: "I'm Here Travels - Admin Dashboard",
   description:
@@ -83,7 +96,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${hkGrotesk.variable}`}
+      className={`${dmSans.variable} ${hkGrotesk.variable} ${cartograph.variable}`}
       suppressHydrationWarning
     >
       <body>

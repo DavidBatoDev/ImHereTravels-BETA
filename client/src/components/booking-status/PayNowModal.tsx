@@ -14,7 +14,6 @@ import { Progress } from "@/components/ui/progress";
 import {
   Upload,
   X,
-  FileImage,
   Copy,
   CheckCircle2,
   AlertCircle,
@@ -48,6 +47,7 @@ interface PayNowModalProps {
 
 const ACCEPTED_FILE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+type PaymentMethod = "revolut" | "stripe";
 
 export default function PayNowModal({
   open,
@@ -71,6 +71,7 @@ export default function PayNowModal({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("revolut");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const currencySymbol =
@@ -215,6 +216,7 @@ export default function PayNowModal({
     setUploadProgress(0);
     setError(null);
     setSuccess(false);
+    setPaymentMethod("revolut");
   };
 
   const handleOpenChange = (newOpen: boolean) => {
@@ -228,7 +230,8 @@ export default function PayNowModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[560px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-[560px] max-h-[90vh] overflow-hidden p-0 gap-0 top-[6vh] translate-y-0 data-[state=closed]:slide-out-to-top-[6vh] data-[state=open]:slide-in-from-top-[6vh]">
+        <div className="max-h-[90vh] overflow-y-auto p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg font-hk-grotesk">
             <CreditCard className="h-5 w-5 text-crimson-red" />
@@ -236,23 +239,37 @@ export default function PayNowModal({
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="revolut" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="revolut" className="flex items-center gap-1.5">
+        <Tabs
+          value={paymentMethod}
+          onValueChange={(value) => setPaymentMethod(value as PaymentMethod)}
+          className="w-full"
+        >
+          <TabsList className="mt-1 grid h-auto w-full grid-cols-2 rounded-lg border border-gray-200 bg-gray-100 p-1">
+            <TabsTrigger
+              value="revolut"
+              className="flex items-center gap-1.5 rounded-md border border-transparent text-xs sm:text-sm text-gray-700 transition-colors data-[state=active]:border-crimson-red data-[state=active]:bg-white data-[state=active]:text-crimson-red data-[state=active]:shadow-sm"
+            >
               <Building2 className="h-4 w-4" />
               Bank Transfer (Revolut)
             </TabsTrigger>
-            <TabsTrigger value="stripe" className="flex items-center gap-1.5">
+            <TabsTrigger
+              value="stripe"
+              className="flex items-center gap-1.5 rounded-md border border-transparent text-xs sm:text-sm text-gray-700 transition-colors data-[state=active]:border-crimson-red data-[state=active]:bg-white data-[state=active]:text-crimson-red data-[state=active]:shadow-sm"
+            >
               <CreditCard className="h-4 w-4" />
               Debit/Credit Card (Stripe)
             </TabsTrigger>
           </TabsList>
 
           {/* ─── REVOLUT TAB ─── */}
-          <TabsContent value="revolut" className="space-y-5 mt-4">
+          <div className="mt-4 min-h-[520px] sm:min-h-[560px]">
+          <TabsContent
+            value="revolut"
+            className="mt-0 space-y-5 data-[state=active]:animate-fadeIn motion-reduce:animate-none"
+          >
             {success ? (
               <div className="text-center py-8 space-y-3">
-                <CheckCircle2 className="h-12 w-12 text-emerald-500 mx-auto" />
+                <CheckCircle2 className="h-12 w-12 text-crimson-red mx-auto" />
                 <h3 className="text-lg font-semibold text-gray-900">
                   Payment Submitted!
                 </h3>
@@ -299,7 +316,7 @@ export default function PayNowModal({
                             title={`Copy ${label}`}
                           >
                             {copiedField === key ? (
-                              <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+                              <CheckCircle2 className="h-3.5 w-3.5 text-crimson-red" />
                             ) : (
                               <Copy className="h-3.5 w-3.5 text-gray-400" />
                             )}
@@ -308,8 +325,8 @@ export default function PayNowModal({
                       </div>
                     ))}
                   </div>
-                  <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-2.5">
-                    <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                  <div className="flex items-start gap-2 text-xs text-gray-700 bg-gray-50 border border-gray-200 rounded-md p-2.5">
+                    <Info className="h-4 w-4 flex-shrink-0 mt-0.5 text-crimson-red" />
                     <span>
                       Please use the exact reference above when making your
                       transfer so we can match your payment to your booking.
@@ -366,7 +383,7 @@ export default function PayNowModal({
                           </p>
                           <Badge
                             variant="outline"
-                            className="mt-1.5 text-emerald-700 border-emerald-300 bg-emerald-50"
+                            className="mt-1.5 text-crimson-red border-crimson-red/40 bg-crimson-red/5"
                           >
                             <CheckCircle2 className="h-3 w-3 mr-1" />
                             Ready to upload
@@ -428,10 +445,13 @@ export default function PayNowModal({
           </TabsContent>
 
           {/* ─── STRIPE TAB ─── */}
-          <TabsContent value="stripe" className="mt-4">
+          <TabsContent
+            value="stripe"
+            className="mt-0 data-[state=active]:animate-fadeIn motion-reduce:animate-none"
+          >
             <div className="space-y-4">
               <div className="text-center py-4 space-y-3">
-                <CreditCard className="h-10 w-10 text-indigo-500 mx-auto" />
+                <CreditCard className="h-10 w-10 text-crimson-red mx-auto" />
                 <div>
                   <h4 className="text-sm font-semibold text-gray-900">
                     Pay with Card via Stripe
@@ -470,7 +490,7 @@ export default function PayNowModal({
               <Button
                 onClick={onStripeCheckout}
                 disabled={stripeProcessing}
-                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white"
+                className="w-full bg-crimson-red hover:bg-crimson-red/90 text-white"
               >
                 {stripeProcessing ? (
                   <>
@@ -490,8 +510,11 @@ export default function PayNowModal({
               </p>
             </div>
           </TabsContent>
+          </div>
         </Tabs>
+        </div>
       </DialogContent>
     </Dialog>
   );
 }
+

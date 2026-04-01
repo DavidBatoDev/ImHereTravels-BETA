@@ -21,6 +21,7 @@ module.exports = {
         // Brand typography using CSS variables from Next.js fonts
         "hk-grotesk": ["var(--font-hk-grotesk)", "system-ui", "sans-serif"],
         "dm-sans": ["var(--font-dm-sans)", "system-ui", "sans-serif"],
+        "cartograph": ["var(--font-cartograph)", "Georgia", "serif"],
         // Set DM Sans as primary brand font for body text
         sans: ["var(--font-dm-sans)", "system-ui", "sans-serif"],
       },

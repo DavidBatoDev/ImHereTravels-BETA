@@ -21,6 +21,8 @@ import {
   CreditCard,
   CheckCircle2,
   Clock,
+  ChevronDown,
+  ChevronUp,
   AlertCircle,
   Mail,
   Phone,
@@ -28,8 +30,6 @@ import {
 import { SiFacebook, SiInstagram, SiTiktok } from "react-icons/si";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -184,14 +184,21 @@ const SUPPORT_PHONE_DISPLAY = "+63 998 247 6847";
 const SUPPORT_PHONE_TEL = "tel:+639982476847";
 const BOOKING_STATUS_UTM_SOURCE = "booking_status_page";
 
-const QUICK_LINKS = [
-  { label: "Home", href: "https://imheretravels.com/" },
-  {
-    label: "Our Tours",
-    href: "https://imheretravels.com/all-tours/philippine-sunrise/",
-  },
-  { label: "About Us", href: "https://imheretravels.com/about-us/" },
+const FOOTER_HELP_LINKS = [
   { label: "Contact Us", href: "https://imheretravels.com/contact-us/" },
+  { label: "FAQs", href: "https://imheretravels.com/faqs/" },
+  { label: "Newsletter", href: "https://imheretravels.com/join-our-community/" },
+  { label: "Terms & Conditions", href: "https://imheretravels.com/terms-and-conditions/" },
+] as const;
+
+const FOOTER_RESOURCE_LINKS = [
+  {
+    label: "Pre-departure Info",
+    href: "https://imheretravels.com/pre-departure-information/",
+  },
+  { label: "Travel Safety", href: "https://imheretravels.com/travel-safety/" },
+  { label: "Travel Information", href: "https://imheretravels.com/travel-information/" },
+  { label: "FAQs", href: "https://imheretravels.com/faqs/" },
 ] as const;
 
 const SOCIAL_LINKS = [
@@ -277,6 +284,7 @@ export default function BookingStatusPage() {
   const [flexitourSelectedPlan, setFlexitourSelectedPlan] = useState("");
   const [flexitourLoadingDates, setFlexitourLoadingDates] = useState(false);
   const [flexitourSubmitting, setFlexitourSubmitting] = useState(false);
+  const [flexitourExpanded, setFlexitourExpanded] = useState(true);
   const [flexitourMessage, setFlexitourMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -1097,12 +1105,17 @@ export default function BookingStatusPage() {
   if (loading) {
     return (
       <div
-        className="force-light min-h-screen bg-light-grey flex items-center justify-center"
+        className="force-light min-h-screen bg-light-grey flex items-center justify-center px-4"
         style={{ colorScheme: "light" }}
       >
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-crimson-red mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Loading your booking...</p>
+        <div className="w-full max-w-md rounded-2xl border border-white/70 bg-white/90 shadow-[0_18px_45px_-30px_rgba(28,31,42,0.4)] p-8 text-center animate-fade-in motion-reduce:animate-none">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full border-2 border-crimson-red/20">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-crimson-red border-r-transparent motion-reduce:animate-none" />
+          </div>
+          <p className="text-sm font-semibold text-gray-900">Loading Booking</p>
+          <p className="mt-1 text-xs text-gray-600">
+            Please wait while we fetch your latest payment status.
+          </p>
         </div>
       </div>
     );
@@ -1114,30 +1127,39 @@ export default function BookingStatusPage() {
         className="force-light min-h-screen bg-light-grey"
         style={{ colorScheme: "light" }}
       >
-        <header className="bg-gradient-to-r from-crimson-red to-crimson-red/90 text-white print:bg-crimson-red">
-          <div className="container mx-auto px-4 py-6">
+        <header className="bg-creative-midnight text-white print:bg-creative-midnight border-b border-white/10">
+          <div className="container mx-auto px-4 py-5">
             <Image
               src="/logos/Logo_White.svg"
               alt="ImHereTravels"
               width={180}
               height={50}
-              className="h-10 w-auto"
+              className="h-8 sm:h-9 w-auto"
             />
           </div>
         </header>
-        <div className="container mx-auto px-4 py-16 text-center">
-          <AlertCircle className="h-16 w-16 text-crimson-red mx-auto mb-4" />
-          <h1 className="text-2xl font-bold mb-2">Invalid Booking</h1>
-          <p className="text-muted-foreground mb-6">
-            {error ||
-              "This is an invalid booking. Contact bella@imheretravels.com if this is a mistake."}
-          </p>
-          <Button
-            onClick={() => (window.location.href = "/")}
-            className="bg-crimson-red hover:bg-crimson-red/90"
-          >
-            Return to Home
-          </Button>
+        <div className="container mx-auto px-4 py-16 sm:py-20 text-center">
+          <div className="mx-auto max-w-xl rounded-2xl border border-white/70 bg-white p-8 sm:p-10 shadow-[0_20px_50px_-32px_rgba(28,31,42,0.35)] animate-slideUpFadeIn motion-reduce:animate-none">
+            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-crimson-red/10">
+              <AlertCircle className="h-6 w-6 text-crimson-red" />
+            </div>
+            <p className="font-cartograph text-sm tracking-wide text-crimson-red">
+              Booking Access
+            </p>
+            <h1 className="mt-2 text-2xl sm:text-3xl font-hk-grotesk font-bold text-gray-900">
+              Invalid Booking
+            </h1>
+            <p className="mt-3 text-sm text-gray-600 mb-6">
+              {error ||
+                "This is an invalid booking. Contact bella@imheretravels.com if this is a mistake."}
+            </p>
+            <Button
+              onClick={() => (window.location.href = "/")}
+              className="bg-crimson-red hover:bg-crimson-red/90"
+            >
+              Return to Home
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -1626,6 +1648,21 @@ export default function BookingStatusPage() {
   );
   const availablePaymentPlans = getAvailablePaymentPlans();
 
+  const sectionSurfaceClass =
+    "rounded-2xl border border-gray-200/80 bg-white/95 p-4 sm:p-5 shadow-[0_10px_30px_-24px_rgba(28,31,42,0.35)]";
+  const sectionHeadingEyebrowClass =
+    "font-cartograph text-[11px] sm:text-xs tracking-wide text-crimson-red";
+  const sectionEntryAnimationClass =
+    "animate-slideUpFadeIn motion-reduce:animate-none";
+  const supportActionCardClass =
+    "group flex w-full items-start gap-3 sm:gap-4 rounded-xl border border-gray-300 bg-white p-3 sm:p-4 text-left transition-[transform,box-shadow,background-color,border-color,color] duration-300 ease-[var(--entry-ease)] hover:-translate-y-0.5 hover:border-crimson-red hover:bg-crimson-red hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-crimson-red/40 focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0";
+  const supportActionIconClass =
+    "rounded-lg border border-gray-200 bg-gray-50 p-2 sm:p-2.5 text-creative-midnight transition-colors duration-300 group-hover:border-white/20 group-hover:bg-white/10 group-hover:text-white";
+  const supportActionLabelClass =
+    "text-xs text-gray-500 transition-colors duration-300 group-hover:text-white/80";
+  const supportActionValueClass =
+    "text-xs sm:text-sm font-semibold text-creative-midnight transition-colors duration-300 group-hover:text-white";
+
   const formatFileSize = (bytes: number) => {
     if (bytes < 1024) return bytes + " B";
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
@@ -1634,12 +1671,12 @@ export default function BookingStatusPage() {
 
   return (
     <div
-      className="force-light min-h-screen bg-white overflow-x-hidden"
+      className="force-light min-h-screen bg-light-grey overflow-x-hidden [--entry-ease:cubic-bezier(0.22,1,0.36,1)] [&_button]:transition-[transform,box-shadow,background-color,border-color,color] [&_button]:duration-300 [&_button]:ease-[var(--entry-ease)] [&_a]:transition-[transform,box-shadow,background-color,border-color,color] [&_a]:duration-300 [&_a]:ease-[var(--entry-ease)] motion-reduce:[&_button]:transition-none motion-reduce:[&_a]:transition-none"
       style={{ colorScheme: "light" }}
     >
       {/* Header */}
-      <header className="bg-white text-gray-900 shadow-md print:shadow-none">
-        <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-5">
+      <header className="bg-white/95 text-gray-900 shadow-sm border-b border-gray-200/80 print:shadow-none">
+        <div className="container mx-auto max-w-6xl px-3 sm:px-6 lg:px-8 py-3 sm:py-5">
           <div className="flex flex-row items-center justify-between gap-2 sm:gap-4">
             <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               <Image
@@ -1653,7 +1690,7 @@ export default function BookingStatusPage() {
             <Button
               asChild
               variant="default"
-              className="bg-crimson-red hover:bg-crimson-red/90 text-white shadow-sm rounded-full px-3 sm:px-6 lg:px-8 py-1.5 sm:py-2 lg:py-3 text-xs sm:text-sm lg:text-base font-medium whitespace-nowrap transition-colors focus-visible:ring-crimson-red/40 focus-visible:ring-offset-2"
+              className="bg-crimson-red hover:bg-crimson-red/90 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5 rounded-full px-3 sm:px-6 lg:px-8 py-1.5 sm:py-2 lg:py-3 text-xs sm:text-sm lg:text-base font-medium whitespace-nowrap focus-visible:ring-crimson-red/40 focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0"
             >
               <a
                 href={CONTACT_US_URL}
@@ -1668,19 +1705,19 @@ export default function BookingStatusPage() {
       </header>
 
       {/* Main Content */}
-      <main className="container mx-auto px-4 sm:px-6 py-4 sm:py-8 max-w-5xl">
+      <main className="container mx-auto max-w-6xl px-4 sm:px-6 py-5 sm:py-8">
         {/* Payment Success/Error Message */}
         {paymentMessage && (
           <div
-            className={`mb-4 sm:mb-6 border-l-4 p-3 sm:p-4 rounded-r-lg ${
+            className={`mb-4 sm:mb-6 rounded-2xl border p-3 sm:p-4 shadow-[0_10px_30px_-24px_rgba(28,31,42,0.35)] animate-fade-in motion-reduce:animate-none ${
               paymentMessage.type === "success"
-                ? "bg-green-50 border-green-500"
-                : "bg-red-50 border-red-500"
+                ? "bg-white/95 border-creative-midnight/20"
+                : "bg-red-50/90 border-red-200"
             }`}
           >
             <div className="flex items-start gap-3">
               {paymentMessage.type === "success" ? (
-                <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
+                <CheckCircle2 className="h-5 w-5 text-crimson-red mt-0.5 flex-shrink-0" />
               ) : (
                 <AlertCircle className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
               )}
@@ -1688,7 +1725,7 @@ export default function BookingStatusPage() {
                 <p
                   className={`text-sm font-medium ${
                     paymentMessage.type === "success"
-                      ? "text-green-900"
+                      ? "text-creative-midnight"
                       : "text-red-900"
                   }`}
                 >
@@ -1702,11 +1739,13 @@ export default function BookingStatusPage() {
         {/* Cancellation Notice */}
         {(booking.bookingStatus === "Cancelled" ||
           !!booking.reasonForCancellation) && (
-          <div className="mb-4 sm:mb-6 border-l-4 border-crimson-red bg-red-50 p-3 sm:p-4 rounded-r-lg print:border print:border-red-200">
+          <div className="mb-4 sm:mb-6 rounded-2xl border border-red-200 bg-red-50/95 px-4 py-4 sm:px-5 sm:py-5 shadow-[0_10px_30px_-24px_rgba(28,31,42,0.35)] animate-slideUpFadeIn motion-reduce:animate-none print:border print:border-red-200">
             <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-crimson-red mt-0.5 flex-shrink-0" />
+              <div className="mt-1 h-10 w-1.5 rounded-full bg-crimson-red/90" />
+              <AlertCircle className="h-5 w-5 text-crimson-red mt-1.5 flex-shrink-0" />
               <div>
-                <h3 className="text-sm font-semibold text-crimson-red mb-1">
+                <p className={sectionHeadingEyebrowClass}>Support Notice</p>
+                <h3 className="text-sm sm:text-base font-semibold text-crimson-red mb-1">
                   Booking Cancelled
                 </h3>
                 <p className="text-sm text-red-900">
@@ -1724,11 +1763,12 @@ export default function BookingStatusPage() {
         )}
 
         {/* Important Notice */}
-        <div className="mb-4 sm:mb-6 bg-amber-50 border-l-4 border-amber-500 p-3 sm:p-4 rounded-r-lg print:border print:border-amber-200">
+        <div className="mb-4 sm:mb-6 rounded-2xl border border-amber-200 bg-amber-50/95 px-4 py-4 sm:px-5 sm:py-5 shadow-[0_10px_30px_-24px_rgba(28,31,42,0.35)] animate-slideUpFadeIn motion-reduce:animate-none print:border print:border-amber-200">
           <div className="flex items-start gap-3">
-            <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+            <div className="mt-1 h-10 w-1.5 rounded-full bg-sunglow-yellow/90" />
+            <AlertCircle className="h-5 w-5 text-sunglow-yellow mt-1.5 flex-shrink-0" />
             <div>
-              <h3 className="text-sm font-semibold text-amber-900 mb-1">
+              <h3 className="text-sm sm:text-base font-semibold text-amber-900 mb-1">
                 Important Notice
               </h3>
               <p className="text-sm text-amber-800">
@@ -1743,15 +1783,18 @@ export default function BookingStatusPage() {
         </div>
 
         {/* Main Layout Grid */}
-        <div className="grid lg:grid-cols-3 gap-6 lg:gap-8 items-start">
+        <div className="grid lg:grid-cols-3 gap-5 lg:gap-7 items-start">
           {/* Left Column - Booking Details */}
-          <div className="lg:col-span-2 space-y-6 lg:space-y-8 min-w-0">
+          <div className="lg:col-span-2 space-y-5 lg:space-y-6 min-w-0">
             {/* Booking Information */}
-            <div>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pb-3 border-b-2 border-crimson-red">
+            <div
+              className={`${sectionSurfaceClass} ${sectionEntryAnimationClass}`}
+              style={{ animationDelay: "120ms" }}
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 pb-3 border-b border-gray-200">
                 <div>
                   <h2 className="text-lg sm:text-xl font-hk-grotesk font-bold text-gray-900 mb-1">
-                    Booking Confirmation
+                    {booking.tourPackageName}
                   </h2>
                   <p className="text-xs sm:text-sm text-gray-600">
                     ID:{" "}
@@ -1760,7 +1803,7 @@ export default function BookingStatusPage() {
                     </span>
                   </p>
                 </div>
-                <Badge className="bg-spring-green text-white px-3 sm:px-4 py-1 sm:py-1.5 text-xs sm:text-sm self-start sm:self-auto">
+                <Badge className="bg-spring-green text-white px-3 sm:px-4 py-1 sm:py-1.5 text-xs sm:text-sm self-start sm:self-auto border border-spring-green/50">
                   <CheckCircle2 className="h-3 w-3 sm:h-4 sm:w-4 mr-1 sm:mr-1.5" />
                   {booking.bookingStatus}
                 </Badge>
@@ -1807,7 +1850,7 @@ export default function BookingStatusPage() {
 
                 {booking.eventName && (
                   <div className="sm:col-span-2">
-                    <Badge className="bg-vivid-orange text-white px-3 py-1 text-xs sm:text-sm">
+                    <Badge className="bg-crimson-red text-white px-3 py-1 text-xs sm:text-sm border border-crimson-red/60">
                       {booking.eventName} -{" "}
                       {booking.discountType?.toLowerCase() === "flat amount" ||
                       booking.discountType?.toLowerCase()?.includes("amount")
@@ -1819,10 +1862,11 @@ export default function BookingStatusPage() {
               </div>
             </div>
 
-            <Separator />
-
             {/* Flexitour */}
-            <div className="border border-gray-200 rounded-lg p-3 sm:p-4 bg-gray-50/70">
+            <div
+              className={`${sectionSurfaceClass} ${sectionEntryAnimationClass} bg-white`}
+              style={{ animationDelay: "160ms" }}
+            >
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <h3 className="text-sm sm:text-base font-hk-grotesk font-bold text-gray-900 flex items-center gap-2">
                   <Calendar className="h-4 w-4 text-crimson-red" />
@@ -1835,194 +1879,219 @@ export default function BookingStatusPage() {
                   <Badge className="bg-white text-gray-700 border border-gray-200 text-[11px] px-2 py-0.5">
                     Remaining: {flexitourRemainingChanges}
                   </Badge>
+                  <button
+                    type="button"
+                    onClick={() => setFlexitourExpanded((previous) => !previous)}
+                    aria-expanded={flexitourExpanded}
+                    aria-controls="flexitour-panel"
+                    className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 bg-white px-2 py-0.5 text-[11px] font-semibold text-gray-700 transition-[transform,box-shadow,background-color,border-color,color] duration-300 ease-[var(--entry-ease)] hover:border-crimson-red hover:text-crimson-red hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-crimson-red/40 focus-visible:ring-offset-2 motion-reduce:hover:translate-y-0"
+                  >
+                    <span>{flexitourExpanded ? "Collapse" : "Expand"}</span>
+                    {flexitourExpanded ? (
+                      <ChevronUp className="h-3.5 w-3.5" />
+                    ) : (
+                      <ChevronDown className="h-3.5 w-3.5" />
+                    )}
+                  </button>
                 </div>
               </div>
 
-              <p className="mt-2 text-xs text-gray-600">
-                Need to move your trip? Select a new package date, choose a
-                payment plan, then review before confirming.
-              </p>
+              <div
+                id="flexitour-panel"
+                className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-[var(--entry-ease)] motion-reduce:transition-none ${
+                  flexitourExpanded ? "max-h-[2200px] opacity-100" : "max-h-0 opacity-0"
+                }`}
+              >
+                <p className="mt-2 text-xs text-gray-600">
+                  Need to move your trip? Select a new package date, choose a
+                  payment plan, then review before confirming.
+                </p>
 
-              <div className="mt-3 space-y-2 sm:space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                      New tour date
-                    </p>
-                    <Select
-                      value={flexitourSelectedDate}
-                      onValueChange={(value) => {
-                        setFlexitourSelectedDate(value);
-                        setFlexitourSelectedPlan("");
-                        setFlexitourMessage(null);
-                        setFlexitourPreview(null);
-                      }}
-                      disabled={
-                        flexitourLoadingDates ||
-                        flexitourMainBookerOnly ||
-                        flexitourLimitReached ||
-                        !flexitourHasOptions
-                      }
-                    >
-                      <SelectTrigger className="h-9 bg-white text-gray-900 border-gray-300 transition-all duration-200 hover:border-crimson-red/60 focus:ring-crimson-red/25">
-                        <SelectValue
-                          placeholder={
-                            flexitourLoadingDates
-                              ? "Loading available dates..."
-                              : "No valid dates available"
-                          }
-                        />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border-gray-200 text-gray-900">
-                        {flexitourDateOptions.map((option) => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value}
-                            className="transition-colors duration-150"
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                <div className="mt-3 space-y-2 sm:space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                        New tour date
+                      </p>
+                      <Select
+                        value={flexitourSelectedDate}
+                        onValueChange={(value) => {
+                          setFlexitourSelectedDate(value);
+                          setFlexitourSelectedPlan("");
+                          setFlexitourMessage(null);
+                          setFlexitourPreview(null);
+                        }}
+                        disabled={
+                          flexitourLoadingDates ||
+                          flexitourMainBookerOnly ||
+                          flexitourLimitReached ||
+                          !flexitourHasOptions
+                        }
+                      >
+                        <SelectTrigger className="h-9 bg-white text-gray-900 border-gray-300 transition-all duration-200 hover:border-crimson-red/60 focus:ring-crimson-red/25">
+                          <SelectValue
+                            placeholder={
+                              flexitourLoadingDates
+                                ? "Loading available dates..."
+                                : "No valid dates available"
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white border-gray-200 text-gray-900">
+                          {flexitourDateOptions.map((option) => (
+                            <SelectItem
+                              key={option.value}
+                              value={option.value}
+                              className="transition-colors duration-150"
+                            >
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                        Payment plan
+                      </p>
+                      <Select
+                        value={flexitourSelectedPlan}
+                        onValueChange={(value) => {
+                          setFlexitourSelectedPlan(value);
+                          setFlexitourMessage(null);
+                          setFlexitourPreview(null);
+                        }}
+                        disabled={
+                          flexitourLoadingDates ||
+                          flexitourMainBookerOnly ||
+                          flexitourLimitReached ||
+                          !flexitourHasOptions ||
+                          !flexitourSelectedDate ||
+                          !flexitourHasPlanOptions
+                        }
+                      >
+                        <SelectTrigger className="h-9 bg-white text-gray-900 border-gray-300 transition-all duration-200 hover:border-crimson-red/60 focus:ring-crimson-red/25">
+                          <SelectValue placeholder="Select payment plan" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-white border-gray-200 text-gray-900">
+                          {flexitourPlanOptions.map((option) => (
+                            <SelectItem
+                              key={option.value}
+                              value={option.value}
+                              className="transition-colors duration-150"
+                            >
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
 
-                  <div className="space-y-1">
-                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                      Payment plan
-                    </p>
-                    <Select
-                      value={flexitourSelectedPlan}
-                      onValueChange={(value) => {
-                        setFlexitourSelectedPlan(value);
-                        setFlexitourMessage(null);
-                        setFlexitourPreview(null);
-                      }}
-                      disabled={
-                        flexitourLoadingDates ||
-                        flexitourMainBookerOnly ||
-                        flexitourLimitReached ||
-                        !flexitourHasOptions ||
-                        !flexitourSelectedDate ||
-                        !flexitourHasPlanOptions
-                      }
-                    >
-                      <SelectTrigger className="h-9 bg-white text-gray-900 border-gray-300 transition-all duration-200 hover:border-crimson-red/60 focus:ring-crimson-red/25">
-                        <SelectValue placeholder="Select payment plan" />
-                      </SelectTrigger>
-                      <SelectContent className="bg-white border-gray-200 text-gray-900">
-                        {flexitourPlanOptions.map((option) => (
-                          <SelectItem
-                            key={option.value}
-                            value={option.value}
-                            className="transition-colors duration-150"
-                          >
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <Button
+                    onClick={handleFlexitourReview}
+                    disabled={flexitourActionDisabled}
+                    size="sm"
+                    className="bg-crimson-red hover:bg-crimson-red/90 text-white w-full sm:w-auto transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md motion-reduce:hover:translate-y-0"
+                  >
+                    {flexitourPreviewLoading
+                      ? "Preparing Preview..."
+                      : "Review Date Change"}
+                  </Button>
                 </div>
 
-                <Button
-                  onClick={handleFlexitourReview}
-                  disabled={flexitourActionDisabled}
-                  size="sm"
-                  className="bg-crimson-red hover:bg-crimson-red/90 text-white w-full sm:w-auto transition-transform duration-200 hover:-translate-y-0.5"
-                >
-                  {flexitourPreviewLoading
-                    ? "Preparing Preview..."
-                    : "Review Date Change"}
-                </Button>
+                {isGroupBooking && !booking.isMainBooker && (
+                  <p className="mt-2 text-xs text-gray-700">
+                    Only the main booker can change dates for this{" "}
+                    {booking.bookingType.toLowerCase()}.
+                  </p>
+                )}
+
+                {isGroupBooking && booking.isMainBooker && (
+                  <p className="mt-2 text-xs text-gray-700">
+                    This change will update linked group bookings.
+                  </p>
+                )}
+
+                {flexitourLimitReached && (
+                  <p className="mt-2 text-xs text-red-700">
+                    Flexitour limit reached. No more date changes are available.
+                  </p>
+                )}
+
+                {!flexitourLoadingDates &&
+                  !flexitourHasOptions &&
+                  !flexitourLimitReached && (
+                    <p className="mt-2 text-xs text-red-700">
+                      There are currently no valid future dates for this package.
+                    </p>
+                  )}
+
+                {!flexitourLoadingDates &&
+                  flexitourHasOptions &&
+                  !flexitourHasPlanOptions &&
+                  !flexitourLimitReached && (
+                    <p className="mt-2 text-xs text-red-700">
+                      No eligible payment plan is available for this selected date
+                      based on your already paid terms.
+                    </p>
+                  )}
+
+                {flexitourPaidInstallmentCount > 0 && flexitourHasPlanOptions && (
+                  <p className="mt-2 text-xs text-gray-700">
+                    {flexitourHasSettlementP1Option
+                      ? "Paid terms stay locked. P1 is available as a settlement row for your remaining balance."
+                      : `Paid terms stay locked. Plans up to P${flexitourPaidInstallmentCount} are hidden.`}
+                  </p>
+                )}
+
+                {flexitourSelectedIsUnchanged && (
+                  <p className="mt-2 text-xs text-gray-700">
+                    Please choose a different tour date from your current
+                    schedule.
+                  </p>
+                )}
+
+                {flexitourHasPlanOptions && !flexitourSelectedPlan && (
+                  <p className="mt-2 text-xs text-gray-700">
+                    Select an available payment plan before reviewing your date
+                    change.
+                  </p>
+                )}
+
+                {flexitourMessage && (
+                  <div
+                    className={`mt-2 rounded-md border px-3 py-2 text-xs sm:text-sm ${
+                      flexitourMessage.type === "success"
+                        ? "bg-white border-creative-midnight/20 text-creative-midnight"
+                        : "bg-red-50 border-red-200 text-red-900"
+                    }`}
+                  >
+                    {flexitourMessage.text}
+                  </div>
+                )}
               </div>
-
-              {isGroupBooking && !booking.isMainBooker && (
-                <p className="mt-2 text-xs text-amber-700">
-                  Only the main booker can change dates for this{" "}
-                  {booking.bookingType.toLowerCase()}.
-                </p>
-              )}
-
-              {isGroupBooking && booking.isMainBooker && (
-                <p className="mt-2 text-xs text-blue-700">
-                  This change will update linked group bookings.
-                </p>
-              )}
-
-              {flexitourLimitReached && (
-                <p className="mt-2 text-xs text-red-700">
-                  Flexitour limit reached. No more date changes are available.
-                </p>
-              )}
-
-              {!flexitourLoadingDates &&
-                !flexitourHasOptions &&
-                !flexitourLimitReached && (
-                  <p className="mt-2 text-xs text-red-700">
-                    There are currently no valid future dates for this package.
-                  </p>
-                )}
-
-              {!flexitourLoadingDates &&
-                flexitourHasOptions &&
-                !flexitourHasPlanOptions &&
-                !flexitourLimitReached && (
-                  <p className="mt-2 text-xs text-red-700">
-                    No eligible payment plan is available for this selected date
-                    based on your already paid terms.
-                  </p>
-                )}
-
-              {flexitourPaidInstallmentCount > 0 && flexitourHasPlanOptions && (
-                <p className="mt-2 text-xs text-blue-700">
-                  {flexitourHasSettlementP1Option
-                    ? "Paid terms stay locked. P1 is available as a settlement row for your remaining balance."
-                    : `Paid terms stay locked. Plans up to P${flexitourPaidInstallmentCount} are hidden.`}
-                </p>
-              )}
-
-              {flexitourSelectedIsUnchanged && (
-                <p className="mt-2 text-xs text-amber-700">
-                  Please choose a different tour date from your current
-                  schedule.
-                </p>
-              )}
-
-              {flexitourHasPlanOptions && !flexitourSelectedPlan && (
-                <p className="mt-2 text-xs text-amber-700">
-                  Select an available payment plan before reviewing your date
-                  change.
-                </p>
-              )}
-
-              {flexitourMessage && (
-                <div
-                  className={`mt-2 rounded-md border px-3 py-2 text-xs sm:text-sm ${
-                    flexitourMessage.type === "success"
-                      ? "bg-green-50 border-green-200 text-green-900"
-                      : "bg-red-50 border-red-200 text-red-900"
-                  }`}
-                >
-                  {flexitourMessage.text}
-                </div>
-              )}
             </div>
 
             {/* Payment Options (when no payment plan yet) */}
             {!booking.paymentPlan && availablePaymentPlans.length > 0 && (
-              <div>
+              <div
+                className={`${sectionSurfaceClass} ${sectionEntryAnimationClass}`}
+                style={{ animationDelay: "220ms" }}
+              >
+                <p className={sectionHeadingEyebrowClass}>Plan Selection</p>
                 <h2 className="text-lg sm:text-xl font-hk-grotesk font-bold text-gray-900 mb-4 sm:mb-5 flex items-center gap-2">
                   <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-crimson-red" />
                   Payment Options
                 </h2>
-                <div className="mb-4 sm:mb-5 rounded-lg border border-amber-200 bg-amber-50 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-amber-900">
+                <div className="mb-4 sm:mb-5 rounded-xl border border-gray-200 bg-gray-50 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm text-gray-700">
                   Choose the plan that fits you best. Once selected, your
                   payment schedule will be created and shown below.
                 </div>
 
                 <div className="w-full">
-                  <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto shadow-sm">
+                  <div className="bg-white border border-gray-200 rounded-2xl overflow-x-auto shadow-sm">
                     <table
                       className={`w-full ${hasAnyPenalty ? "min-w-[520px] sm:min-w-[640px]" : "min-w-[420px] sm:min-w-[500px]"}`}
                     >
@@ -2053,7 +2122,7 @@ export default function BookingStatusPage() {
                             return (
                               <tr
                                 key={`${plan.id}-${idx}`}
-                                className="border-t border-gray-200 hover:bg-gray-50"
+                                className="border-t border-gray-200 hover:bg-gray-50/90 transition-colors duration-200"
                               >
                                 {idx === 0 && (
                                   <td
@@ -2103,7 +2172,7 @@ export default function BookingStatusPage() {
                                         selectingPlanId !== plan.id
                                       }
                                       size="sm"
-                                      className="bg-crimson-red hover:bg-crimson-red/90 text-white text-xs sm:text-sm px-2 sm:px-3"
+                                      className="bg-crimson-red hover:bg-crimson-red/90 text-white text-xs sm:text-sm px-2 sm:px-3 hover:shadow-md"
                                     >
                                       {selectingPlanId === plan.id
                                         ? "Selecting..."
@@ -2141,7 +2210,7 @@ export default function BookingStatusPage() {
                       scheduled.
                     </div>
                   ) : null}
-                  <div className="mt-3 rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+                  <div className="mt-3 rounded-md bg-gray-50 border border-gray-200 p-3 text-sm text-gray-700">
                     Once you select a plan, it cannot be undone.
                   </div>
                 </AlertDialogHeader>
@@ -2191,11 +2260,11 @@ export default function BookingStatusPage() {
                       {selectedFlexitourPlanLabel}
                     </span>
                   </div>
-                  <div className="mt-3 rounded-md bg-blue-50 border border-blue-200 p-3 text-sm text-blue-900">
+                  <div className="mt-3 rounded-md bg-gray-50 border border-gray-200 p-3 text-sm text-gray-700">
                     Your payment schedule and pending payment reminder dates
                     will be adjusted automatically.
                   </div>
-                  <div className="mt-3 rounded-md bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-900">
+                  <div className="mt-3 rounded-md bg-gray-50 border border-gray-200 p-3 text-sm text-gray-700">
                     Paid terms will keep their existing due dates and amounts.
                     Only unpaid terms will be recalculated.
                   </div>
@@ -2242,7 +2311,7 @@ export default function BookingStatusPage() {
                                   <span
                                     className={
                                       row.status === "Paid"
-                                        ? "text-green-700 font-medium"
+                                        ? "text-crimson-red font-medium"
                                         : "text-gray-700"
                                     }
                                   >
@@ -2263,7 +2332,7 @@ export default function BookingStatusPage() {
                       ))}
                     </div>
                   ) : null}
-                  <div className="mt-3 rounded-md bg-amber-50 border border-amber-200 p-3 text-sm text-amber-900">
+                  <div className="mt-3 rounded-md bg-gray-50 border border-gray-200 p-3 text-sm text-gray-700">
                     Remaining Flexitour changes after this update:{" "}
                     <span className="font-semibold">
                       {flexitourRemainingAfterChange}
@@ -2294,7 +2363,10 @@ export default function BookingStatusPage() {
 
             {/* Payment Schedule */}
             {booking.paymentPlan && paymentTerms.length > 0 && (
-              <div>
+              <div
+                className={`${sectionSurfaceClass} ${sectionEntryAnimationClass}`}
+                style={{ animationDelay: "260ms" }}
+              >
                 <h2 className="text-lg sm:text-xl font-hk-grotesk font-bold text-gray-900 mb-4 sm:mb-5 flex items-center gap-2">
                   <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-crimson-red" />
                   Payment Schedule
@@ -2312,14 +2384,14 @@ export default function BookingStatusPage() {
                   {/* Bar Track & Fill */}
                   <div className="relative h-3 sm:h-4 w-full rounded-full border border-gray-200 bg-transparent overflow-hidden">
                     <div
-                      className="h-full bg-crimson-red transition-all duration-500 rounded-full"
+                      className="h-full bg-crimson-red transition-all duration-700 ease-out rounded-full motion-reduce:transition-none"
                       style={{ width: `${paymentProgressValue}%` }}
                     />
                   </div>
                 </div>
 
                 <div className="w-full">
-                  <div className="bg-white border border-gray-200 rounded-lg overflow-x-auto shadow-sm">
+                  <div className="bg-white border border-gray-200 rounded-2xl overflow-x-auto shadow-sm">
                     <table className="w-full min-w-[420px] sm:min-w-[500px]">
                       <thead className="bg-gray-50">
                         <tr>
@@ -2358,7 +2430,7 @@ export default function BookingStatusPage() {
                           return (
                             <tr
                               key={index}
-                              className="border-t border-gray-200 hover:bg-gray-50"
+                              className="border-t border-gray-200 hover:bg-gray-50/90 transition-colors duration-200"
                             >
                               <td className="py-2 sm:py-3 px-2 sm:px-4 font-semibold text-xs sm:text-sm text-gray-900 whitespace-nowrap">
                                 {term.term}
@@ -2398,7 +2470,7 @@ export default function BookingStatusPage() {
                                   </Badge>
                                 )}
                                 {term.status === "processing" && (
-                                  <Badge className="bg-blue-500 text-white text-[10px] sm:text-xs px-2 py-0.5">
+                                  <Badge className="bg-creative-midnight text-white text-[10px] sm:text-xs px-2 py-0.5">
                                     <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1 animate-spin" />
                                     Processing
                                   </Badge>
@@ -2434,7 +2506,7 @@ export default function BookingStatusPage() {
                                   </Badge>
                                 )}
                                 {term.status === "for_verification" && (
-                                  <Badge className="bg-amber-500 text-white text-[10px] sm:text-xs px-2 py-0.5">
+                                  <Badge className="bg-creative-midnight text-white text-[10px] sm:text-xs px-2 py-0.5">
                                     <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-0.5 sm:mr-1" />
                                     For Verification
                                   </Badge>
@@ -2486,7 +2558,7 @@ export default function BookingStatusPage() {
                                         }
                                         disabled={paymentProcessing !== null}
                                         size="sm"
-                                        className="bg-crimson-red hover:bg-crimson-red/90 text-white text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2"
+                                        className="bg-crimson-red hover:bg-crimson-red/90 text-white text-xs sm:text-sm px-2 sm:px-3 py-1 sm:py-2 hover:shadow-md"
                                       >
                                         {paymentProcessing === term.id
                                           ? "Processing..."
@@ -2515,14 +2587,14 @@ export default function BookingStatusPage() {
                                 })()}
 
                                 {term.status === "processing" && (
-                                  <span className="text-xs sm:text-sm text-blue-600 flex items-center gap-1">
+                                  <span className="text-xs sm:text-sm text-gray-700 flex items-center gap-1">
                                     <Clock className="h-3 w-3 animate-spin" />
                                     Processing...
                                   </span>
                                 )}
 
                                 {term.status === "for_verification" && (
-                                  <span className="text-xs sm:text-sm text-amber-600 flex items-center gap-1">
+                                  <span className="text-xs sm:text-sm text-gray-700 flex items-center gap-1">
                                     <Clock className="h-3 w-3" />
                                     Awaiting Verification
                                   </span>
@@ -2532,19 +2604,19 @@ export default function BookingStatusPage() {
                           );
                         })}
                         {showManualCreditInTable && (
-                          <tr className="border-t border-amber-200 bg-amber-50/70">
+                          <tr className="border-t border-gray-200 bg-gray-50/70">
                             <td
                               colSpan={hasAnyPenalty ? 6 : 5}
                               className="py-2 sm:py-3 px-2 sm:px-4 text-xs sm:text-sm"
                             >
-                              <span className="font-semibold text-amber-800">
+                              <span className="font-semibold text-gray-700">
                                 Manual Credit Applied:
                               </span>{" "}
-                              <span className="font-bold text-amber-900">
+                              <span className="font-bold text-creative-midnight">
                                 {"\u00A3"}
                                 {manualCreditAmount.toFixed(2)}
                               </span>{" "}
-                              <span className="text-amber-800">
+                              <span className="text-gray-700">
                                 (Credit From: {creditFromLabel})
                               </span>
                             </td>
@@ -2559,18 +2631,21 @@ export default function BookingStatusPage() {
 
             {/* Pre-Departure Pack */}
             {booking.preDeparturePack && (
-              <>
-                <Separator />
+              <div
+                className={`${sectionSurfaceClass} ${sectionEntryAnimationClass}`}
+                style={{ animationDelay: "300ms" }}
+              >
+                <p className={sectionHeadingEyebrowClass}>Travel Essentials</p>
                 <div>
                   <h2 className="text-lg sm:text-xl font-hk-grotesk font-bold text-gray-900 mb-4 sm:mb-5 flex items-center gap-2">
                     <Download className="h-4 w-4 sm:h-5 sm:w-5 text-crimson-red" />
                     Pre-Departure Pack
                   </h2>
 
-                  <div className="bg-royal-purple/5 border-2 border-royal-purple/20 rounded-lg p-4 sm:p-5">
+                  <div className="bg-creative-midnight/5 border-2 border-creative-midnight/20 rounded-xl p-4 sm:p-5">
                     <div className="flex items-start gap-3 sm:gap-4">
-                      <div className="bg-royal-purple/10 rounded-lg p-2 sm:p-3">
-                        <Download className="h-5 w-5 sm:h-7 sm:w-7 text-royal-purple" />
+                      <div className="bg-creative-midnight/10 rounded-lg p-2 sm:p-3">
+                        <Download className="h-5 w-5 sm:h-7 sm:w-7 text-crimson-red" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-1 break-words">
@@ -2587,7 +2662,7 @@ export default function BookingStatusPage() {
                               "_blank",
                             )
                           }
-                          className="bg-royal-purple hover:bg-royal-purple/90 text-white text-xs sm:text-sm px-3 sm:px-4 py-2"
+                          className="bg-creative-midnight hover:bg-creative-midnight/90 text-white text-xs sm:text-sm px-3 sm:px-4 py-2 hover:shadow-md"
                         >
                           <Download className="h-3 w-3 sm:h-4 sm:w-4 mr-2" />
                           Download Pack
@@ -2596,15 +2671,18 @@ export default function BookingStatusPage() {
                     </div>
                   </div>
                 </div>
-              </>
+              </div>
             )}
           </div>
 
           {/* Right Column - Payment Summary & Support */}
-          <div className="space-y-6 lg:space-y-8 min-w-0 max-w-full">
+          <div className="space-y-5 lg:space-y-6 min-w-0 max-w-full">
             {/* Payment Overview */}
             {booking.paymentPlan && (
-              <>
+              <div
+                className={`${sectionSurfaceClass} ${sectionEntryAnimationClass}`}
+                style={{ animationDelay: "200ms" }}
+              >
                 <div>
                   <h2 className="text-lg sm:text-xl font-hk-grotesk font-bold text-gray-900 mb-4 sm:mb-5 flex items-center gap-2">
                     <CreditCard className="h-4 w-4 sm:h-5 sm:w-5 text-crimson-red" />
@@ -2612,7 +2690,7 @@ export default function BookingStatusPage() {
                   </h2>
 
                   <div className="space-y-3 sm:space-y-4 mb-4 sm:mb-5">
-                    <div className="bg-gray-50 rounded-lg p-3 sm:p-4 border-l-4 border-gray-300 min-w-0 max-w-full overflow-hidden">
+                    <div className="bg-gray-50 rounded-xl p-3 sm:p-4 border-l-4 border-gray-300 min-w-0 max-w-full overflow-hidden hover:shadow-sm">
                       <p className="text-xs text-gray-500 mb-1">Total Cost</p>
                       <p className="text-xl sm:text-2xl font-bold text-gray-900">
                         £{totalCost.toFixed(2)}
@@ -2624,7 +2702,7 @@ export default function BookingStatusPage() {
                       )}
                     </div>
 
-                    <div className="bg-green-50 rounded-lg p-3 sm:p-4 border-l-4 border-spring-green min-w-0 max-w-full overflow-hidden">
+                    <div className="bg-green-50 rounded-xl p-3 sm:p-4 border-l-4 border-spring-green min-w-0 max-w-full overflow-hidden hover:shadow-sm">
                       <p className="text-xs text-gray-600 mb-1">Amount Paid</p>
                       <p className="text-xl sm:text-2xl font-bold text-spring-green">
                         £{paidAmount.toFixed(2)}
@@ -2634,7 +2712,7 @@ export default function BookingStatusPage() {
                       </p>
                     </div>
 
-                    <div className="bg-red-50 rounded-lg p-3 sm:p-4 border-l-4 border-crimson-red min-w-0 max-w-full overflow-hidden">
+                    <div className="bg-red-50 rounded-xl p-3 sm:p-4 border-l-4 border-crimson-red min-w-0 max-w-full overflow-hidden hover:shadow-sm">
                       <p className="text-xs text-gray-600 mb-1">Balance Due</p>
                       <p className="text-xl sm:text-2xl font-bold text-crimson-red">
                         £{remainingBalanceAmount.toFixed(2)}
@@ -2647,69 +2725,57 @@ export default function BookingStatusPage() {
                     </div>
                   </div>
                 </div>
-
-                <Separator />
-              </>
+              </div>
             )}
 
             {/* Need Assistance */}
-            <div>
+            <div
+              className={`${sectionSurfaceClass} ${sectionEntryAnimationClass}`}
+              style={{ animationDelay: "240ms" }}
+            >
               <h2 className="text-lg sm:text-xl font-hk-grotesk font-bold text-gray-900 mb-4 sm:mb-5">
                 Need Assistance?
               </h2>
 
               <div className="space-y-3 sm:space-y-4">
-                <div className="bg-white border rounded-lg p-3 sm:p-4 flex items-start gap-3 sm:gap-4 min-w-0 max-w-full overflow-hidden">
-                  <div className="bg-crimson-red/10 rounded-lg p-2 sm:p-2.5">
-                    <Mail className="h-4 w-4 sm:h-5 sm:w-5 text-crimson-red" />
+                <a href={`mailto:${SUPPORT_EMAIL}`} className={supportActionCardClass}>
+                  <div className={supportActionIconClass}>
+                    <Mail className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-0.5">Email</p>
-                    <a
-                      href={`mailto:${SUPPORT_EMAIL}`}
-                      className="text-xs sm:text-sm font-semibold text-crimson-red hover:underline break-all rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-crimson-red/40 focus-visible:ring-offset-2"
-                    >
+                  <div className="min-w-0">
+                    <p className={supportActionLabelClass}>Email</p>
+                    <p className={`${supportActionValueClass} break-all`}>
                       {SUPPORT_EMAIL}
-                    </a>
+                    </p>
                   </div>
-                </div>
+                </a>
 
-                <div className="bg-white border rounded-lg p-3 sm:p-4 flex items-start gap-3 sm:gap-4 min-w-0 max-w-full overflow-hidden">
-                  <div className="bg-crimson-red/10 rounded-lg p-2 sm:p-2.5">
-                    <Phone className="h-4 w-4 sm:h-5 sm:w-5 text-crimson-red" />
+                <a href={SUPPORT_PHONE_TEL} className={supportActionCardClass}>
+                  <div className={supportActionIconClass}>
+                    <Phone className="h-4 w-4 sm:h-5 sm:w-5" />
                   </div>
-                  <div>
-                    <p className="text-xs text-gray-500 mb-0.5">Phone</p>
-                    <a
-                      href={SUPPORT_PHONE_TEL}
-                      className="text-xs sm:text-sm font-semibold text-gray-900 hover:text-crimson-red transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-crimson-red/40 focus-visible:ring-offset-2"
-                    >
+                  <div className="min-w-0">
+                    <p className={supportActionLabelClass}>Phone</p>
+                    <p className={supportActionValueClass}>
                       {SUPPORT_PHONE_DISPLAY}
-                    </a>
+                    </p>
                   </div>
-                </div>
+                </a>
 
-                <Button
-                  asChild
-                  variant="outline"
-                  className="w-full justify-start h-auto py-3 border-2 hover:border-crimson-red hover:bg-crimson-red/5 transition-colors focus-visible:ring-crimson-red/40 focus-visible:ring-offset-2"
+                <a
+                  href={CONTACT_US_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={supportActionCardClass}
                 >
-                  <a
-                    href={CONTACT_US_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Mail className="h-4 w-4 mr-2" />
-                    <div className="text-left">
-                      <p className="text-xs sm:text-sm font-semibold">
-                        Contact Support
-                      </p>
-                      <p className="text-[10px] sm:text-xs text-gray-500">
-                        Send us a message
-                      </p>
-                    </div>
-                  </a>
-                </Button>
+                  <div className={supportActionIconClass}>
+                    <Mail className="h-4 w-4 sm:h-5 sm:w-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className={supportActionValueClass}>Contact Support</p>
+                    <p className={supportActionLabelClass}>Send us a message</p>
+                  </div>
+                </a>
               </div>
             </div>
           </div>
@@ -2717,33 +2783,31 @@ export default function BookingStatusPage() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-creative-midnight text-white mt-8 sm:mt-12">
-        <div className="container mx-auto px-4 sm:px-6 py-6 sm:py-8">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6 sm:gap-8">
+      <footer className="mt-12 sm:mt-16 border-t border-gray-200 bg-white">
+        <div className="container mx-auto max-w-6xl px-4 sm:px-6 py-8 sm:py-12">
+          <div className="grid grid-cols-1 gap-8 sm:gap-10 lg:grid-cols-[1.25fr_1fr_1fr_0.85fr]">
             <div>
               <Image
-                src="/logos/Logo_White.svg"
+                src="/logos/Digital_Horizontal_Red.svg"
                 alt="ImHereTravels"
-                width={140}
-                height={40}
-                className="h-6 sm:h-8 w-auto mb-2 sm:mb-3"
+                width={190}
+                height={56}
+                className="h-9 sm:h-11 w-auto"
               />
-              <p className="text-xs sm:text-sm text-white/70">
-                Creating unforgettable travel experiences since 2020.
-              </p>
             </div>
+
             <div>
-              <h4 className="font-semibold text-sm sm:text-base mb-2 sm:mb-3">
-                Quick Links
+              <h4 className="text-crimson-red font-hk-grotesk font-bold text-xl mb-3 sm:mb-4">
+                Help
               </h4>
-              <ul className="space-y-1 sm:space-y-1.5 text-xs sm:text-sm text-white/70">
-                {QUICK_LINKS.map((link) => (
+              <ul className="space-y-2.5 text-lg text-gray-900 font-medium">
+                {FOOTER_HELP_LINKS.map((link) => (
                   <li key={link.label}>
                     <a
                       href={link.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="hover:text-white transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-creative-midnight"
+                      className="inline-flex rounded-md px-1 py-0.5 transition-colors hover:text-crimson-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-crimson-red/40 focus-visible:ring-offset-2"
                     >
                       {link.label}
                     </a>
@@ -2751,35 +2815,84 @@ export default function BookingStatusPage() {
                 ))}
               </ul>
             </div>
+
             <div>
-              <h4 className="font-semibold text-sm sm:text-base mb-2 sm:mb-3">
-                Follow Us
+              <h4 className="text-crimson-red font-hk-grotesk font-bold text-xl mb-3 sm:mb-4">
+                Resources
               </h4>
-              <p className="text-xs sm:text-sm text-white/70">
-                Stay connected for updates and special offers
-              </p>
-              <ul className="mt-3 sm:mt-4 space-y-2 sm:space-y-2.5 text-xs sm:text-sm text-white/70">
-                {SOCIAL_LINKS.map((social) => (
-                  <li key={social.label}>
+              <ul className="space-y-2.5 text-lg text-gray-900 font-medium">
+                {FOOTER_RESOURCE_LINKS.map((link) => (
+                  <li key={link.label}>
                     <a
-                      href={withUtmSource(social.href)}
+                      href={link.href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 hover:text-white transition-colors rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-creative-midnight"
+                      className="inline-flex rounded-md px-1 py-0.5 transition-colors hover:text-crimson-red focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-crimson-red/40 focus-visible:ring-offset-2"
                     >
-                      <social.Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                      <span>{social.label}</span>
+                      {link.label}
                     </a>
                   </li>
                 ))}
               </ul>
             </div>
+
+            <div>
+              <h4 className="text-crimson-red font-hk-grotesk font-bold text-xl mb-3 sm:mb-4">
+                Connect
+              </h4>
+              <div className="flex items-center gap-2.5">
+                {SOCIAL_LINKS.map((social) => (
+                  <a
+                    key={social.label}
+                    href={withUtmSource(social.href)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={social.label}
+                    className="inline-flex h-12 w-12 items-center justify-center rounded-full border-2 border-crimson-red text-crimson-red transition-[transform,box-shadow,background-color,border-color,color] duration-300 ease-[var(--entry-ease)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-crimson-red/40 focus-visible:ring-offset-2 hover:-translate-y-0.5 hover:bg-crimson-red hover:text-white motion-reduce:hover:translate-y-0"
+                  >
+                    <social.Icon className="h-5 w-5" />
+                  </a>
+                ))}
+              </div>
+            </div>
           </div>
-          <Separator className="my-4 sm:my-6 bg-white/20" />
-          <div className="text-center text-white/50 text-[10px] sm:text-xs">
-            <p>
-              © {new Date().getFullYear()} ImHereTravels. All rights reserved.
-            </p>
+        </div>
+
+        <div className="bg-creative-midnight">
+          <div className="container mx-auto max-w-6xl px-4 sm:px-6 py-4 sm:py-5">
+            <div className="grid grid-cols-1 items-center gap-3 text-center md:grid-cols-3 md:text-left">
+              <p className="text-sm text-white/90">
+                © {new Date().getFullYear()} I'm Here Travels. All rights reserved.
+              </p>
+              <div className="flex justify-center">
+                <Image
+                  src="/logos/Logo_Red_White.svg"
+                  alt="ImHereTravels Symbol"
+                  width={44}
+                  height={44}
+                  className="h-8 w-8 sm:h-9 sm:w-9"
+                />
+              </div>
+              <div className="flex items-center justify-center gap-2 text-sm text-white/90 md:justify-end">
+                <a
+                  href="https://imheretravels.com/terms-and-conditions/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-md px-1 py-0.5 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-creative-midnight"
+                >
+                  Terms & Conditions
+                </a>
+                <span aria-hidden="true">•</span>
+                <a
+                  href="https://imheretravels.com/privacy-policy/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="rounded-md px-1 py-0.5 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-creative-midnight"
+                >
+                  Privacy Policy
+                </a>
+              </div>
+            </div>
           </div>
         </div>
       </footer>
@@ -2805,4 +2918,7 @@ export default function BookingStatusPage() {
     </div>
   );
 }
+
+
+
 
