@@ -1305,3 +1305,12 @@
     -webkit-print-color-adjust: exact !important;
   }
 }
+
+.disabled-hover {
+  pointer-events: none;
+}
+
+.disabled-hover:hover {
+  border-color: inherit !important;
+  background-color: inherit !important;
+}
