@@ -8,9 +8,9 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { db } from "@/lib/firebase";
 import { Timestamp } from "firebase/firestore";
-import BirthdatePicker from "../reservation-booking-form/BirthdatePicker";
-import Select from "../reservation-booking-form/Select";
-import StripePayment from "../reservation-booking-form/StripePayment";
+import BirthdatePicker from "../reservation-booking-form/components/BirthdatePicker";
+import Select from "../reservation-booking-form/components/Select";
+import StripePayment from "../reservation-booking-form/components/StripePayment";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import {
   validateGuestInvitation,
@@ -31,7 +31,7 @@ const GuestReservationPage = () => {
   const [isValidating, setIsValidating] = useState(true);
   const [validationError, setValidationError] = useState<string | null>(null);
   const [parentBooking, setParentBooking] = useState<ParentBookingData | null>(
-    null
+    null,
   );
   const [invitation, setInvitation] = useState<GuestInvitation | null>(null);
   const [daysRemaining, setDaysRemaining] = useState<number>(0);
@@ -92,7 +92,7 @@ const GuestReservationPage = () => {
     async function validateInvitation() {
       if (!parentBookingId || !guestEmail) {
         setValidationError(
-          "Invalid invitation link. Missing required parameters."
+          "Invalid invitation link. Missing required parameters.",
         );
         setIsValidating(false);
         return;
@@ -118,7 +118,7 @@ const GuestReservationPage = () => {
           const tourPackageRef = doc(
             db,
             "tourPackages",
-            result.parentBooking.tourPackageId
+            result.parentBooking.tourPackageId,
           );
           const tourPackageSnap = await getDoc(tourPackageRef);
 
@@ -129,7 +129,7 @@ const GuestReservationPage = () => {
 
             // Update parent booking with image
             setParentBooking((prev) =>
-              prev ? { ...prev, tourImage: coverImage } : prev
+              prev ? { ...prev, tourImage: coverImage } : prev,
             );
           }
         } catch (error) {
@@ -154,7 +154,7 @@ const GuestReservationPage = () => {
           }
           if (paymentData?.payment?.selectedPaymentPlan) {
             setParentSelectedPaymentPlan(
-              paymentData.payment.selectedPaymentPlan
+              paymentData.payment.selectedPaymentPlan,
             );
           }
 
@@ -195,7 +195,7 @@ const GuestReservationPage = () => {
                       paymentPlan,
                       paymentMethod,
                     }
-                  : prev
+                  : prev,
               );
 
               setIsValidating(false);
@@ -216,7 +216,7 @@ const GuestReservationPage = () => {
       // Fallback: try using parentBookingId as booking document ID directly
       try {
         console.log(
-          "📝 Trying fallback: using parentBookingId as booking doc ID"
+          "📝 Trying fallback: using parentBookingId as booking doc ID",
         );
         const { getDoc, doc } = await import("firebase/firestore");
         const bookingRef = doc(db, "bookings", parentBookingId);
@@ -246,7 +246,7 @@ const GuestReservationPage = () => {
                   paymentPlan,
                   paymentMethod,
                 }
-              : prev
+              : prev,
           );
         } else {
           console.warn("❌ Fallback: No booking found via direct doc ID");
@@ -367,7 +367,7 @@ const GuestReservationPage = () => {
 
         console.log(
           "✅ Updated existing guest payment document:",
-          paymentDocId
+          paymentDocId,
         );
       } catch (error) {
         console.error("Error updating payment document:", error);
@@ -441,7 +441,7 @@ const GuestReservationPage = () => {
       await setDoc(
         firestoreDoc(db, "stripePayments", newDoc.id),
         { id: newDoc.id },
-        { merge: true }
+        { merge: true },
       );
 
       setPaymentDocId(newDoc.id);
@@ -485,9 +485,8 @@ const GuestReservationPage = () => {
       });
 
       // First, update the stripePayments document with guest details
-      const { doc, updateDoc, serverTimestamp } = await import(
-        "firebase/firestore"
-      );
+      const { doc, updateDoc, serverTimestamp } =
+        await import("firebase/firestore");
 
       const updateData: any = {
         "customer.email": guestEmail,
@@ -526,7 +525,7 @@ const GuestReservationPage = () => {
               dietaryRestrictions,
             },
           }),
-        }
+        },
       );
 
       const result = await response.json();
@@ -549,7 +548,7 @@ const GuestReservationPage = () => {
                 bookingDocumentId: result.bookingDocumentId || "",
                 email: guestEmail,
               }),
-            }
+            },
           );
 
           const emailResult = await emailResponse.json();
@@ -557,12 +556,12 @@ const GuestReservationPage = () => {
           if (emailResponse.ok) {
             console.log(
               "✅ Booking status confirmation email sent!",
-              emailResult
+              emailResult,
             );
           } else {
             console.warn(
               "⚠️ Failed to send booking status email:",
-              emailResult.error
+              emailResult.error,
             );
             // Don't block the user flow if email fails
           }
@@ -573,9 +572,8 @@ const GuestReservationPage = () => {
 
         // Create notification for guest payment
         try {
-          const { createGuestReservationPaymentNotification } = await import(
-            "@/utils/notification-service"
-          );
+          const { createGuestReservationPaymentNotification } =
+            await import("@/utils/notification-service");
           await createGuestReservationPaymentNotification({
             bookingId: result.bookingId || result.guestBookingId,
             bookingDocumentId: result.bookingDocumentId || "",
@@ -597,7 +595,7 @@ const GuestReservationPage = () => {
     } catch (error) {
       console.error("❌ Error creating guest booking:", error);
       alert(
-        "An error occurred while creating your booking. Please contact support."
+        "An error occurred while creating your booking. Please contact support.",
       );
     } finally {
       setIsCreatingBooking(false);
@@ -1194,7 +1192,7 @@ const GuestReservationPage = () => {
                             {new Date(
                               typeof parentBooking.tourDate === "string"
                                 ? parentBooking.tourDate
-                                : parentBooking.tourDate.toDate()
+                                : parentBooking.tourDate.toDate(),
                             ).toLocaleDateString("en-US", {
                               month: "long",
                               day: "numeric",
@@ -1522,7 +1520,7 @@ const GuestReservationPage = () => {
                           new Date(
                             typeof parentBooking.tourDate === "string"
                               ? parentBooking.tourDate
-                              : parentBooking.tourDate.toDate()
+                              : parentBooking.tourDate.toDate(),
                           ).toLocaleDateString("en-US", {
                             month: "long",
                             day: "numeric",
@@ -1540,12 +1538,12 @@ const GuestReservationPage = () => {
                               parentBooking.paymentPlan === "P1"
                                 ? "Full Payment"
                                 : parentBooking.paymentPlan === "P2"
-                                ? "2 Installments"
-                                : parentBooking.paymentPlan === "P3"
-                                ? "3 Installments"
-                                : parentBooking.paymentPlan === "P4"
-                                ? "4 Installments"
-                                : "Standard"
+                                  ? "2 Installments"
+                                  : parentBooking.paymentPlan === "P3"
+                                    ? "3 Installments"
+                                    : parentBooking.paymentPlan === "P4"
+                                      ? "4 Installments"
+                                      : "Standard"
                             }`
                           : "Not selected yet"}
                       </span>
