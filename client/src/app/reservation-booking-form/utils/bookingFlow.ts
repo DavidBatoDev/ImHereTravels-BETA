@@ -17,6 +17,63 @@ export type GeneratePaymentScheduleInput = {
   fromDate?: Date;
 };
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+const toLocalDate = (dateStr: string): Date | null => {
+  if (!dateStr) return null;
+  const parts = dateStr.split("-").map(Number);
+  if (
+    parts.length === 3 &&
+    Number.isFinite(parts[0]) &&
+    Number.isFinite(parts[1]) &&
+    Number.isFinite(parts[2])
+  ) {
+    const d = new Date(parts[0], parts[1] - 1, parts[2]);
+    return Number.isNaN(d.getTime()) ? null : d;
+  }
+  const fallback = new Date(dateStr);
+  return Number.isNaN(fallback.getTime()) ? null : fallback;
+};
+
+const getEligibleLastFridayDates = (
+  tourDateStr: string,
+  fromDate: Date = new Date(),
+): Date[] => {
+  const reservationDate = new Date(fromDate);
+  reservationDate.setHours(0, 0, 0, 0);
+
+  const tourDate = toLocalDate(tourDateStr);
+  if (!tourDate) return [];
+  tourDate.setHours(0, 0, 0, 0);
+
+  const monthCount =
+    (tourDate.getFullYear() - reservationDate.getFullYear()) * 12 +
+    (tourDate.getMonth() - reservationDate.getMonth()) +
+    1;
+
+  if (monthCount <= 0) return [];
+
+  const lastFridayDates: Date[] = Array.from({ length: monthCount }, (_, i) => {
+    const lastDay = new Date(
+      reservationDate.getFullYear(),
+      reservationDate.getMonth() + i + 1,
+      0,
+    );
+    const offset = (lastDay.getDay() - 5 + 7) % 7;
+    return new Date(
+      reservationDate.getFullYear(),
+      reservationDate.getMonth() + i + 1,
+      -offset,
+    );
+  });
+
+  return lastFridayDates.filter(
+    (date) =>
+      date.getTime() > reservationDate.getTime() + 2 * DAY_MS &&
+      date.getTime() <= tourDate.getTime() - 3 * DAY_MS,
+  );
+};
+
 export const calculateDaysBetween = (
   tourDateStr: string,
   fromDate: Date = new Date(),
@@ -52,37 +109,32 @@ export const getAvailablePaymentTermForDate = (
   if (!tourDate) return { term: "", isLastMinute: false, isInvalid: false };
 
   const daysBetween = calculateDaysBetween(tourDate, fromDate);
+  const eligibleCount = getEligibleLastFridayDates(tourDate, fromDate).length;
 
-  if (daysBetween < 2) {
+  // Match payment-condition.ts logic:
+  // eligible=0 & days<3 => Invalid Booking
+  if (eligibleCount === 0 && daysBetween < 3) {
     return { term: "invalid", isLastMinute: false, isInvalid: true };
   }
 
-  if (daysBetween >= 2 && daysBetween < 30) {
+  // eligible=0 & days>=3 => Last Minute Booking
+  if (eligibleCount === 0 && daysBetween >= 3) {
     return { term: "full_payment", isLastMinute: true, isInvalid: false };
   }
 
-  const today = new Date(fromDate);
-  const tourDateObj = new Date(tourDate);
-  const fullPaymentDue = new Date(tourDateObj);
-  fullPaymentDue.setDate(fullPaymentDue.getDate() - 30);
-
-  const yearDiff = fullPaymentDue.getFullYear() - today.getFullYear();
-  const monthDiff = fullPaymentDue.getMonth() - today.getMonth();
-  const monthCount = Math.max(0, yearDiff * 12 + monthDiff);
-
-  if (monthCount >= 4) {
+  if (eligibleCount >= 4) {
     return { term: "P4", isLastMinute: false, isInvalid: false };
   }
 
-  if (monthCount === 3) {
+  if (eligibleCount === 3) {
     return { term: "P3", isLastMinute: false, isInvalid: false };
   }
 
-  if (monthCount === 2) {
+  if (eligibleCount === 2) {
     return { term: "P2", isLastMinute: false, isInvalid: false };
   }
 
-  if (monthCount === 1) {
+  if (eligibleCount === 1) {
     return { term: "P1", isLastMinute: false, isInvalid: false };
   }
 
@@ -121,39 +173,17 @@ export const generatePaymentScheduleForMonths = ({
 
   const remainingBalance = totalTourPrice - depositAmount;
   const monthlyAmount = remainingBalance / monthsRequired;
-  const schedule: PaymentScheduleItem[] = [];
+  const validDueDates = getEligibleLastFridayDates(tourDate, fromDate);
 
-  const today = new Date(fromDate);
-  const currentYear = today.getFullYear();
-  const currentMonth = today.getMonth();
+  if (validDueDates.length < monthsRequired) return [];
 
-  let nextMonth = currentMonth + 1;
-  let nextYear = currentYear;
-
-  if (nextMonth > 11) {
-    nextMonth = 0;
-    nextYear++;
-  }
-
-  for (let i = 0; i < monthsRequired; i++) {
-    let paymentMonth = nextMonth + i;
-    let paymentYear = nextYear;
-
-    while (paymentMonth > 11) {
-      paymentMonth -= 12;
-      paymentYear++;
-    }
-
-    const dateStr = `${paymentYear}-${String(paymentMonth + 1).padStart(2, "0")}-02`;
-
-    schedule.push({
-      date: dateStr,
-      amount:
-        i === monthsRequired - 1
-          ? remainingBalance - monthlyAmount * (monthsRequired - 1)
-          : monthlyAmount,
-    });
-  }
-
-  return schedule;
+  return validDueDates.slice(0, monthsRequired).map((date, index) => ({
+    date: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(
+      date.getDate(),
+    ).padStart(2, "0")}`,
+    amount:
+      index === monthsRequired - 1
+        ? remainingBalance - monthlyAmount * (monthsRequired - 1)
+        : monthlyAmount,
+  }));
 };

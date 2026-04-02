@@ -789,6 +789,11 @@ const Page = () => {
         overflowX: "hidden",
       }}
     >
+      <div className="pointer-events-none absolute inset-0 hidden lg:grid lg:grid-cols-2">
+        <div className="bg-[#EF3340]" />
+        <div className="bg-background" />
+      </div>
+
       {/* Theme Toggle Button */}
       <div className="fixed top-6 right-6 z-50">
         <ThemeToggle />
@@ -806,7 +811,7 @@ const Page = () => {
       />
 
       <div
-        className="relative z-10 w-full min-h-screen text-card-foreground px-4 py-6 sm:px-6 sm:py-8 lg:px-0 lg:py-0"
+        className="relative z-10 w-full min-h-screen text-card-foreground px-4 py-6 sm:px-6 sm:py-8 lg:px-0 lg:py-8 lg:flex lg:items-center"
         aria-labelledby="reservation-form-title"
       >
         {sessionLoading && (
@@ -823,9 +828,9 @@ const Page = () => {
         </div>
 
         {/* Max-width container for better readability on larger screens */}
-        <div className="mx-auto lg:min-h-screen">
+        <div className="mx-auto w-full max-w-[1600px]">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-0 items-stretch">
-            <aside className="space-y-4 lg:bg-[#EF3340] lg:p-5 lg:min-h-screen lg:border-r lg:border-[#d72e3a]">
+            <aside className="space-y-4 lg:bg-[#EF3340] lg:p-5 lg:border-r lg:border-[#d72e3a]">
               <div className="inline-flex px-2 py-2">
                 <img
                   src="/logos/Logo_White.svg"
@@ -870,12 +875,12 @@ const Page = () => {
               />
             </aside>
 
-            <div className="space-y-6 min-w-0 lg:p-8 lg:min-h-screen">
+            <div className="space-y-6 min-w-0 lg:p-8">
               <Step1PersonalReservationSection {...step1SectionProps} />
 
               {/* STEP 2 - PAYMENT */}
               {step === 2 && (
-                <div className="rounded-2xl bg-card p-6 sm:p-8 border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
+                <div className="space-y-4">
                   <Step2PaymentHeader />
 
                   <Step2PaymentStatePanel
@@ -912,7 +917,7 @@ const Page = () => {
               )}
               {/* STEP 3 - PAYMENT PLAN */}
               {(step as number) === 3 && (
-                <div className="rounded-lg bg-card/80 backdrop-blur-md p-4 sm:p-6 border border-border shadow-xl space-y-6">
+                <div className="space-y-6">
                   <Step3ReservationConfirmedBanner bookingId={bookingId} />
 
                   <Step3PaymentPlanSelectorCard

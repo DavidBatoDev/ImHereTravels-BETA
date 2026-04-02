@@ -4,6 +4,10 @@ import { db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import {
   calculatePaymentPlanUpdate,
+  getAvailablePaymentTerms,
+  getDaysBetweenDates,
+  getEligible2ndOfMonths,
+  getPaymentCondition,
   type PaymentPlanUpdateInput,
 } from "@/lib/booking-calculations";
 
@@ -104,12 +108,28 @@ export async function POST(req: NextRequest) {
       paymentPlanString = "Full Payment";
     }
 
+    const reservationDate = bookingData.reservationDate || bookingData.createdAt;
+    const daysBetween = getDaysBetweenDates(reservationDate, bookingData.tourDate);
+    const eligibleLastFridays = getEligible2ndOfMonths(
+      reservationDate,
+      bookingData.tourDate,
+    );
+    const computedPaymentCondition = getPaymentCondition(
+      bookingData.tourDate,
+      eligibleLastFridays,
+      daysBetween,
+    );
+    const computedAvailableTerms = getAvailablePaymentTerms(
+      computedPaymentCondition,
+      !!bookingData.reasonForCancellation,
+    );
+
     // Prepare input for payment plan calculation
     const updateInput: PaymentPlanUpdateInput = {
       paymentPlan: paymentPlanString,
-      reservationDate: bookingData.reservationDate || bookingData.createdAt,
+      reservationDate,
       tourDate: bookingData.tourDate,
-      paymentCondition: bookingData.paymentCondition || "",
+      paymentCondition: computedPaymentCondition || bookingData.paymentCondition || "",
       originalTourCost: bookingData.originalTourCost || 0,
       discountedTourCost: bookingData.discountedTourCost || null,
       reservationFee: bookingData.reservationFee || 250,
@@ -141,6 +161,10 @@ export async function POST(req: NextRequest) {
     // Update the booking document
     await updateDoc(bookingDocRef, {
       ...paymentUpdate,
+      daysBetweenBookingAndTourDate: daysBetween,
+      eligible2ndofmonths: eligibleLastFridays,
+      paymentCondition: computedPaymentCondition || bookingData.paymentCondition || "",
+      availablePaymentTerms: computedAvailableTerms || bookingData.availablePaymentTerms || "",
       paidTerms: 0,
       enablePaymentReminder: true,
       selectedPlanAt: serverTimestamp(),

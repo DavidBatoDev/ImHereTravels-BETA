@@ -21,11 +21,11 @@ export default function Step3PaymentPlanTabs({
   guestDetails,
 }: Step3PaymentPlanTabsProps) {
   return (
-    <div className="flex gap-2 overflow-x-auto pb-2">
+    <div className="flex gap-1.5 overflow-x-auto pb-1.5">
       <button
         type="button"
         onClick={() => onActivePaymentTabChange(0)}
-        className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
+        className={`flex-shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
           activePaymentTab === 0
             ? "bg-primary text-primary-foreground shadow-md"
             : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -33,7 +33,7 @@ export default function Step3PaymentPlanTabs({
       >
         Guest 1 (YOU)
         {paymentPlans[0]?.plan && (
-          <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
             <path
               d="M20 6L9 17l-5-5"
               stroke="currentColor"
@@ -50,7 +50,7 @@ export default function Step3PaymentPlanTabs({
           key={idx}
           type="button"
           onClick={() => onActivePaymentTabChange(idx + 1)}
-          className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium transition-all duration-200 flex items-center gap-2 ${
+          className={`flex-shrink-0 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5 ${
             activePaymentTab === idx + 1
               ? "bg-primary text-primary-foreground shadow-md"
               : "bg-muted text-muted-foreground hover:bg-muted/80"
@@ -58,7 +58,7 @@ export default function Step3PaymentPlanTabs({
         >
           {guest.firstName} {guest.lastName}
           {paymentPlans[idx + 1]?.plan && (
-            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none">
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
               <path
                 d="M20 6L9 17l-5-5"
                 stroke="currentColor"

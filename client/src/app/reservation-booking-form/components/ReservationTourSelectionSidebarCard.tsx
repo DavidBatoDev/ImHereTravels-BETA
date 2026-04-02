@@ -73,6 +73,18 @@ export default function ReservationTourSelectionSidebarCard({
     .filter(Boolean);
 
   const selectedDateOption = tourDateOptions.find((option) => option.value === tourDate);
+  const selectedDateDetail = selectedPackage?.travelDateDetails?.find(
+    (detail) => detail.date === tourDate,
+  );
+  const selectedTourCost =
+    typeof selectedDateDetail?.customOriginal === "number"
+      ? selectedDateDetail.customOriginal
+      : selectedPackage?.price;
+  const selectedReservationFee =
+    typeof selectedDateDetail?.customDeposit === "number"
+      ? selectedDateDetail.customDeposit
+      : selectedPackage?.deposit;
+  const hasSelectedDate = !!selectedDateOption;
   const canOpenDateMenu =
     dateMounted &&
     !isSelectionLocked &&
@@ -81,14 +93,6 @@ export default function ReservationTourSelectionSidebarCard({
 
   return (
     <div className="w-full min-w-0 rounded-2xl mt-2 overflow-visible border border-border bg-card text-foreground shadow-lg transition-all duration-300">
-      {isSelectionLocked && (
-        <div className="mb-3 rounded-lg border border-amber-300 bg-amber-50 p-2.5 text-xs text-amber-800">
-          {paymentConfirmed
-            ? "Tour selection is locked because payment is already confirmed."
-            : "Tour selection can only be edited in Step 1."}
-        </div>
-      )}
-
       <div className="space-y-3">
         <div>
 
@@ -258,9 +262,13 @@ export default function ReservationTourSelectionSidebarCard({
                                 >
                                   {selectedDateOption?.label || displayDate(tourDate)}
                                 </span>
-                                <span className="text-muted-foreground text-xs font-semibold">
-                                  &gt;&gt;&gt;
-                                </span>
+                                {
+                                  !isSelectionLocked && (
+                                  <span className="text-muted-foreground text-xs font-semibold">
+                                    &gt;&gt;&gt;
+                                  </span>
+                                  )
+                                }
                               </span>
                             </span>
                           </span>
@@ -310,16 +318,18 @@ export default function ReservationTourSelectionSidebarCard({
                       </div>
                     </div>
 
-                    <div className="w-full max-w-full xl:w-[190px] rounded-lg border border-border bg-background px-3 py-2 text-xs leading-tight space-y-2">
-                      <div className="flex items-center justify-between border-b border-border pb-1.5">
-                        <span className="font-medium text-muted-foreground">Total Tour Cost</span>
-                        <span className="font-semibold text-[15px]">{toPounds(selectedPackage.price)}</span>
+                    {hasSelectedDate && (
+                      <div className="w-full max-w-full xl:w-[190px] rounded-lg border border-border bg-background px-3 py-2 text-xs leading-tight space-y-2">
+                        <div className="flex items-center justify-between border-b border-border pb-1.5">
+                          <span className="font-medium text-muted-foreground">Total Tour Cost</span>
+                          <span className="font-semibold text-[15px]">{toPounds(selectedTourCost)}</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-muted-foreground">Reservation Fee</span>
+                          <span className="font-semibold text-[15px]">{toPounds(selectedReservationFee)}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-muted-foreground">Reservation Fee</span>
-                        <span className="font-semibold text-[15px]">{toPounds(selectedPackage.deposit)}</span>
-                      </div>
-                    </div>
+                    )}
                   </div>
 
                   {chips.length > 0 && (

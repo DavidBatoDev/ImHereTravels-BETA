@@ -62,15 +62,17 @@ export default function Step3PaymentPlanSelectorCard({
     : getSelectedPaymentPlansCount(paymentPlans);
 
   return (
-    <div className="rounded-2xl bg-card border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl overflow-hidden transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
-      <div className="p-6">
-        <div className="space-y-6">
-          <Step3PaymentPlanTabs
-            activePaymentTab={activePaymentTab}
-            onActivePaymentTabChange={onActivePaymentTabChange}
-            paymentPlans={paymentPlans}
-            guestDetails={guestDetails}
-          />
+    <div className="rounded-xl bg-card border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-md dark:shadow-lg overflow-hidden transition-all duration-300 hover:border-crimson-red">
+      <div className="p-4 sm:p-5">
+        <div className="space-y-4">
+          {numberOfPeople > 1 && (
+            <Step3PaymentPlanTabs
+              activePaymentTab={activePaymentTab}
+              onActivePaymentTabChange={onActivePaymentTabChange}
+              paymentPlans={paymentPlans}
+              guestDetails={guestDetails}
+            />
+          )}
 
           <AnimatePresence mode="wait">
             <motion.div
@@ -80,20 +82,20 @@ export default function Step3PaymentPlanSelectorCard({
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.2 }}
             >
-              <h4 className="text-base font-semibold text-foreground mb-4">
+              <h4 className="text-sm font-semibold text-foreground mb-2">
                 {activePaymentTab === 0
                   ? "Select your payment plan"
                   : `Select payment plan for ${guestDetails[activePaymentTab - 1]?.firstName}`}
               </h4>
 
-              <div className="bg-muted/20 border border-border rounded-lg p-4 mb-4">
-                <div className="flex justify-between items-center text-sm">
+              <div className="bg-muted/20 border border-border rounded-lg p-3 mb-3">
+                <div className="flex justify-between items-center text-xs sm:text-sm">
                   <span className="text-muted-foreground">Tour cost:</span>
                   <span className="font-bold text-foreground">
                     £{selectedTourPrice.toFixed(2)}
                   </span>
                 </div>
-                <div className="flex justify-between items-center text-sm mt-2">
+                <div className="flex justify-between items-center text-xs sm:text-sm mt-1.5">
                   <span className="text-muted-foreground">
                     Reservation fee share (paid):
                   </span>
@@ -101,21 +103,21 @@ export default function Step3PaymentPlanSelectorCard({
                     -£{reservationFeePerPerson.toFixed(2)}
                   </span>
                 </div>
-                <div className="border-t border-border my-2"></div>
+                <div className="border-t border-border my-1.5"></div>
                 <div className="flex justify-between items-center">
-                  <span className="text-foreground font-semibold">
+                  <span className="text-foreground text-sm font-semibold">
                     Remaining balance:
                   </span>
-                  <span className="font-bold text-lg text-crimson-red">
+                  <span className="font-bold text-base sm:text-lg text-crimson-red">
                     £{remainingBalance.toFixed(2)}
                   </span>
                 </div>
               </div>
 
               {availablePaymentTerm.isLastMinute ? (
-                <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-md">
-                  <div className="flex items-start gap-3">
-                    <div className="flex items-center justify-center h-8 w-8 rounded-full bg-amber-500 text-white flex-shrink-0">
+                <div className="bg-amber-500/10 border border-amber-500/30 p-3 rounded-md">
+                  <div className="flex items-start gap-2.5">
+                    <div className="flex items-center justify-center h-7 w-7 rounded-full bg-amber-500 text-white flex-shrink-0">
                       <svg
                         className="h-5 w-5"
                         viewBox="0 0 24 24"
@@ -132,10 +134,10 @@ export default function Step3PaymentPlanSelectorCard({
                       </svg>
                     </div>
                     <div>
-                      <div className="font-medium text-foreground">
+                      <div className="font-medium text-sm text-foreground">
                         Full Payment Required
                       </div>
-                      <div className="text-sm text-muted-foreground mt-1">
+                      <div className="text-xs sm:text-sm text-muted-foreground mt-0.5">
                         Tour is coming up soon! Full payment of £
                         {remainingBalance.toFixed(2)} is required within 48
                         hours.
@@ -145,7 +147,7 @@ export default function Step3PaymentPlanSelectorCard({
                 </div>
               ) : (
                 <>
-                  <p className="text-sm text-muted-foreground mb-4">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-2.5">
                     Great news! You have up to{" "}
                     <span className="font-medium text-foreground">
                       {availablePaymentTerm.term}
@@ -153,7 +155,7 @@ export default function Step3PaymentPlanSelectorCard({
                     flexible payment options. Pick what works best:
                   </p>
 
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {availablePaymentPlans.map((plan) => {
                       const personPlan = paymentPlans[activePaymentTab];
                       const isSelected = personPlan?.plan === plan.id;
@@ -165,15 +167,15 @@ export default function Step3PaymentPlanSelectorCard({
                           onClick={() =>
                             onSelectPaymentPlanForActiveTraveler(plan.id)
                           }
-                          className={`w-full text-left p-4 rounded-lg border-2 transition-all ${
+                          className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
                             isSelected
                               ? "border-primary bg-primary/5 shadow-md"
                               : "border-border bg-card hover:border-primary/50 hover:bg-muted/50"
                           }`}
                         >
-                          <div className="flex items-start gap-3">
+                          <div className="flex items-start gap-2.5">
                             <div
-                              className="flex items-center justify-center h-10 w-10 rounded-full text-white font-semibold flex-shrink-0"
+                              className="flex items-center justify-center h-8 w-8 rounded-full text-white text-xs font-semibold flex-shrink-0"
                               style={{
                                 backgroundColor: plan.color,
                               }}
@@ -181,14 +183,14 @@ export default function Step3PaymentPlanSelectorCard({
                               P{plan.monthsRequired}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center justify-between gap-2 mb-1">
-                                <div className="font-medium text-foreground">
+                              <div className="flex items-center justify-between gap-2 mb-0.5">
+                                <div className="font-medium text-sm text-foreground">
                                   {plan.label}
                                 </div>
                                 {isSelected && (
-                                  <div className="flex items-center justify-center h-6 w-6 rounded-full bg-primary text-primary-foreground flex-shrink-0">
+                                  <div className="flex items-center justify-center h-5 w-5 rounded-full bg-primary text-primary-foreground flex-shrink-0">
                                     <svg
-                                      className="h-4 w-4"
+                                      className="h-3.5 w-3.5"
                                       viewBox="0 0 24 24"
                                       fill="none"
                                       aria-hidden
@@ -204,12 +206,12 @@ export default function Step3PaymentPlanSelectorCard({
                                   </div>
                                 )}
                               </div>
-                              <div className="text-xs text-muted-foreground mb-3">
+                              <div className="text-[11px] text-muted-foreground mb-2">
                                 {plan.description}
                               </div>
 
-                              <div className="space-y-2 bg-muted/30 rounded-md p-3">
-                                <div className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                              <div className="space-y-1.5 bg-muted/30 rounded-md p-2.5">
+                                <div className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide mb-1">
                                   Payment Schedule
                                 </div>
                                 {plan.schedule.map((payment, idx) => {
@@ -219,10 +221,10 @@ export default function Step3PaymentPlanSelectorCard({
                                   return (
                                     <div
                                       key={idx}
-                                      className="flex items-center justify-between text-sm"
+                                      className="flex items-center justify-between text-xs sm:text-sm"
                                     >
                                       <div className="flex items-center gap-2">
-                                        <div className="h-6 w-6 rounded-full bg-background border border-border flex items-center justify-center text-xs font-medium">
+                                        <div className="h-5 w-5 rounded-full bg-background border border-border flex items-center justify-center text-[10px] font-medium">
                                           {idx + 1}
                                         </div>
                                         <span className="text-foreground">
@@ -236,7 +238,7 @@ export default function Step3PaymentPlanSelectorCard({
                                           })}
                                         </span>
                                       </div>
-                                      <span className="font-medium text-foreground">
+                                      <span className="font-semibold text-foreground">
                                         £{paymentAmount.toFixed(2)}
                                       </span>
                                     </div>
@@ -252,14 +254,14 @@ export default function Step3PaymentPlanSelectorCard({
                 </>
               )}
 
-              <div className="flex justify-between mt-6">
+              <div className="flex justify-between mt-4">
                 {activePaymentTab > 0 && (
                   <button
                     type="button"
                     onClick={() =>
                       onActivePaymentTabChange(activePaymentTab - 1)
                     }
-                    className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    className="px-3 py-1.5 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors"
                   >
                     ← Previous
                   </button>
@@ -271,7 +273,7 @@ export default function Step3PaymentPlanSelectorCard({
                       onActivePaymentTabChange(activePaymentTab + 1)
                     }
                     disabled={!paymentPlans[activePaymentTab]?.plan}
-                    className={`ml-auto px-6 py-2 rounded-lg font-medium transition-all ${
+                    className={`ml-auto px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       paymentPlans[activePaymentTab]?.plan
                         ? "bg-primary text-primary-foreground hover:shadow-lg"
                         : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
@@ -280,7 +282,7 @@ export default function Step3PaymentPlanSelectorCard({
                     Next →
                   </button>
                 ) : (
-                  <div className="ml-auto text-sm text-muted-foreground">
+                  <div className="ml-auto text-xs sm:text-sm text-muted-foreground">
                     {selectedPlansCount} of {numberOfPeople} plans selected
                   </div>
                 )}

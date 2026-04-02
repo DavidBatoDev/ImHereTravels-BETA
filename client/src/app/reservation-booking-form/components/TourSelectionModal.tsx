@@ -53,19 +53,22 @@ export default function TourSelectionModal({
   const [modalImagesLoaded, setModalImagesLoaded] = useState<Set<string>>(
     new Set(),
   );
-  const [allModalImagesLoaded, setAllModalImagesLoaded] = useState(false);
 
-  // Reset image loading state when modal opens
+  // Keep image cache for this page session, but prune stale ids when package list changes.
   useEffect(() => {
-    if (isOpen) {
-      setModalImagesLoaded(new Set());
-      setAllModalImagesLoaded(false);
-    }
-  }, [isOpen]);
+    const validIds = new Set(
+      tourPackages.filter((pkg) => !!pkg.coverImage).map((pkg) => pkg.id),
+    );
+    setModalImagesLoaded((prev) => {
+      const next = new Set<string>();
+      prev.forEach((id) => {
+        if (validIds.has(id)) next.add(id);
+      });
+      return next;
+    });
+  }, [tourPackages]);
 
   const handleClose = () => {
-    setModalImagesLoaded(new Set());
-    setAllModalImagesLoaded(false);
     onClose();
   };
 
@@ -200,118 +203,37 @@ export default function TourSelectionModal({
             </div>
           ) : (
             <>
-              {/* Preload images in background */}
-              <div className="hidden">
-                {tourPackages
-                  .filter(
-                    (pkg) =>
-                      pkg.status === "active" &&
-                      !isTourAllDatesTooSoon(pkg) &&
-                      pkg.coverImage,
-                  )
-                  .map((pkg) => (
-                    <img
-                      key={pkg.id}
-                      src={pkg.coverImage!}
-                      alt={pkg.name}
-                      onLoad={() => {
-                        setModalImagesLoaded((prev) => {
-                          const newSet = new Set(prev);
-                          newSet.add(pkg.id);
-                          const activeTours = tourPackages.filter(
-                            (p) =>
-                              p.status === "active" &&
-                              !isTourAllDatesTooSoon(p) &&
-                              p.coverImage,
-                          );
-                          if (newSet.size === activeTours.length) {
-                            setAllModalImagesLoaded(true);
-                          }
-                          return newSet;
-                        });
-                      }}
-                      loading="eager"
-                    />
-                  ))}
-              </div>
-
-              {/* Loading State - Hide cards until images loaded */}
-              {!allModalImagesLoaded ? (
-                <div className="flex flex-col items-center justify-center py-20">
-                  <div className="relative">
-                    <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary/30 border-t-primary"></div>
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <svg
-                        className="w-8 h-8 text-primary"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                      </svg>
-                    </div>
+              {tourPackages.filter(
+                (pkg) => pkg.status === "active" && !isTourAllDatesTooSoon(pkg),
+              ).length === 0 ? (
+                <div className="text-center py-20">
+                  <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-muted/50 mb-4">
+                    <svg
+                      className="w-10 h-10 text-muted-foreground/40"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
                   </div>
-                  <p className="mt-6 text-lg font-medium text-muted-foreground">
-                    Loading tours...
-                  </p>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {modalImagesLoaded.size} /{" "}
-                    {
-                      tourPackages.filter(
-                        (p) =>
-                          p.status === "active" &&
-                          !isTourAllDatesTooSoon(p) &&
-                          p.coverImage,
-                      ).length
-                    }
+                  <h3 className="text-xl font-semibold text-foreground mb-2">
+                    No Tours Available Right Now
+                  </h3>
+                  <p className="text-muted-foreground">
+                    All tour dates are either in the past or too soon to
+                    book.
+                    <br />
+                    Check back soon for new adventure dates!
                   </p>
                 </div>
               ) : (
-                /* Tour Grid - Only show when all images loaded */
-                <>
-                  {tourPackages.filter(
-                    (pkg) =>
-                      pkg.status === "active" && !isTourAllDatesTooSoon(pkg),
-                  ).length === 0 ? (
-                    <div className="text-center py-20">
-                      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-muted/50 mb-4">
-                        <svg
-                          className="w-10 h-10 text-muted-foreground/40"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={1.5}
-                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-                          />
-                        </svg>
-                      </div>
-                      <h3 className="text-xl font-semibold text-foreground mb-2">
-                        No Tours Available Right Now
-                      </h3>
-                      <p className="text-muted-foreground">
-                        All tour dates are either in the past or too soon to
-                        book.
-                        <br />
-                        Check back soon for new adventure dates!
-                      </p>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
                       {tourPackages
                         .filter(
                           (pkg) =>
@@ -378,16 +300,33 @@ export default function TourSelectionModal({
                               {/* Cover Image */}
                               <div className="relative h-36 overflow-hidden">
                                 {pkg.coverImage ? (
-                                  <img
-                                    src={pkg.coverImage}
-                                    alt={pkg.name}
-                                    className={`block w-full h-full object-cover object-center transition-all duration-500 ${
-                                      isSelected
-                                        ? "scale-105"
-                                        : "group-hover:scale-110"
-                                    }`}
-                                    loading="eager"
-                                  />
+                                  <>
+                                    {!modalImagesLoaded.has(pkg.id) && (
+                                      <div className="absolute inset-0 bg-muted animate-pulse" />
+                                    )}
+                                    <img
+                                      src={pkg.coverImage}
+                                      alt={pkg.name}
+                                      className={`block w-full h-full object-cover object-center transition-all duration-500 ${
+                                        modalImagesLoaded.has(pkg.id)
+                                          ? "opacity-100"
+                                          : "opacity-0"
+                                      } ${
+                                        isSelected
+                                          ? "scale-105"
+                                          : "group-hover:scale-110"
+                                      }`}
+                                      loading="eager"
+                                      onLoad={() => {
+                                        setModalImagesLoaded((prev) => {
+                                          if (prev.has(pkg.id)) return prev;
+                                          const next = new Set(prev);
+                                          next.add(pkg.id);
+                                          return next;
+                                        });
+                                      }}
+                                    />
+                                  </>
                                 ) : (
                                   <div className="absolute inset-0 flex items-center justify-center bg-muted">
                                     <svg
@@ -604,9 +543,7 @@ export default function TourSelectionModal({
                             </button>
                           );
                         })}
-                    </div>
-                  )}
-                </>
+                </div>
               )}
             </>
           )}
