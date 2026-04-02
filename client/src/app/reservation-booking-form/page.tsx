@@ -5,7 +5,13 @@ export const dynamic = "force-dynamic";
 import { Suspense } from "react";
 import { useEffect } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { addDoc, serverTimestamp, setDoc, doc } from "firebase/firestore";
+import {
+  addDoc,
+  serverTimestamp,
+  setDoc,
+  doc,
+  collection,
+} from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import StripePayment from "./components/StripePayment";
 import TourSelectionModal from "./components/TourSelectionModal";
@@ -18,6 +24,7 @@ import Step3ReservationConfirmedBanner from "./components/Step3ReservationConfir
 import Step3PaymentPlanSelectorCard from "./components/Step3PaymentPlanSelectorCard";
 import StepFooterActionsSection from "./components/StepFooterActionsSection";
 import Step1PersonalReservationSection from "./components/Step1PersonalReservationSection";
+import ReservationTourSelectionSidebarCard from "./components/ReservationTourSelectionSidebarCard";
 import {
   calculateDaysBetween,
   isTourAllDatesTooSoon,
@@ -577,13 +584,7 @@ const Page = () => {
     step,
     paymentConfirmed,
     clearing,
-    isLoadingPackages,
     selectedPackage,
-    highlightsExpanded,
-    carouselIndex,
-    dateVisible,
-    dateMounted,
-    tourPackage,
     tourDate,
     errors,
     bookingType,
@@ -597,7 +598,6 @@ const Page = () => {
     nationality,
     whatsAppCountry,
     whatsAppNumber,
-    tourDateOptions,
     bookingTypeOptions,
     nationalityOptions,
     fieldBase,
@@ -605,11 +605,6 @@ const Page = () => {
     fieldFocus,
     fieldBorder,
     isFieldValid,
-    setShowTourModal,
-    setHighlightsExpanded,
-    setIsCarouselPaused,
-    setCarouselIndex,
-    setTourDate,
     handleBookingTypeChange,
     handleGroupSizeChange,
     setActiveGuestTab,
@@ -788,9 +783,10 @@ const Page = () => {
 
   return (
     <div
-      className={`min-h-screen bg-background relative theme-transition`}
+      className={`min-h-screen bg-background relative theme-transition overflow-x-hidden`}
       style={{
-        overflow: showTourModal ? "hidden" : "auto",
+        overflowY: showTourModal ? "hidden" : "auto",
+        overflowX: "hidden",
       }}
     >
       {/* Theme Toggle Button */}
@@ -810,7 +806,7 @@ const Page = () => {
       />
 
       <div
-        className="relative z-10 w-full min-h-screen text-card-foreground px-4 py-6 sm:px-6 sm:py-8 md:px-8 md:py-10"
+        className="relative z-10 w-full min-h-screen text-card-foreground px-4 py-6 sm:px-6 sm:py-8 lg:px-0 lg:py-0"
         aria-labelledby="reservation-form-title"
       >
         {sessionLoading && (
@@ -827,95 +823,118 @@ const Page = () => {
         </div>
 
         {/* Max-width container for better readability on larger screens */}
-        <div className="max-w-4xl mx-auto">
-          {/* ImHereTravels Logo - Top Left */}
-          <div className="mb-8">
-            <img
-              src="/logos/Digital_Horizontal_Red.svg"
-              alt="ImHereTravels Logo"
-              className="h-10 sm:h-12 md:h-14 w-auto object-contain"
-            />
-          </div>
-
-          <ReservationProgressHeader
-            step={step}
-            completedSteps={completedSteps}
-            paymentConfirmed={paymentConfirmed}
-            progressWidth={progressWidth}
-            stepDescription={stepDescription}
-            howItWorksExpanded={howItWorksExpanded}
-            onToggleHowItWorks={() =>
-              setHowItWorksExpanded(!howItWorksExpanded)
-            }
-            onGoStep1={handleStep1Navigation}
-            onGoStep2={handleStep2Navigation}
-            onGoStep3={handleStep3Navigation}
-          />
-
-          <div className="space-y-6">
-            <Step1PersonalReservationSection {...step1SectionProps} />
-
-            {/* STEP 2 - PAYMENT */}
-            {step === 2 && (
-              <div className="rounded-2xl bg-card p-6 sm:p-8 border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
-                <Step2PaymentHeader />
-
-                <Step2PaymentStatePanel
-                  tourPackage={tourPackage}
-                  paymentConfirmed={paymentConfirmed}
-                  step2Processing={step2Processing}
-                >
-                  <Step2ReservationSummaryCard
-                    bookingType={bookingType}
-                    tourPackage={tourPackage}
-                    tourPackages={tourPackages}
-                    numberOfPeople={numberOfPeople}
-                    baseReservationFee={baseReservationFee}
-                    depositAmount={depositAmount}
-                  />
-
-                  <StripePayment
-                    tourPackageId={tourPackage}
-                    tourPackageName={selectedPackage?.name || ""}
-                    email={email}
-                    amountGBP={depositAmount}
-                    bookingId={bookingId || "PENDING"}
-                    paymentDocId={paymentDocId}
-                    bookingType={bookingType}
-                    numberOfGuests={numberOfPeople}
-                    onSuccess={(pid, docId) => {
-                      handlePaymentSuccess(pid, docId);
-                    }}
-                    onError={() => {}}
-                    onProcessingChange={(p) => setStep2Processing(p)}
-                  />
-                </Step2PaymentStatePanel>
-              </div>
-            )}
-            {/* STEP 3 - PAYMENT PLAN */}
-            {(step as number) === 3 && (
-              <div className="rounded-lg bg-card/80 backdrop-blur-md p-4 sm:p-6 border border-border shadow-xl space-y-6">
-                <Step3ReservationConfirmedBanner bookingId={bookingId} />
-
-                <Step3PaymentPlanSelectorCard
-                  activePaymentTab={activePaymentTab}
-                  onActivePaymentTabChange={setActivePaymentTab}
-                  paymentPlans={paymentPlans}
-                  guestDetails={guestDetails}
-                  selectedTourPrice={selectedTourPrice}
-                  depositAmount={depositAmount}
-                  numberOfPeople={numberOfPeople}
-                  availablePaymentTerm={availablePaymentTerm}
-                  availablePaymentPlans={availablePaymentPlans}
-                  onSelectPaymentPlanForActiveTraveler={
-                    handleSelectPaymentPlanForActiveTraveler
-                  }
+        <div className="mx-auto lg:min-h-screen">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-0 items-stretch">
+            <aside className="space-y-4 lg:bg-[#EF3340] lg:p-5 lg:min-h-screen lg:border-r lg:border-[#d72e3a]">
+              <div className="inline-flex px-2 py-2">
+                <img
+                  src="/logos/Logo_White.svg"
+                  alt="ImHereTravels Logo"
+                  className="h-7 sm:h-8 w-auto object-contain"
                 />
               </div>
-            )}
 
-            {/* Step footer actions */}
-            <StepFooterActionsSection {...stepFooterActionsProps} />
+              <ReservationProgressHeader
+                step={step}
+                completedSteps={completedSteps}
+                paymentConfirmed={paymentConfirmed}
+                progressWidth={progressWidth}
+                stepDescription={stepDescription}
+                howItWorksExpanded={howItWorksExpanded}
+                onToggleHowItWorks={() =>
+                  setHowItWorksExpanded(!howItWorksExpanded)
+                }
+                onGoStep1={handleStep1Navigation}
+                onGoStep2={handleStep2Navigation}
+                onGoStep3={handleStep3Navigation}
+              />
+
+              <ReservationTourSelectionSidebarCard
+                step={step}
+                paymentConfirmed={paymentConfirmed}
+                isLoadingPackages={isLoadingPackages}
+                selectedPackage={selectedPackage}
+                highlightsExpanded={highlightsExpanded}
+                carouselIndex={carouselIndex}
+                dateVisible={dateVisible}
+                dateMounted={dateMounted}
+                tourPackage={tourPackage}
+                tourDate={tourDate}
+                errors={errors}
+                tourDateOptions={tourDateOptions}
+                setShowTourModal={setShowTourModal}
+                setHighlightsExpanded={setHighlightsExpanded}
+                setIsCarouselPaused={setIsCarouselPaused}
+                setCarouselIndex={setCarouselIndex}
+                setTourDate={setTourDate}
+              />
+            </aside>
+
+            <div className="space-y-6 min-w-0 lg:p-8 lg:min-h-screen">
+              <Step1PersonalReservationSection {...step1SectionProps} />
+
+              {/* STEP 2 - PAYMENT */}
+              {step === 2 && (
+                <div className="rounded-2xl bg-card p-6 sm:p-8 border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
+                  <Step2PaymentHeader />
+
+                  <Step2PaymentStatePanel
+                    tourPackage={tourPackage}
+                    paymentConfirmed={paymentConfirmed}
+                    step2Processing={step2Processing}
+                  >
+                    <Step2ReservationSummaryCard
+                      bookingType={bookingType}
+                      tourPackage={tourPackage}
+                      tourPackages={tourPackages}
+                      numberOfPeople={numberOfPeople}
+                      baseReservationFee={baseReservationFee}
+                      depositAmount={depositAmount}
+                    />
+
+                    <StripePayment
+                      tourPackageId={tourPackage}
+                      tourPackageName={selectedPackage?.name || ""}
+                      email={email}
+                      amountGBP={depositAmount}
+                      bookingId={bookingId || "PENDING"}
+                      paymentDocId={paymentDocId}
+                      bookingType={bookingType}
+                      numberOfGuests={numberOfPeople}
+                      onSuccess={(pid, docId) => {
+                        handlePaymentSuccess(pid, docId);
+                      }}
+                      onError={() => {}}
+                      onProcessingChange={(p) => setStep2Processing(p)}
+                    />
+                  </Step2PaymentStatePanel>
+                </div>
+              )}
+              {/* STEP 3 - PAYMENT PLAN */}
+              {(step as number) === 3 && (
+                <div className="rounded-lg bg-card/80 backdrop-blur-md p-4 sm:p-6 border border-border shadow-xl space-y-6">
+                  <Step3ReservationConfirmedBanner bookingId={bookingId} />
+
+                  <Step3PaymentPlanSelectorCard
+                    activePaymentTab={activePaymentTab}
+                    onActivePaymentTabChange={setActivePaymentTab}
+                    paymentPlans={paymentPlans}
+                    guestDetails={guestDetails}
+                    selectedTourPrice={selectedTourPrice}
+                    depositAmount={depositAmount}
+                    numberOfPeople={numberOfPeople}
+                    availablePaymentTerm={availablePaymentTerm}
+                    availablePaymentPlans={availablePaymentPlans}
+                    onSelectPaymentPlanForActiveTraveler={
+                      handleSelectPaymentPlanForActiveTraveler
+                    }
+                  />
+                </div>
+              )}
+
+              {/* Step footer actions */}
+              <StepFooterActionsSection {...stepFooterActionsProps} />
+            </div>
           </div>
         </div>
       </div>

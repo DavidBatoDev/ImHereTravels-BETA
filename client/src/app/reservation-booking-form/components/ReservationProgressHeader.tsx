@@ -26,20 +26,20 @@ export default function ReservationProgressHeader({
   onGoStep3,
 }: ReservationProgressHeaderProps) {
   return (
-    <div className="mb-2">
-      <div className="flex items-center gap-4">
+    <div className="mb-1 lg:mb-0">
+      <div className="flex items-center gap-2">
         <div className="flex-1">
           <h2
             id="reservation-form-title"
-            className="text-2xl sm:text-3xl font-hk-grotesk font-bold text-foreground mb-2"
+            className="text-xl sm:text-2xl font-hk-grotesk font-bold text-foreground lg:text-white mb-1"
           >
             Reserve your tour spot
           </h2>
-          <p className="text-sm sm:text-base text-foreground/80 mb-1 leading-relaxed font-medium">
+          <p className="text-xs sm:text-sm text-foreground/80 lg:text-white/90 mb-0.5 leading-relaxed font-medium">
             Choose your tour name and date, pay the down payment, then complete
             your payment plan to secure your spot.
           </p>
-          <p className="text-xs text-foreground/70 flex items-center gap-1.5 font-medium">
+          <p className="text-[11px] sm:text-xs text-foreground/70 lg:text-white/80 flex items-center gap-1 font-medium">
             <svg
               className="w-4 h-4"
               fill="none"
@@ -58,27 +58,27 @@ export default function ReservationProgressHeader({
         </div>
       </div>
 
-      <div className="relative w-full bg-muted/30 backdrop-blur-sm rounded-full h-3 overflow-hidden shadow-inner border border-border/50">
+      <div className="relative w-full bg-muted/30 lg:bg-white/20 backdrop-blur-sm rounded-full h-2.5 overflow-hidden shadow-inner border border-border/50 lg:border-white/40">
         <div
-          className={`h-full bg-gradient-to-r from-primary via-crimson-red to-spring-green rounded-full transition-all duration-500 ease-out shadow-lg relative ${progressWidth}`}
+          className={`h-full bg-gradient-to-r from-[#EF3340] via-[#f2616c] to-[#3dc983] rounded-full transition-all duration-500 ease-out shadow-lg relative ${progressWidth}`}
         >
           <div className="absolute inset-0 bg-white/10 dark:bg-white/5 animate-pulse rounded-full"></div>
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-4 text-xs sm:text-sm">
+      <div className="mt-3 grid grid-cols-3 gap-2 sm:gap-3 text-xs">
         <button
           type="button"
           onClick={onGoStep1}
           className="flex items-center gap-1.5 sm:gap-2 transition-all duration-200 hover:opacity-80 cursor-pointer group"
         >
           <div
-            className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-200 ${
+            className={`h-7 w-7 sm:h-8 sm:w-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200 ${
               step === 1
-                ? "bg-gradient-to-br from-primary to-crimson-red text-primary-foreground shadow-lg scale-110 ring-2 ring-primary/30"
+                ? "bg-white text-[#EF3340] shadow-lg scale-110 ring-2 ring-white/50"
                 : completedSteps.includes(1)
-                  ? "bg-green-500/20 text-green-600 dark:text-green-400 shadow-md group-hover:scale-105 ring-2 ring-green-500/30"
-                  : "bg-muted text-foreground group-hover:scale-105"
+                  ? "bg-white/30 text-white shadow-md group-hover:scale-105 ring-2 ring-white/20"
+                  : "bg-white/20 text-white/90 group-hover:scale-105"
             }`}
           >
             {completedSteps.includes(1) && step !== 1 ? (
@@ -95,14 +95,18 @@ export default function ReservationProgressHeader({
           </div>
           <div
             className={`hidden sm:block font-semibold ${
-              step === 1 ? "text-foreground" : "text-foreground/70"
+              step === 1
+                ? "text-foreground lg:text-white"
+                : "text-foreground/70 lg:text-white/75"
             }`}
           >
             Personal & Booking
           </div>
           <div
             className={`sm:hidden font-semibold ${
-              step === 1 ? "text-foreground" : "text-foreground/70"
+              step === 1
+                ? "text-foreground lg:text-white"
+                : "text-foreground/70 lg:text-white/75"
             }`}
           >
             Personal
@@ -120,14 +124,14 @@ export default function ReservationProgressHeader({
           }`}
         >
           <div
-            className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-200 ${
+            className={`h-7 w-7 sm:h-8 sm:w-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200 ${
               step === 2
-                ? "bg-gradient-to-br from-primary to-crimson-red text-primary-foreground shadow-lg scale-110 ring-2 ring-primary/30"
+                ? "bg-white text-[#EF3340] shadow-lg scale-110 ring-2 ring-white/50"
                 : completedSteps.includes(2)
-                  ? "bg-white text-green-600 shadow-md group-hover:scale-105 ring-2 ring-green-500/30"
+                  ? "bg-white/30 text-white shadow-md group-hover:scale-105 ring-2 ring-white/20"
                   : step === 1
-                    ? "bg-muted/50 text-muted-foreground"
-                    : "bg-muted text-foreground group-hover:scale-105"
+                    ? "bg-white/20 text-white/75"
+                    : "bg-white/20 text-white/90 group-hover:scale-105"
             }`}
           >
             {completedSteps.includes(2) && step !== 2 ? (
@@ -144,7 +148,9 @@ export default function ReservationProgressHeader({
           </div>
           <div
             className={`font-semibold ${
-              step === 2 ? "text-foreground" : "text-foreground/70"
+              step === 2
+                ? "text-foreground lg:text-white"
+                : "text-foreground/70 lg:text-white/75"
             }`}
           >
             Payment
@@ -162,26 +168,30 @@ export default function ReservationProgressHeader({
           }`}
         >
           <div
-            className={`h-8 w-8 sm:h-9 sm:w-9 rounded-full flex items-center justify-center text-sm font-semibold transition-all duration-200 ${
+            className={`h-7 w-7 sm:h-8 sm:w-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200 ${
               step === 3
-                ? "bg-gradient-to-br from-[#EF3340] to-[#FF8200] text-white shadow-lg scale-110 ring-2 ring-[#EF3340]/30"
+                ? "bg-white text-[#EF3340] shadow-lg scale-110 ring-2 ring-white/50"
                 : !paymentConfirmed
-                  ? "bg-[#1C1F2A]/10 dark:bg-muted/50 text-[#1C1F2A]/40 dark:text-muted-foreground"
-                  : "bg-[#1C1F2A]/15 dark:bg-muted text-[#1C1F2A] dark:text-foreground group-hover:scale-105"
+                  ? "bg-white/20 text-white/75"
+                  : "bg-white/20 text-white/90 group-hover:scale-105"
             }`}
           >
             3
           </div>
           <div
             className={`hidden sm:block font-semibold ${
-              step === 3 ? "text-foreground" : "text-foreground/70"
+              step === 3
+                ? "text-foreground lg:text-white"
+                : "text-foreground/70 lg:text-white/75"
             }`}
           >
             Payment plan
           </div>
           <div
             className={`sm:hidden font-semibold ${
-              step === 3 ? "text-foreground" : "text-foreground/70"
+              step === 3
+                ? "text-foreground lg:text-white"
+                : "text-foreground/70 lg:text-white/75"
             }`}
           >
             Plan
@@ -189,7 +199,7 @@ export default function ReservationProgressHeader({
         </button>
       </div>
 
-      <div className="mt-6 rounded-2xl bg-card border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl overflow-hidden transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
+      {/* <div className="mt-6 rounded-2xl bg-card border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-lg dark:shadow-xl overflow-hidden transition-all duration-300 hover:border-crimson-red hover:shadow-crimson-red/20 hover:shadow-xl">
         <button
           onClick={onToggleHowItWorks}
           className="w-full p-6 flex items-center gap-4 hover:bg-muted/50 dark:hover:bg-white/5 transition-colors duration-200"
@@ -297,7 +307,7 @@ export default function ReservationProgressHeader({
             </motion.div>
           )}
         </AnimatePresence>
-      </div>
+      </div> */}
     </div>
   );
 }

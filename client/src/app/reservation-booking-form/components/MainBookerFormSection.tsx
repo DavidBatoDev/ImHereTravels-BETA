@@ -339,12 +339,12 @@ export default function MainBookerFormSection({
           )}
         </label>
 
-        <label className="block relative">
+        <label className="block relative min-w-0">
           <span className="text-sm font-semibold text-foreground flex items-center gap-2">
             WhatsApp number
             <span className="text-destructive text-xs">*</span>
           </span>
-          <div className="relative mt-1 flex items-stretch gap-2">
+          <div className="relative mt-1 flex min-w-0 items-stretch gap-2">
             <Select
               value={whatsAppCountry}
               onChange={(code) => {
@@ -380,7 +380,7 @@ export default function MainBookerFormSection({
               ariaLabel="Country Code"
               disabled={paymentConfirmed}
               searchable
-              className={`w-[160px] flex-shrink-0 ${paymentConfirmed ? "disabled-hover" : ""}`}
+              className={`basis-[136px] min-w-[120px] max-w-[160px] sm:basis-[160px] ${paymentConfirmed ? "disabled-hover" : ""}`}
             />
             <div className="flex-1 relative min-w-0">
               <div

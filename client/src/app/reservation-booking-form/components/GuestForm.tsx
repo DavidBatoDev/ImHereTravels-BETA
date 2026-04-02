@@ -361,12 +361,12 @@ const GuestForm = memo(
           </label>
 
           {/* Guest WhatsApp Number */}
-          <label className="block relative">
+          <label className="block relative min-w-0">
             <span className="text-sm font-semibold text-foreground flex items-center gap-2">
               WhatsApp number
               <span className="text-destructive text-xs">*</span>
             </span>
-            <div className="relative mt-1 flex items-stretch gap-2">
+            <div className="relative mt-1 flex min-w-0 items-stretch gap-2">
               <Select
                 value={localData.whatsAppCountry}
                 onChange={(code) => {
@@ -404,7 +404,7 @@ const GuestForm = memo(
                 ariaLabel="Country Code"
                 disabled={paymentConfirmed}
                 searchable
-                className={`w-[160px] flex-shrink-0 ${
+                className={`basis-[136px] min-w-[120px] max-w-[160px] sm:basis-[160px] ${
                   paymentConfirmed ? "disabled-hover" : ""
                 }`}
               />
