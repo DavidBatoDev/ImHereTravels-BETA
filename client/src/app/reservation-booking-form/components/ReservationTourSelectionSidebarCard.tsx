@@ -401,27 +401,57 @@ export default function ReservationTourSelectionSidebarCard({
               </div>
             </div>
           ) : (
-            <button
-              type="button"
-              className="mt-1 inline-flex items-center gap-2 text-sm font-semibold text-[#EF3340] underline underline-offset-4 hover:text-[#c92b36] transition-colors disabled:cursor-not-allowed disabled:opacity-70"
-              onClick={() => setShowTourModal(true)}
-              disabled={isSelectionLocked}
-            >
-              <svg
-                className="w-4 h-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 4v16m8-8H4"
-                />
-              </svg>
-              Select Tour
-            </button>
+            <div className="mt-1 rounded-xl border border-dashed border-border bg-card p-5 text-center">
+              <div className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                <svg
+                  className="h-5 w-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 20l-5.447-2.724A2 2 0 013 15.382V6.618a2 2 0 011.106-1.789l5.788-2.894a2 2 0 011.788 0l5.788 2.894A2 2 0 0118.579 6v9m-6.579 5h8m-4-4v8"
+                  />
+                </svg>
+              </div>
+              <h4 className="text-sm font-semibold text-foreground">
+                No tour selected yet
+              </h4>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Choose your adventure first, then select your preferred tour
+                date.
+              </p>
+
+              {!isSelectionLocked ? (
+                <button
+                  type="button"
+                  className="mt-4 inline-flex items-center gap-2 rounded-lg bg-[#EF3340] px-3.5 py-2 text-sm font-semibold text-white hover:bg-[#d72e3a] transition-colors"
+                  onClick={() => setShowTourModal(true)}
+                >
+                  <svg
+                    className="h-4 w-4"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  Select Tour
+                </button>
+              ) : (
+                <p className="mt-3 text-xs italic text-muted-foreground">
+                  Tour selection is locked in this step.
+                </p>
+              )}
+            </div>
           )}
 
           {errors.tourPackage && (
