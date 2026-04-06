@@ -799,6 +799,8 @@ const Page = () => {
     previousStepRef.current = step;
   }, [step]);
 
+  const shouldCenterRightPanel = step === 1;
+
   return (
     <div
       className={`relative theme-transition bg-background overflow-x-hidden ${
@@ -894,121 +896,125 @@ const Page = () => {
             </aside>
 
             <div
-              className={`space-y-6 min-w-0 overflow-x-hidden lg:h-full lg:min-h-0 lg:overflow-y-auto lg:px-8 lg:py-8 scrollbar-hide ${
+              className={`min-w-0 overflow-x-hidden lg:h-full lg:min-h-0 lg:overflow-y-auto lg:px-8 lg:py-8 lg:flex ${
+                shouldCenterRightPanel ? "lg:items-center" : "lg:items-start"
+              } scrollbar-hide ${
                 showTourModal ? "lg:overflow-hidden" : ""
               }`}
             >
-              <AnimatePresence mode="wait" initial={false} custom={stepSwipeDirection}>
-                <motion.div
-                  key={`reservation-step-${step}`}
-                  custom={stepSwipeDirection}
-                  initial={{ opacity: 0, x: stepSwipeDirection > 0 ? 42 : -42 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: stepSwipeDirection > 0 ? -42 : 42 }}
-                  transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
-                  className="space-y-6"
-                >
-                  {step === 1 && (
-                    <Step1PersonalReservationSection {...step1SectionProps} />
-                  )}
+              <div className="mx-auto w-full max-w-[760px]">
+                <AnimatePresence mode="wait" initial={false} custom={stepSwipeDirection}>
+                  <motion.div
+                    key={`reservation-step-${step}`}
+                    custom={stepSwipeDirection}
+                    initial={{ opacity: 0, x: stepSwipeDirection > 0 ? 42 : -42 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: stepSwipeDirection > 0 ? -42 : 42 }}
+                    transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                    className="space-y-6"
+                  >
+                    {step === 1 && (
+                      <Step1PersonalReservationSection {...step1SectionProps} />
+                    )}
 
-                  {/* STEP 2 - PAYMENT */}
-                  {step === 2 && (
-                    <div className="space-y-4">
-                      <Step2PaymentHeader />
+                    {/* STEP 2 - PAYMENT */}
+                    {step === 2 && (
+                      <div className="space-y-4">
+                        <Step2PaymentHeader />
 
-                      <Step2PaymentStatePanel
-                        tourPackage={tourPackage}
-                        paymentConfirmed={paymentConfirmed}
-                        step2Processing={step2Processing}
-                      >
-                        <Step2ReservationSummaryCard
-                          bookingType={bookingType}
+                        <Step2PaymentStatePanel
                           tourPackage={tourPackage}
-                          tourPackages={tourPackages}
-                          numberOfPeople={numberOfPeople}
-                          baseReservationFee={baseReservationFee}
-                          depositAmount={depositAmount}
-                        />
+                          paymentConfirmed={paymentConfirmed}
+                          step2Processing={step2Processing}
+                        >
+                          <Step2ReservationSummaryCard
+                            bookingType={bookingType}
+                            tourPackage={tourPackage}
+                            tourPackages={tourPackages}
+                            numberOfPeople={numberOfPeople}
+                            baseReservationFee={baseReservationFee}
+                            depositAmount={depositAmount}
+                          />
 
-                        <StripePayment
-                          tourPackageId={tourPackage}
-                          tourPackageName={selectedPackage?.name || ""}
-                          email={email}
-                          amountGBP={depositAmount}
-                          bookingId={bookingId || "PENDING"}
-                          paymentDocId={paymentDocId}
-                          bookingType={bookingType}
-                          numberOfGuests={numberOfPeople}
-                          onSuccess={(pid, docId) => {
-                            handlePaymentSuccess(pid, docId);
-                          }}
-                          onError={() => {}}
-                          onProcessingChange={(p) => setStep2Processing(p)}
-                        />
-                      </Step2PaymentStatePanel>
-                    </div>
-                  )}
-                  {/* STEP 3 - PAYMENT PLAN */}
-                  {(step as number) === 3 && (
-                    <div className="space-y-6">
-                      {paymentConfirmed ? (
-                        <Step3ReservationConfirmedBanner bookingId={bookingId} />
-                      ) : (
-                        <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl">
-                          <div className="flex items-start gap-3">
-                            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-amber-500 text-white flex-shrink-0">
-                              <svg
-                                className="h-5 w-5"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                aria-hidden
-                              >
-                                <path
-                                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                />
-                              </svg>
-                            </div>
-                            <div>
-                              <p className="font-semibold text-foreground text-sm sm:text-base">
-                                Preview available payment plans
-                              </p>
-                              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-                                You are previewing payment terms for your selected
-                                tour date. Plan selection unlocks after you complete
-                                Step 2 payment.
-                              </p>
+                          <StripePayment
+                            tourPackageId={tourPackage}
+                            tourPackageName={selectedPackage?.name || ""}
+                            email={email}
+                            amountGBP={depositAmount}
+                            bookingId={bookingId || "PENDING"}
+                            paymentDocId={paymentDocId}
+                            bookingType={bookingType}
+                            numberOfGuests={numberOfPeople}
+                            onSuccess={(pid, docId) => {
+                              handlePaymentSuccess(pid, docId);
+                            }}
+                            onError={() => {}}
+                            onProcessingChange={(p) => setStep2Processing(p)}
+                          />
+                        </Step2PaymentStatePanel>
+                      </div>
+                    )}
+                    {/* STEP 3 - PAYMENT PLAN */}
+                    {(step as number) === 3 && (
+                      <div className="space-y-6">
+                        {paymentConfirmed ? (
+                          <Step3ReservationConfirmedBanner bookingId={bookingId} />
+                        ) : (
+                          <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl">
+                            <div className="flex items-start gap-3">
+                              <div className="flex items-center justify-center h-8 w-8 rounded-full bg-amber-500 text-white flex-shrink-0">
+                                <svg
+                                  className="h-5 w-5"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  aria-hidden
+                                >
+                                  <path
+                                    d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                  />
+                                </svg>
+                              </div>
+                              <div>
+                                <p className="font-semibold text-foreground text-sm sm:text-base">
+                                  Preview available payment plans
+                                </p>
+                                <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                                  You are previewing payment terms for your selected
+                                  tour date. Plan selection unlocks after you complete
+                                  Step 2 payment.
+                                </p>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        )}
 
-                      <Step3PaymentPlanSelectorCard
-                        activePaymentTab={activePaymentTab}
-                        onActivePaymentTabChange={setActivePaymentTab}
-                        paymentPlans={paymentPlans}
-                        guestDetails={guestDetails}
-                        selectedTourPrice={selectedTourPrice}
-                        depositAmount={depositAmount}
-                        numberOfPeople={numberOfPeople}
-                        availablePaymentTerm={availablePaymentTerm}
-                        availablePaymentPlans={availablePaymentPlans}
-                        selectionLocked={!canSelectStep3Plans}
-                        onSelectPaymentPlanForActiveTraveler={
-                          handleSelectPaymentPlanForActiveTraveler
-                        }
-                      />
-                    </div>
-                  )}
+                        <Step3PaymentPlanSelectorCard
+                          activePaymentTab={activePaymentTab}
+                          onActivePaymentTabChange={setActivePaymentTab}
+                          paymentPlans={paymentPlans}
+                          guestDetails={guestDetails}
+                          selectedTourPrice={selectedTourPrice}
+                          depositAmount={depositAmount}
+                          numberOfPeople={numberOfPeople}
+                          availablePaymentTerm={availablePaymentTerm}
+                          availablePaymentPlans={availablePaymentPlans}
+                          selectionLocked={!canSelectStep3Plans}
+                          onSelectPaymentPlanForActiveTraveler={
+                            handleSelectPaymentPlanForActiveTraveler
+                          }
+                        />
+                      </div>
+                    )}
 
-                  {/* Step footer actions */}
-                  <StepFooterActionsSection {...stepFooterActionsProps} />
-                </motion.div>
-              </AnimatePresence>
+                    {/* Step footer actions */}
+                    <StepFooterActionsSection {...stepFooterActionsProps} />
+                  </motion.div>
+                </AnimatePresence>
+              </div>
             </div>
           </div>
         </div>

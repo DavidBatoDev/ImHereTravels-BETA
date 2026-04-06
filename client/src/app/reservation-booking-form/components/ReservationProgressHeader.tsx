@@ -1,4 +1,5 @@
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useEffect, useState } from "react";
 
 type ReservationProgressHeaderProps = {
   step: number;
@@ -26,7 +27,14 @@ export default function ReservationProgressHeader({
   onGoStep3,
 }: ReservationProgressHeaderProps) {
   const prefersReducedMotion = useReducedMotion();
-  const reducedMotion = Boolean(prefersReducedMotion);
+  const [hasMounted, setHasMounted] = useState(false);
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  // Keep SSR and first client render identical to avoid hydration mismatches.
+  const reducedMotion = hasMounted ? Boolean(prefersReducedMotion) : false;
 
   return (
     <div className="mb-1 lg:mb-0">
@@ -34,36 +42,36 @@ export default function ReservationProgressHeader({
         <div className="flex-1">
           <h2
             id="reservation-form-title"
-            className="text-xl sm:text-2xl font-hk-grotesk font-bold text-white mb-1"
+            className="text-2xl sm:text-3xl font-hk-grotesk font-bold text-white mb-1"
           >
             Reserve your tour spot
           </h2>
-          <div className="min-h-[38px] sm:min-h-[44px]">
+          <div className="min-h-[46px] sm:min-h-[52px]">
             <AnimatePresence mode="wait" initial={false}>
               <motion.p
                 key={`step-copy-${step}-${stepDescription}`}
                 initial={
-                  prefersReducedMotion
+                  reducedMotion
                     ? { opacity: 1, y: 0, filter: "blur(0px)" }
                     : { opacity: 0, y: 10, filter: "blur(4px)" }
                 }
                 animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
                 exit={
-                  prefersReducedMotion
+                  reducedMotion
                     ? { opacity: 0 }
                     : { opacity: 0, y: -10, filter: "blur(4px)" }
                 }
                 transition={{
-                  duration: prefersReducedMotion ? 0 : 0.36,
+                  duration: reducedMotion ? 0 : 0.36,
                   ease: [0.22, 1, 0.36, 1],
                 }}
-                className="text-xs sm:text-sm text-white/90 mb-0.5 leading-relaxed font-medium"
+                className="text-sm sm:text-base text-white/90 mb-0.5 leading-relaxed font-medium"
               >
                 {stepDescription}
               </motion.p>
             </AnimatePresence>
           </div>
-          <p className="text-[11px] sm:text-xs text-white/80 flex items-center gap-1 font-medium">
+          <p className="text-xs sm:text-sm text-white/80 flex items-center gap-1 font-medium">
             <svg
               className="w-4 h-4"
               fill="none"
@@ -93,7 +101,7 @@ export default function ReservationProgressHeader({
             ease: [0.22, 1, 0.36, 1],
           }}
           style={{
-            background:
+            backgroundImage:
               "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0) 100%)",
           }}
         />
@@ -147,7 +155,7 @@ export default function ReservationProgressHeader({
                 : { duration: 2.1, repeat: Infinity, ease: "easeInOut" }
             }
             style={{
-              background:
+              backgroundImage:
                 "radial-gradient(circle at 30% 50%, rgba(255,255,255,0.42), transparent 62%)",
             }}
           />
@@ -164,7 +172,7 @@ export default function ReservationProgressHeader({
                 : { duration: 2.45, repeat: Infinity, ease: [0.22, 1, 0.36, 1] }
             }
             style={{
-              background:
+              backgroundImage:
                 "linear-gradient(90deg, rgba(239,51,64,0) 0%, rgba(239,51,64,0.56) 48%, rgba(239,51,64,0) 100%)",
             }}
           />
@@ -181,7 +189,7 @@ export default function ReservationProgressHeader({
         />
       </div>
 
-      <div className="mt-3 grid grid-cols-3 gap-2 sm:gap-3 text-xs">
+      <div className="mt-3 grid grid-cols-3 gap-2 sm:gap-3 text-sm">
         <button
           type="button"
           onClick={onGoStep1}
