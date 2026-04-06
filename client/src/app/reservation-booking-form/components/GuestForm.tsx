@@ -21,11 +21,9 @@ const fieldBase =
   "mt-1 block w-full px-4 py-3 rounded-lg bg-input text-foreground placeholder:text-muted-foreground/60 transition-all duration-200 shadow-sm disabled:opacity-50 disabled:bg-muted/40 disabled:cursor-not-allowed disabled:text-muted-foreground";
 const fieldWithIcon = "pl-11";
 const fieldFocus =
-  "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 focus:shadow-md hover:border-primary/50";
+  "focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 focus:shadow-md hover:border-primary/50 disabled:focus:outline-none disabled:focus:ring-0 disabled:hover:border-primary/50 disabled:hover:shadow-sm";
 const fieldBorder = (hasError: boolean) =>
-  hasError
-    ? "border-destructive bg-destructive/5"
-    : "border-border/50 bg-background/50 hover:bg-background/80";
+  `border-2 ${hasError ? "border-destructive" : "border-border"}`;
 
 // Helper functions (copied from page.tsx to be self-contained)
 const safeGetCountryCallingCode = (countryCode: string): string => {
@@ -170,10 +168,10 @@ const GuestForm = memo(
 
     return (
       <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        exit={{ opacity: 0, scale: 0.95 }}
-        transition={{ duration: 0.3 }}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
       >
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
           {/* Guest Email */}
@@ -256,14 +254,16 @@ const GuestForm = memo(
               Birthdate
               <span className="text-destructive text-xs">*</span>
             </span>
-            <BirthdatePicker
-              value={localData.birthdate}
-              onChange={(val) => handleImmediateUpdate({ birthdate: val })}
-              isValid={
-                !!localData.birthdate && !errors[`guest-${index}-birthdate`]
-              }
-              disabled={paymentConfirmed}
-            />
+            <div className="relative">
+              <BirthdatePicker
+                value={localData.birthdate}
+                onChange={(val) => handleImmediateUpdate({ birthdate: val })}
+                isValid={
+                  !!localData.birthdate && !errors[`guest-${index}-birthdate`]
+                }
+                disabled={paymentConfirmed}
+              />
+            </div>
             {errors[`guest-${index}-birthdate`] && (
               <p className="mt-1.5 text-xs text-destructive flex items-center gap-1">
                 <svg
@@ -283,23 +283,40 @@ const GuestForm = memo(
           </label>
 
           {/* Guest First Name */}
-          <label className="block">
+          <label className="block relative group">
             <span className="text-sm font-semibold text-foreground flex items-center gap-2">
               First name
               <span className="text-destructive text-xs">*</span>
             </span>
-            <input
-              type="text"
-              value={localData.firstName}
-              onChange={(e) => handleChange("firstName", e.target.value)}
-              placeholder="John"
-              className={`${fieldBase} ${fieldBorder(
-                !!errors[`guest-${index}-firstName`],
-              )} ${
-                localData.firstName ? "border-green-500" : ""
-              } ${fieldFocus}`}
-              disabled={paymentConfirmed}
-            />
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none">
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                  />
+                </svg>
+              </div>
+              <input
+                type="text"
+                value={localData.firstName}
+                onChange={(e) => handleChange("firstName", e.target.value)}
+                placeholder="John"
+                className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
+                  !!errors[`guest-${index}-firstName`],
+                )} ${
+                  localData.firstName ? "border-green-500" : ""
+                } ${fieldFocus}`}
+                disabled={paymentConfirmed}
+              />
+            </div>
             {errors[`guest-${index}-firstName`] && (
               <p className="mt-1.5 text-xs text-destructive">
                 {errors[`guest-${index}-firstName`]}
@@ -308,21 +325,40 @@ const GuestForm = memo(
           </label>
 
           {/* Guest Last Name */}
-          <label className="block">
+          <label className="block relative group">
             <span className="text-sm font-semibold text-foreground flex items-center gap-2">
               Last name
               <span className="text-destructive text-xs">*</span>
             </span>
-            <input
-              type="text"
-              value={localData.lastName}
-              onChange={(e) => handleChange("lastName", e.target.value)}
-              placeholder="Doe"
-              className={`${fieldBase} ${fieldBorder(
-                !!errors[`guest-${index}-lastName`],
-              )} ${localData.lastName ? "border-green-500" : ""} ${fieldFocus}`}
-              disabled={paymentConfirmed}
-            />
+            <div className="relative">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors pointer-events-none">
+                <svg
+                  className="w-5 h-5"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                  />
+                </svg>
+              </div>
+              <input
+                type="text"
+                value={localData.lastName}
+                onChange={(e) => handleChange("lastName", e.target.value)}
+                placeholder="Doe"
+                className={`${fieldBase} ${fieldWithIcon} ${fieldBorder(
+                  !!errors[`guest-${index}-lastName`],
+                )} ${
+                  localData.lastName ? "border-green-500" : ""
+                } ${fieldFocus}`}
+                disabled={paymentConfirmed}
+              />
+            </div>
             {errors[`guest-${index}-lastName`] && (
               <p className="mt-1.5 text-xs text-destructive">
                 {errors[`guest-${index}-lastName`]}

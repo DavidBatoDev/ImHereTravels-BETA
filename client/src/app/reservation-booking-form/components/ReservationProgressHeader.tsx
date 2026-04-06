@@ -1,10 +1,10 @@
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 type ReservationProgressHeaderProps = {
   step: number;
   completedSteps: number[];
-  paymentConfirmed: boolean;
-  progressWidth: string;
+  canPreviewStep3: boolean;
+  progressValue: number;
   stepDescription: string;
   howItWorksExpanded: boolean;
   onToggleHowItWorks: () => void;
@@ -16,8 +16,8 @@ type ReservationProgressHeaderProps = {
 export default function ReservationProgressHeader({
   step,
   completedSteps,
-  paymentConfirmed,
-  progressWidth,
+  canPreviewStep3,
+  progressValue,
   stepDescription,
   howItWorksExpanded,
   onToggleHowItWorks,
@@ -25,21 +25,45 @@ export default function ReservationProgressHeader({
   onGoStep2,
   onGoStep3,
 }: ReservationProgressHeaderProps) {
+  const prefersReducedMotion = useReducedMotion();
+  const reducedMotion = Boolean(prefersReducedMotion);
+
   return (
     <div className="mb-1 lg:mb-0">
       <div className="flex items-center gap-2">
         <div className="flex-1">
           <h2
             id="reservation-form-title"
-            className="text-xl sm:text-2xl font-hk-grotesk font-bold text-foreground lg:text-white mb-1"
+            className="text-xl sm:text-2xl font-hk-grotesk font-bold text-white mb-1"
           >
             Reserve your tour spot
           </h2>
-          <p className="text-xs sm:text-sm text-foreground/80 lg:text-white/90 mb-0.5 leading-relaxed font-medium">
-            Choose your tour name and date, pay the down payment, then complete
-            your payment plan to secure your spot.
-          </p>
-          <p className="text-[11px] sm:text-xs text-foreground/70 lg:text-white/80 flex items-center gap-1 font-medium">
+          <div className="min-h-[38px] sm:min-h-[44px]">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.p
+                key={`step-copy-${step}-${stepDescription}`}
+                initial={
+                  prefersReducedMotion
+                    ? { opacity: 1, y: 0, filter: "blur(0px)" }
+                    : { opacity: 0, y: 10, filter: "blur(4px)" }
+                }
+                animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                exit={
+                  prefersReducedMotion
+                    ? { opacity: 0 }
+                    : { opacity: 0, y: -10, filter: "blur(4px)" }
+                }
+                transition={{
+                  duration: prefersReducedMotion ? 0 : 0.36,
+                  ease: [0.22, 1, 0.36, 1],
+                }}
+                className="text-xs sm:text-sm text-white/90 mb-0.5 leading-relaxed font-medium"
+              >
+                {stepDescription}
+              </motion.p>
+            </AnimatePresence>
+          </div>
+          <p className="text-[11px] sm:text-xs text-white/80 flex items-center gap-1 font-medium">
             <svg
               className="w-4 h-4"
               fill="none"
@@ -58,12 +82,103 @@ export default function ReservationProgressHeader({
         </div>
       </div>
 
-      <div className="relative w-full bg-muted/30 lg:bg-white/20 backdrop-blur-sm rounded-full h-2.5 overflow-hidden shadow-inner border border-border/50 lg:border-white/40">
-        <div
-          className={`h-full bg-gradient-to-r from-[#EF3340] via-[#f2616c] to-[#3dc983] rounded-full transition-all duration-500 ease-out shadow-lg relative ${progressWidth}`}
+      <div className="relative w-full bg-white/20 backdrop-blur-sm rounded-full h-2.5 overflow-hidden shadow-inner border border-white/40">
+        <motion.div
+          key={`step-progress-flash-${step}`}
+          className="pointer-events-none absolute inset-0 rounded-full"
+          initial={{ opacity: reducedMotion ? 0 : 0.85, scaleX: 0.94 }}
+          animate={{ opacity: 0, scaleX: 1.06 }}
+          transition={{
+            duration: reducedMotion ? 0 : 0.68,
+            ease: [0.22, 1, 0.36, 1],
+          }}
+          style={{
+            background:
+              "linear-gradient(90deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.7) 50%, rgba(255,255,255,0) 100%)",
+          }}
+        />
+
+        <motion.div
+          className="h-full bg-white rounded-full shadow-lg relative overflow-hidden"
+          initial={false}
+          animate={{ width: `${progressValue}%` }}
+          transition={
+            reducedMotion
+              ? { duration: 0 }
+              : { type: "spring", stiffness: 150, damping: 18, mass: 0.82 }
+          }
         >
-          <div className="absolute inset-0 bg-white/10 dark:bg-white/5 animate-pulse rounded-full"></div>
-        </div>
+          <motion.div
+            className="absolute inset-0 opacity-45"
+            style={{
+              backgroundImage:
+                "repeating-linear-gradient(120deg, rgba(239,51,64,0) 0px, rgba(239,51,64,0) 10px, rgba(239,51,64,0.22) 10px, rgba(239,51,64,0.22) 16px)",
+            }}
+            animate={
+              reducedMotion
+                ? { opacity: 0, backgroundPosition: "0px 0px" }
+                : { opacity: 0.45, backgroundPosition: ["0px 0px", "64px 0px"] }
+            }
+            transition={
+              reducedMotion
+                ? { duration: 0 }
+                : { duration: 2.35, repeat: Infinity, ease: "linear" }
+            }
+          />
+
+          <motion.div
+            className="absolute inset-0 rounded-full"
+            animate={
+              reducedMotion
+                ? { opacity: 0.55, scale: 1 }
+                : {
+                    opacity: [0.42, 0.98, 0.42],
+                    scale: [1, 1.04, 1],
+                    filter: [
+                      "saturate(1) brightness(1)",
+                      "saturate(1.2) brightness(1.12)",
+                      "saturate(1) brightness(1)",
+                    ],
+                  }
+            }
+            transition={
+              reducedMotion
+                ? { duration: 0 }
+                : { duration: 2.1, repeat: Infinity, ease: "easeInOut" }
+            }
+            style={{
+              background:
+                "radial-gradient(circle at 30% 50%, rgba(255,255,255,0.42), transparent 62%)",
+            }}
+          />
+          <motion.div
+            className="absolute inset-y-0 -left-1/2 w-1/2"
+            animate={
+              reducedMotion
+                ? { opacity: 0, x: "0%" }
+                : { opacity: 1, x: ["-120%", "315%"] }
+            }
+            transition={
+              reducedMotion
+                ? { duration: 0 }
+                : { duration: 2.45, repeat: Infinity, ease: [0.22, 1, 0.36, 1] }
+            }
+            style={{
+              background:
+                "linear-gradient(90deg, rgba(239,51,64,0) 0%, rgba(239,51,64,0.56) 48%, rgba(239,51,64,0) 100%)",
+            }}
+          />
+        </motion.div>
+
+        <motion.div
+          className="pointer-events-none absolute inset-0 rounded-full border border-white/45"
+          animate={reducedMotion ? { opacity: 0.35 } : { opacity: [0.28, 0.72, 0.28] }}
+          transition={
+            reducedMotion
+              ? { duration: 0 }
+              : { duration: 2.2, repeat: Infinity, ease: "easeInOut" }
+          }
+        />
       </div>
 
       <div className="mt-3 grid grid-cols-3 gap-2 sm:gap-3 text-xs">
@@ -96,8 +211,8 @@ export default function ReservationProgressHeader({
           <div
             className={`hidden sm:block font-semibold ${
               step === 1
-                ? "text-foreground lg:text-white"
-                : "text-foreground/70 lg:text-white/75"
+                ? "text-white"
+                : "text-white/75"
             }`}
           >
             Personal & Booking
@@ -105,8 +220,8 @@ export default function ReservationProgressHeader({
           <div
             className={`sm:hidden font-semibold ${
               step === 1
-                ? "text-foreground lg:text-white"
-                : "text-foreground/70 lg:text-white/75"
+                ? "text-white"
+                : "text-white/75"
             }`}
           >
             Personal
@@ -149,8 +264,8 @@ export default function ReservationProgressHeader({
           <div
             className={`font-semibold ${
               step === 2
-                ? "text-foreground lg:text-white"
-                : "text-foreground/70 lg:text-white/75"
+                ? "text-white"
+                : "text-white/75"
             }`}
           >
             Payment
@@ -160,9 +275,9 @@ export default function ReservationProgressHeader({
         <button
           type="button"
           onClick={onGoStep3}
-          disabled={!paymentConfirmed}
+          disabled={!canPreviewStep3}
           className={`flex items-center gap-1.5 sm:gap-2 transition-all duration-200 group ${
-            !paymentConfirmed
+            !canPreviewStep3
               ? "opacity-50 cursor-not-allowed"
               : "hover:opacity-80 cursor-pointer"
           }`}
@@ -171,7 +286,7 @@ export default function ReservationProgressHeader({
             className={`h-7 w-7 sm:h-8 sm:w-8 rounded-full flex items-center justify-center text-xs font-semibold transition-all duration-200 ${
               step === 3
                 ? "bg-white text-[#EF3340] shadow-lg scale-110 ring-2 ring-white/50"
-                : !paymentConfirmed
+                : !canPreviewStep3
                   ? "bg-white/20 text-white/75"
                   : "bg-white/20 text-white/90 group-hover:scale-105"
             }`}
@@ -181,8 +296,8 @@ export default function ReservationProgressHeader({
           <div
             className={`hidden sm:block font-semibold ${
               step === 3
-                ? "text-foreground lg:text-white"
-                : "text-foreground/70 lg:text-white/75"
+                ? "text-white"
+                : "text-white/75"
             }`}
           >
             Payment plan
@@ -190,8 +305,8 @@ export default function ReservationProgressHeader({
           <div
             className={`sm:hidden font-semibold ${
               step === 3
-                ? "text-foreground lg:text-white"
-                : "text-foreground/70 lg:text-white/75"
+                ? "text-white"
+                : "text-white/75"
             }`}
           >
             Plan

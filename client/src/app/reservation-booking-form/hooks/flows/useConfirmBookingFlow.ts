@@ -11,6 +11,7 @@ type PaymentPlanOption = {
 
 type UseConfirmBookingFlowOptions = {
   db: Firestore;
+  paymentConfirmed: boolean;
   isLastMinute: boolean;
   allPlansSelected: boolean;
   numberOfPeople: number;
@@ -27,6 +28,7 @@ type UseConfirmBookingFlowOptions = {
 
 export const useConfirmBookingFlow = ({
   db,
+  paymentConfirmed,
   isLastMinute,
   allPlansSelected,
   numberOfPeople,
@@ -43,6 +45,7 @@ export const useConfirmBookingFlow = ({
   const handleConfirmBooking = useCallback(async () => {
     await runConfirmBookingAction({
       db,
+      paymentConfirmed,
       isLastMinute,
       allPlansSelected,
       numberOfPeople,
@@ -62,6 +65,7 @@ export const useConfirmBookingFlow = ({
     });
   }, [
     db,
+    paymentConfirmed,
     isLastMinute,
     allPlansSelected,
     numberOfPeople,

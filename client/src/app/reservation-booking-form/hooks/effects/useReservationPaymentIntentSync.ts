@@ -45,9 +45,16 @@ export const useReservationPaymentIntentSync = ({
         const data = await response.json();
 
         if (!response.ok) {
-          if (data.cannotUpdate) {
+          const errorMessage =
+            typeof data?.error === "string" ? data.error : "";
+          const missingIntent =
+            errorMessage.toLowerCase() ===
+            "no payment intent associated with this document";
+
+          if (data.cannotUpdate || missingIntent) {
             console.log(
-              "ℹ️ Payment intent cannot be updated (already in terminal state)",
+              "ℹ️ Skipping payment intent update:",
+              errorMessage || "payment intent cannot be updated",
             );
           } else {
             console.error("Failed to update payment intent:", data.error);

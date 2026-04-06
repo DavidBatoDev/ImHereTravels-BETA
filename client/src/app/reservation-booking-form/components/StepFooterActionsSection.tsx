@@ -140,7 +140,13 @@ export default function StepFooterActionsSection({
       {step > 1 && !bookingConfirmed ? (
         <button
           type="button"
-          onClick={() => setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3) : s))}
+          onClick={() => {
+            if (step === 3 && !paymentConfirmed) {
+              setStep(completedSteps.includes(1) ? 2 : 1);
+              return;
+            }
+            setStep((s) => (s > 1 ? ((s - 1) as 1 | 2 | 3) : s));
+          }}
           className="text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           ← Back
@@ -288,7 +294,32 @@ export default function StepFooterActionsSection({
         </button>
       )}
 
-      {step === 3 && !bookingConfirmed && (
+      {step === 3 && !bookingConfirmed && !paymentConfirmed && (
+        <button
+          type="button"
+          onClick={() => setStep(completedSteps.includes(1) ? 2 : 1)}
+          className="group inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-primary to-crimson-red text-primary-foreground rounded-lg shadow-lg hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 transition-all duration-200 font-semibold"
+        >
+          {completedSteps.includes(1)
+            ? "Continue to Payment"
+            : "Go to Personal & Booking"}
+          <svg
+            className="w-5 h-5 group-hover:translate-x-1 transition-transform"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M13 7l5 5m0 0l-5 5m5-5H6"
+            />
+          </svg>
+        </button>
+      )}
+
+      {step === 3 && !bookingConfirmed && paymentConfirmed && (
         <button
           type="button"
           onClick={handleConfirmBooking}

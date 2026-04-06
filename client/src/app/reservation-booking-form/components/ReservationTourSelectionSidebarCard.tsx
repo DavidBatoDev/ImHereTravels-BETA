@@ -228,7 +228,7 @@ export default function ReservationTourSelectionSidebarCard({
                           type="button"
                           className={`w-full text-left rounded-md px-1.5 py-1 transition-colors ${
                             canOpenDateMenu
-                              ? "hover:bg-muted/60"
+                              ? "cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
                               : "cursor-default"
                           }`}
                           onClick={() => {
@@ -238,7 +238,11 @@ export default function ReservationTourSelectionSidebarCard({
                         >
                           <span className="flex items-center gap-2">
                             <svg
-                              className="w-4 h-4 text-muted-foreground flex-shrink-0"
+                              className={`w-4 h-4 flex-shrink-0 ${
+                                canOpenDateMenu
+                                  ? "text-[#EF3340]"
+                                  : "text-muted-foreground"
+                              }`}
                               fill="none"
                               viewBox="0 0 24 24"
                               stroke="currentColor"
@@ -256,19 +260,19 @@ export default function ReservationTourSelectionSidebarCard({
                                 <span
                                   className={
                                     selectedDateOption
-                                      ? ""
+                                      ? canOpenDateMenu
+                                        ? "text-[#EF3340] font-semibold underline decoration-[#EF3340]/70 underline-offset-4"
+                                        : ""
                                       : "text-emerald-500 underline underline-offset-4"
                                   }
                                 >
                                   {selectedDateOption?.label || displayDate(tourDate)}
                                 </span>
-                                {
-                                  !isSelectionLocked && (
-                                  <span className="text-muted-foreground text-xs font-semibold">
-                                    &gt;&gt;&gt;
+                                {canOpenDateMenu && (
+                                  <span className="text-[#EF3340] text-xs font-semibold">
+                                    Tap to change
                                   </span>
-                                  )
-                                }
+                                )}
                               </span>
                             </span>
                           </span>

@@ -3,8 +3,9 @@
 export const dynamic = "force-dynamic";
 
 import { Suspense } from "react";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   addDoc,
   serverTimestamp,
@@ -29,6 +30,10 @@ import {
   calculateDaysBetween,
   isTourAllDatesTooSoon,
 } from "./utils/bookingFlow";
+import {
+  canPreviewStep3FromSelection,
+  canSelectStep3PlansFromPaymentState,
+} from "./utils/step3Access";
 import {
   getCountryData,
   safeGetCountryCallingCode,
@@ -182,6 +187,8 @@ const Page = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const sideEffects = createDefaultReservationSideEffects({ db, router });
+  const previousStepRef = useRef(step);
+  const stepSwipeDirection = step >= previousStepRef.current ? 1 : -1;
 
   // Get reservation fee from selected package (not the full deposit)
   const selectedPackage = tourPackages.find((p) => p.id === tourPackage);
@@ -205,6 +212,9 @@ const Page = () => {
         ? 2
         : 1;
   const depositAmount = baseReservationFee * numberOfPeople;
+  const canPreviewStep3 = canPreviewStep3FromSelection(tourPackage, tourDate);
+  const canSelectStep3Plans =
+    canSelectStep3PlansFromPaymentState(paymentConfirmed);
 
   const { replaceWithPaymentId } = useReservationUrlSync({
     debug: DEBUG,
@@ -409,8 +419,10 @@ const Page = () => {
     setPaymentPlans,
   });
 
-  const { progressWidth, stepDescription } = useReservationStepPresentation({
+  const { progressValue, stepDescription } = useReservationStepPresentation({
     step,
+    paymentConfirmed,
+    bookingConfirmed,
     selectedPackage,
     bookingType,
     depositAmount,
@@ -419,6 +431,7 @@ const Page = () => {
     availablePaymentTerm,
     tourDate,
     availablePaymentPlansCount: availablePaymentPlans.length,
+    canSelectStep3Plans,
   });
 
   const { validate, isFieldValid, isStep1ContinueDisabled } =
@@ -670,6 +683,7 @@ const Page = () => {
   });
   const { handleConfirmBooking } = useConfirmBookingFlow({
     db,
+    paymentConfirmed,
     isLastMinute: availablePaymentTerm.isLastMinute,
     allPlansSelected,
     numberOfPeople,
@@ -776,18 +790,20 @@ const Page = () => {
   };
 
   const handleStep3Navigation = () => {
-    if (paymentConfirmed) {
+    if (canPreviewStep3) {
       setStep(3);
     }
   };
 
+  useEffect(() => {
+    previousStepRef.current = step;
+  }, [step]);
+
   return (
     <div
-      className={`min-h-screen bg-background relative theme-transition overflow-x-hidden`}
-      style={{
-        overflowY: showTourModal ? "hidden" : "auto",
-        overflowX: "hidden",
-      }}
+      className={`relative theme-transition bg-background overflow-x-hidden ${
+        showTourModal ? "overflow-y-hidden" : "overflow-y-auto"
+      } min-h-screen lg:h-screen lg:overflow-hidden scrollbar-hide`}
     >
       <div className="pointer-events-none absolute inset-0 hidden lg:grid lg:grid-cols-2">
         <div className="bg-[#EF3340]" />
@@ -811,7 +827,7 @@ const Page = () => {
       />
 
       <div
-        className="relative z-10 w-full min-h-screen text-card-foreground px-4 py-6 sm:px-6 sm:py-8 lg:px-0 lg:py-8 lg:flex lg:items-center"
+        className="relative z-10 w-full min-h-screen text-card-foreground px-4 py-6 sm:px-6 sm:py-8 lg:px-0 lg:py-0 lg:h-screen"
         aria-labelledby="reservation-form-title"
       >
         {sessionLoading && (
@@ -828,117 +844,171 @@ const Page = () => {
         </div>
 
         {/* Max-width container for better readability on larger screens */}
-        <div className="mx-auto w-full max-w-[1600px]">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-0 items-stretch">
-            <aside className="space-y-4 lg:bg-[#EF3340] lg:p-5 lg:border-r lg:border-[#d72e3a]">
-              <div className="inline-flex px-2 py-2">
-                <img
-                  src="/logos/Logo_White.svg"
-                  alt="ImHereTravels Logo"
-                  className="h-7 sm:h-8 w-auto object-contain"
-                />
-              </div>
-
-              <ReservationProgressHeader
-                step={step}
-                completedSteps={completedSteps}
-                paymentConfirmed={paymentConfirmed}
-                progressWidth={progressWidth}
-                stepDescription={stepDescription}
-                howItWorksExpanded={howItWorksExpanded}
-                onToggleHowItWorks={() =>
-                  setHowItWorksExpanded(!howItWorksExpanded)
-                }
-                onGoStep1={handleStep1Navigation}
-                onGoStep2={handleStep2Navigation}
-                onGoStep3={handleStep3Navigation}
-              />
-
-              <ReservationTourSelectionSidebarCard
-                step={step}
-                paymentConfirmed={paymentConfirmed}
-                isLoadingPackages={isLoadingPackages}
-                selectedPackage={selectedPackage}
-                highlightsExpanded={highlightsExpanded}
-                carouselIndex={carouselIndex}
-                dateVisible={dateVisible}
-                dateMounted={dateMounted}
-                tourPackage={tourPackage}
-                tourDate={tourDate}
-                errors={errors}
-                tourDateOptions={tourDateOptions}
-                setShowTourModal={setShowTourModal}
-                setHighlightsExpanded={setHighlightsExpanded}
-                setIsCarouselPaused={setIsCarouselPaused}
-                setCarouselIndex={setCarouselIndex}
-                setTourDate={setTourDate}
-              />
-            </aside>
-
-            <div className="space-y-6 min-w-0 lg:p-8">
-              <Step1PersonalReservationSection {...step1SectionProps} />
-
-              {/* STEP 2 - PAYMENT */}
-              {step === 2 && (
-                <div className="space-y-4">
-                  <Step2PaymentHeader />
-
-                  <Step2PaymentStatePanel
-                    tourPackage={tourPackage}
-                    paymentConfirmed={paymentConfirmed}
-                    step2Processing={step2Processing}
-                  >
-                    <Step2ReservationSummaryCard
-                      bookingType={bookingType}
-                      tourPackage={tourPackage}
-                      tourPackages={tourPackages}
-                      numberOfPeople={numberOfPeople}
-                      baseReservationFee={baseReservationFee}
-                      depositAmount={depositAmount}
-                    />
-
-                    <StripePayment
-                      tourPackageId={tourPackage}
-                      tourPackageName={selectedPackage?.name || ""}
-                      email={email}
-                      amountGBP={depositAmount}
-                      bookingId={bookingId || "PENDING"}
-                      paymentDocId={paymentDocId}
-                      bookingType={bookingType}
-                      numberOfGuests={numberOfPeople}
-                      onSuccess={(pid, docId) => {
-                        handlePaymentSuccess(pid, docId);
-                      }}
-                      onError={() => {}}
-                      onProcessingChange={(p) => setStep2Processing(p)}
-                    />
-                  </Step2PaymentStatePanel>
-                </div>
-              )}
-              {/* STEP 3 - PAYMENT PLAN */}
-              {(step as number) === 3 && (
-                <div className="space-y-6">
-                  <Step3ReservationConfirmedBanner bookingId={bookingId} />
-
-                  <Step3PaymentPlanSelectorCard
-                    activePaymentTab={activePaymentTab}
-                    onActivePaymentTabChange={setActivePaymentTab}
-                    paymentPlans={paymentPlans}
-                    guestDetails={guestDetails}
-                    selectedTourPrice={selectedTourPrice}
-                    depositAmount={depositAmount}
-                    numberOfPeople={numberOfPeople}
-                    availablePaymentTerm={availablePaymentTerm}
-                    availablePaymentPlans={availablePaymentPlans}
-                    onSelectPaymentPlanForActiveTraveler={
-                      handleSelectPaymentPlanForActiveTraveler
-                    }
+        <div className="mx-auto w-full max-w-[1600px] lg:h-full">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 lg:gap-0 items-stretch lg:h-full lg:min-h-0">
+            <aside className="-mx-4 -mt-6 sm:-mx-6 sm:-mt-8 lg:mx-0 lg:mt-0 bg-[#EF3340] px-4 py-5 sm:px-5 sm:py-6 lg:px-8 lg:py-10 lg:border-r lg:border-[#d72e3a] lg:h-full lg:min-h-0">
+              <div className="mx-auto w-full max-w-[760px] flex flex-col gap-5 sm:gap-6 lg:h-full lg:justify-center">
+                <div className="inline-flex self-start px-1 py-1">
+                  <img
+                    src="/logos/Logo_White.svg"
+                    alt="ImHereTravels Logo"
+                    className="h-7 sm:h-8 w-auto object-contain"
                   />
                 </div>
-              )}
 
-              {/* Step footer actions */}
-              <StepFooterActionsSection {...stepFooterActionsProps} />
+                <ReservationProgressHeader
+                  step={step}
+                  completedSteps={completedSteps}
+                  canPreviewStep3={canPreviewStep3}
+                  progressValue={progressValue}
+                  stepDescription={stepDescription}
+                  howItWorksExpanded={howItWorksExpanded}
+                  onToggleHowItWorks={() =>
+                    setHowItWorksExpanded(!howItWorksExpanded)
+                  }
+                  onGoStep1={handleStep1Navigation}
+                  onGoStep2={handleStep2Navigation}
+                  onGoStep3={handleStep3Navigation}
+                />
+
+                <ReservationTourSelectionSidebarCard
+                  step={step}
+                  paymentConfirmed={paymentConfirmed}
+                  isLoadingPackages={isLoadingPackages}
+                  selectedPackage={selectedPackage}
+                  highlightsExpanded={highlightsExpanded}
+                  carouselIndex={carouselIndex}
+                  dateVisible={dateVisible}
+                  dateMounted={dateMounted}
+                  tourPackage={tourPackage}
+                  tourDate={tourDate}
+                  errors={errors}
+                  tourDateOptions={tourDateOptions}
+                  setShowTourModal={setShowTourModal}
+                  setHighlightsExpanded={setHighlightsExpanded}
+                  setIsCarouselPaused={setIsCarouselPaused}
+                  setCarouselIndex={setCarouselIndex}
+                  setTourDate={setTourDate}
+                />
+              </div>
+            </aside>
+
+            <div
+              className={`space-y-6 min-w-0 overflow-x-hidden lg:h-full lg:min-h-0 lg:overflow-y-auto lg:px-8 lg:py-8 scrollbar-hide ${
+                showTourModal ? "lg:overflow-hidden" : ""
+              }`}
+            >
+              <AnimatePresence mode="wait" initial={false} custom={stepSwipeDirection}>
+                <motion.div
+                  key={`reservation-step-${step}`}
+                  custom={stepSwipeDirection}
+                  initial={{ opacity: 0, x: stepSwipeDirection > 0 ? 42 : -42 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: stepSwipeDirection > 0 ? -42 : 42 }}
+                  transition={{ duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+                  className="space-y-6"
+                >
+                  {step === 1 && (
+                    <Step1PersonalReservationSection {...step1SectionProps} />
+                  )}
+
+                  {/* STEP 2 - PAYMENT */}
+                  {step === 2 && (
+                    <div className="space-y-4">
+                      <Step2PaymentHeader />
+
+                      <Step2PaymentStatePanel
+                        tourPackage={tourPackage}
+                        paymentConfirmed={paymentConfirmed}
+                        step2Processing={step2Processing}
+                      >
+                        <Step2ReservationSummaryCard
+                          bookingType={bookingType}
+                          tourPackage={tourPackage}
+                          tourPackages={tourPackages}
+                          numberOfPeople={numberOfPeople}
+                          baseReservationFee={baseReservationFee}
+                          depositAmount={depositAmount}
+                        />
+
+                        <StripePayment
+                          tourPackageId={tourPackage}
+                          tourPackageName={selectedPackage?.name || ""}
+                          email={email}
+                          amountGBP={depositAmount}
+                          bookingId={bookingId || "PENDING"}
+                          paymentDocId={paymentDocId}
+                          bookingType={bookingType}
+                          numberOfGuests={numberOfPeople}
+                          onSuccess={(pid, docId) => {
+                            handlePaymentSuccess(pid, docId);
+                          }}
+                          onError={() => {}}
+                          onProcessingChange={(p) => setStep2Processing(p)}
+                        />
+                      </Step2PaymentStatePanel>
+                    </div>
+                  )}
+                  {/* STEP 3 - PAYMENT PLAN */}
+                  {(step as number) === 3 && (
+                    <div className="space-y-6">
+                      {paymentConfirmed ? (
+                        <Step3ReservationConfirmedBanner bookingId={bookingId} />
+                      ) : (
+                        <div className="bg-amber-500/10 border border-amber-500/30 p-4 rounded-xl">
+                          <div className="flex items-start gap-3">
+                            <div className="flex items-center justify-center h-8 w-8 rounded-full bg-amber-500 text-white flex-shrink-0">
+                              <svg
+                                className="h-5 w-5"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                aria-hidden
+                              >
+                                <path
+                                  d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="font-semibold text-foreground text-sm sm:text-base">
+                                Preview available payment plans
+                              </p>
+                              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
+                                You are previewing payment terms for your selected
+                                tour date. Plan selection unlocks after you complete
+                                Step 2 payment.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      <Step3PaymentPlanSelectorCard
+                        activePaymentTab={activePaymentTab}
+                        onActivePaymentTabChange={setActivePaymentTab}
+                        paymentPlans={paymentPlans}
+                        guestDetails={guestDetails}
+                        selectedTourPrice={selectedTourPrice}
+                        depositAmount={depositAmount}
+                        numberOfPeople={numberOfPeople}
+                        availablePaymentTerm={availablePaymentTerm}
+                        availablePaymentPlans={availablePaymentPlans}
+                        selectionLocked={!canSelectStep3Plans}
+                        onSelectPaymentPlanForActiveTraveler={
+                          handleSelectPaymentPlanForActiveTraveler
+                        }
+                      />
+                    </div>
+                  )}
+
+                  {/* Step footer actions */}
+                  <StepFooterActionsSection {...stepFooterActionsProps} />
+                </motion.div>
+              </AnimatePresence>
             </div>
           </div>
         </div>

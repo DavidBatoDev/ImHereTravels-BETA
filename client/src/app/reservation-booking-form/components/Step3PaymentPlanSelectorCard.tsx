@@ -40,6 +40,7 @@ type Step3PaymentPlanSelectorCardProps = {
   numberOfPeople: number;
   availablePaymentTerm: AvailablePaymentTerm;
   availablePaymentPlans: AvailablePaymentPlan[];
+  selectionLocked: boolean;
   onSelectPaymentPlanForActiveTraveler: (planId: string) => void;
 };
 
@@ -53,6 +54,7 @@ export default function Step3PaymentPlanSelectorCard({
   numberOfPeople,
   availablePaymentTerm,
   availablePaymentPlans,
+  selectionLocked,
   onSelectPaymentPlanForActiveTraveler,
 }: Step3PaymentPlanSelectorCardProps) {
   const reservationFeePerPerson = depositAmount / numberOfPeople;
@@ -154,6 +156,11 @@ export default function Step3PaymentPlanSelectorCard({
                     </span>{" "}
                     flexible payment options. Pick what works best:
                   </p>
+                  {selectionLocked && (
+                    <p className="text-xs sm:text-sm text-amber-600 dark:text-amber-400 mb-2.5">
+                      Preview only: plan selection unlocks after Step 2 payment.
+                    </p>
+                  )}
 
                   <div className="space-y-2">
                     {availablePaymentPlans.map((plan) => {
@@ -164,13 +171,17 @@ export default function Step3PaymentPlanSelectorCard({
                         <button
                           key={plan.id}
                           type="button"
-                          onClick={() =>
-                            onSelectPaymentPlanForActiveTraveler(plan.id)
-                          }
+                          onClick={() => {
+                            if (selectionLocked) return;
+                            onSelectPaymentPlanForActiveTraveler(plan.id);
+                          }}
+                          disabled={selectionLocked}
                           className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
                             isSelected
                               ? "border-primary bg-primary/5 shadow-md"
-                              : "border-border bg-card hover:border-primary/50 hover:bg-muted/50"
+                              : selectionLocked
+                                ? "border-border bg-card opacity-80 cursor-not-allowed"
+                                : "border-border bg-card hover:border-primary/50 hover:bg-muted/50"
                           }`}
                         >
                           <div className="flex items-start gap-2.5">
@@ -272,9 +283,11 @@ export default function Step3PaymentPlanSelectorCard({
                     onClick={() =>
                       onActivePaymentTabChange(activePaymentTab + 1)
                     }
-                    disabled={!paymentPlans[activePaymentTab]?.plan}
+                    disabled={
+                      !selectionLocked && !paymentPlans[activePaymentTab]?.plan
+                    }
                     className={`ml-auto px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                      paymentPlans[activePaymentTab]?.plan
+                      selectionLocked || paymentPlans[activePaymentTab]?.plan
                         ? "bg-primary text-primary-foreground hover:shadow-lg"
                         : "bg-muted text-muted-foreground cursor-not-allowed opacity-50"
                     }`}

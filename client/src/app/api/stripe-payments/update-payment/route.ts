@@ -47,7 +47,10 @@ export async function POST(req: NextRequest) {
 
     if (!stripeIntentId) {
       return NextResponse.json(
-        { error: "No payment intent associated with this document" },
+        {
+          error: "No payment intent associated with this document",
+          cannotUpdate: true,
+        },
         { status: 400 }
       );
     }

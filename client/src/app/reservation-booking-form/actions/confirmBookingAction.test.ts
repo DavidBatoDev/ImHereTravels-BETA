@@ -23,6 +23,7 @@ describe("runConfirmBookingAction", () => {
 
     await runConfirmBookingAction({
       db: {} as any,
+      paymentConfirmed: true,
       isLastMinute: false,
       allPlansSelected: false,
       numberOfPeople: 2,
@@ -46,6 +47,40 @@ describe("runConfirmBookingAction", () => {
     expect(setConfirmingBooking).toHaveBeenCalledWith(false);
   });
 
+  it("alerts and returns early when Step 2 payment is not confirmed", async () => {
+    const onAlert = vi.fn();
+    const setConfirmingBooking = vi.fn();
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    await runConfirmBookingAction({
+      db: {} as any,
+      paymentConfirmed: false,
+      isLastMinute: false,
+      allPlansSelected: true,
+      numberOfPeople: 1,
+      paymentPlans: [{ plan: "P1", tourCostShare: 1000, reservationFeeShare: 250 }],
+      availablePaymentPlans: [{ id: "P1", type: "installment", label: "P1" }],
+      bookingId: "",
+      paymentDocId: "doc-1",
+      email: "a@x.com",
+      tourPackage: "tour-1",
+      setConfirmingBooking,
+      setFetchedPaymentPlanLabel: vi.fn(),
+      setBookingConfirmed: vi.fn(),
+      onAlert,
+      onError: vi.fn(),
+    });
+
+    expect(onAlert).toHaveBeenCalledWith(
+      "Please complete Step 2 payment before selecting a payment plan.",
+    );
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(setConfirmingBooking).toHaveBeenCalledWith(true);
+    expect(setConfirmingBooking).toHaveBeenCalledWith(false);
+
+    fetchSpy.mockRestore();
+  });
+
   it("confirms booking and marks bookingConfirmed true on success", async () => {
     const onAlert = vi.fn();
     const setBookingConfirmed = vi.fn();
@@ -62,6 +97,7 @@ describe("runConfirmBookingAction", () => {
 
     await runConfirmBookingAction({
       db: {} as any,
+      paymentConfirmed: true,
       isLastMinute: false,
       allPlansSelected: true,
       numberOfPeople: 1,

@@ -11,8 +11,6 @@ type NationalityOption = {
 };
 
 type MainBookerFormSectionProps = {
-  bookingType: string;
-  activeGuestTab: number;
   paymentConfirmed: boolean;
   errors: { [k: string]: string };
   fieldBase: string;
@@ -46,8 +44,6 @@ type MainBookerFormSectionProps = {
 };
 
 export default function MainBookerFormSection({
-  bookingType,
-  activeGuestTab,
   paymentConfirmed,
   errors,
   fieldBase,
@@ -75,9 +71,7 @@ export default function MainBookerFormSection({
   safeGetCountryCallingCode,
 }: MainBookerFormSectionProps) {
   return (
-    <div
-      className={`transition-all duration-500 ease-in-out ${(bookingType === "Duo Booking" || bookingType === "Group Booking") && activeGuestTab !== 1 ? "opacity-0 scale-95 pointer-events-none absolute" : "opacity-100 scale-100"}`}
-    >
+    <div className="transition-all duration-300 ease-out">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
         <label className="block">
           <span className="text-sm font-semibold text-foreground flex items-center gap-2">

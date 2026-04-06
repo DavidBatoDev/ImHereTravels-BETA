@@ -2,6 +2,8 @@ import { useMemo } from "react";
 
 type UseReservationStepPresentationOptions = {
   step: number;
+  paymentConfirmed: boolean;
+  bookingConfirmed: boolean;
   selectedPackage: unknown;
   bookingType: string;
   depositAmount: number;
@@ -13,9 +15,35 @@ type UseReservationStepPresentationOptions = {
   };
   tourDate: string;
   availablePaymentPlansCount: number;
+  canSelectStep3Plans: boolean;
 };
 
-export const useReservationStepPresentation = ({
+type StepDescriptionArgs = {
+  step: number;
+  selectedPackage: unknown;
+  bookingType: string;
+  depositAmount: number;
+  baseReservationFee: number;
+  numberOfPeople: number;
+  availablePaymentTerm: {
+    isInvalid: boolean;
+    isLastMinute: boolean;
+  };
+  tourDate: string;
+  availablePaymentPlansCount: number;
+  canSelectStep3Plans: boolean;
+};
+
+export const getReservationProgressValue = (
+  paymentConfirmed: boolean,
+  bookingConfirmed: boolean,
+): number => {
+  if (bookingConfirmed) return 100;
+  if (paymentConfirmed) return 66.66;
+  return 33.33;
+};
+
+export const getReservationStepDescription = ({
   step,
   selectedPackage,
   bookingType,
@@ -25,55 +53,101 @@ export const useReservationStepPresentation = ({
   availablePaymentTerm,
   tourDate,
   availablePaymentPlansCount,
-}: UseReservationStepPresentationOptions) => {
-  const progressWidth = useMemo(
-    () => (step === 1 ? "w-1/3" : step === 2 ? "w-2/3" : "w-full"),
-    [step],
-  );
+  canSelectStep3Plans,
+}: StepDescriptionArgs): string => {
+  switch (step) {
+    case 1:
+      return "Fill in your personal details and choose your tour name and date.";
+    case 2:
+      return selectedPackage
+        ? bookingType === "Duo Booking" || bookingType === "Group Booking"
+          ? `Pay GBP ${depositAmount.toFixed(2)} reservation fee (GBP ${baseReservationFee.toFixed(2)} x ${numberOfPeople} ${numberOfPeople === 1 ? "person" : "people"}) to secure your spots.`
+          : `Pay GBP ${depositAmount.toFixed(2)} reservation fee to secure your spot.`
+        : "Pay a small reservation fee to secure your spot.";
+    case 3: {
+      const daysDiff = tourDate
+        ? Math.ceil(
+            (new Date(tourDate).getTime() - new Date().getTime()) /
+              (1000 * 60 * 60 * 24),
+          )
+        : 0;
 
-  const stepDescription = useMemo(() => {
-    switch (step) {
-      case 1:
-        return "Fill in your personal details and select your tour name";
-      case 2:
-        return selectedPackage
-          ? bookingType === "Duo Booking" || bookingType === "Group Booking"
-            ? `Pay £${depositAmount.toFixed(2)} reservation fee (£${baseReservationFee.toFixed(2)} × ${numberOfPeople} ${numberOfPeople === 1 ? "person" : "people"}) to secure your spots`
-            : `Pay £${depositAmount.toFixed(2)} reservation fee to secure your spot`
-          : "Pay a small reservation fee to secure your spot";
-      case 3:
+      if (!canSelectStep3Plans) {
         if (availablePaymentTerm.isInvalid) {
-          return "Tour date too close - immediate payment required";
+          return "Preview only: your selected date is very close and immediate payment terms will apply after Step 2 payment.";
         }
         if (availablePaymentTerm.isLastMinute) {
-          return "Full payment required within 48 hours";
+          return "Preview only: full payment will be required within 48 hours after Step 2 payment.";
         }
-        const daysDiff = tourDate
-          ? Math.ceil(
-              (new Date(tourDate).getTime() - new Date().getTime()) /
-                (1000 * 60 * 60 * 24),
-            )
-          : 0;
-        return `Pick from ${availablePaymentPlansCount} payment plan${
+        return `Preview ${availablePaymentPlansCount} available payment plan${
           availablePaymentPlansCount !== 1 ? "s" : ""
-        } based on your tour date (${daysDiff} days away)`;
-      default:
-        return "";
+        } for your selected tour date (${daysDiff} days away). Complete Step 2 payment to unlock selection.`;
+      }
+
+      if (availablePaymentTerm.isInvalid) {
+        return "Tour date too close - immediate payment required.";
+      }
+      if (availablePaymentTerm.isLastMinute) {
+        return "Full payment required within 48 hours.";
+      }
+      return `Pick from ${availablePaymentPlansCount} payment plan${
+        availablePaymentPlansCount !== 1 ? "s" : ""
+      } based on your tour date (${daysDiff} days away).`;
     }
-  }, [
-    step,
-    selectedPackage,
-    bookingType,
-    depositAmount,
-    baseReservationFee,
-    numberOfPeople,
-    availablePaymentTerm,
-    tourDate,
-    availablePaymentPlansCount,
-  ]);
+    default:
+      return "";
+  }
+};
+
+export const useReservationStepPresentation = ({
+  step,
+  paymentConfirmed,
+  bookingConfirmed,
+  selectedPackage,
+  bookingType,
+  depositAmount,
+  baseReservationFee,
+  numberOfPeople,
+  availablePaymentTerm,
+  tourDate,
+  availablePaymentPlansCount,
+  canSelectStep3Plans,
+}: UseReservationStepPresentationOptions) => {
+  const progressValue = useMemo(
+    () => getReservationProgressValue(paymentConfirmed, bookingConfirmed),
+    [paymentConfirmed, bookingConfirmed],
+  );
+
+  const stepDescription = useMemo(
+    () =>
+      getReservationStepDescription({
+        step,
+        selectedPackage,
+        bookingType,
+        depositAmount,
+        baseReservationFee,
+        numberOfPeople,
+        availablePaymentTerm,
+        tourDate,
+        availablePaymentPlansCount,
+        canSelectStep3Plans,
+      }),
+    [
+      step,
+      selectedPackage,
+      bookingType,
+      depositAmount,
+      baseReservationFee,
+      numberOfPeople,
+      availablePaymentTerm,
+      tourDate,
+      availablePaymentPlansCount,
+      canSelectStep3Plans,
+    ],
+  );
 
   return {
-    progressWidth,
+    progressValue,
     stepDescription,
   };
 };

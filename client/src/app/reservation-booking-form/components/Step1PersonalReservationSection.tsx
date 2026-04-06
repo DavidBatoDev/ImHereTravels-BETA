@@ -1,4 +1,5 @@
 import type { Dispatch, SetStateAction } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import BookingTypeGuestTabsSection from "./BookingTypeGuestTabsSection";
 import MainBookerFormSection from "./MainBookerFormSection";
 import GuestFormsSection from "./GuestFormsSection";
@@ -96,6 +97,9 @@ export default function Step1PersonalReservationSection({
   getCountryData,
   safeGetCountryCallingCode,
 }: Step1PersonalReservationSectionProps) {
+  const showMainBookerForm =
+    bookingType === "Single Booking" || activeGuestTab === 1;
+
   return (
     <>
       {step === 1 && (
@@ -143,44 +147,64 @@ export default function Step1PersonalReservationSection({
               tourDate={tourDate}
             />
 
-            <MainBookerFormSection
-              bookingType={bookingType}
-              activeGuestTab={activeGuestTab}
-              paymentConfirmed={paymentConfirmed}
-              errors={errors}
-              fieldBase={fieldBase}
-              fieldWithIcon={fieldWithIcon}
-              fieldFocus={fieldFocus}
-              fieldBorder={fieldBorder}
-              isFieldValid={isFieldValid}
-              email={email}
-              setEmail={setEmail}
-              birthdate={birthdate}
-              setBirthdate={setBirthdate}
-              firstName={firstName}
-              setFirstName={setFirstName}
-              lastName={lastName}
-              setLastName={setLastName}
-              nationality={nationality}
-              setNationality={setNationality}
-              nationalityOptions={nationalityOptions}
-              whatsAppCountry={whatsAppCountry}
-              setWhatsAppCountry={setWhatsAppCountry}
-              whatsAppNumber={whatsAppNumber}
-              setWhatsAppNumber={setWhatsAppNumber}
-              setErrors={setErrors}
-              getCountryData={getCountryData}
-              safeGetCountryCallingCode={safeGetCountryCallingCode}
-            />
-
-            <GuestFormsSection
-              bookingType={bookingType}
-              activeGuestTab={activeGuestTab}
-              guestDetails={guestDetails}
-              errors={errors}
-              paymentConfirmed={paymentConfirmed}
-              onGuestDetailsUpdate={handleGuestDetailsUpdate}
-            />
+            <div className="relative">
+              <AnimatePresence mode="wait" initial={false}>
+                {showMainBookerForm ? (
+                  <motion.div
+                    key={`main-booker-form-${bookingType}`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+                  >
+                    <MainBookerFormSection
+                      paymentConfirmed={paymentConfirmed}
+                      errors={errors}
+                      fieldBase={fieldBase}
+                      fieldWithIcon={fieldWithIcon}
+                      fieldFocus={fieldFocus}
+                      fieldBorder={fieldBorder}
+                      isFieldValid={isFieldValid}
+                      email={email}
+                      setEmail={setEmail}
+                      birthdate={birthdate}
+                      setBirthdate={setBirthdate}
+                      firstName={firstName}
+                      setFirstName={setFirstName}
+                      lastName={lastName}
+                      setLastName={setLastName}
+                      nationality={nationality}
+                      setNationality={setNationality}
+                      nationalityOptions={nationalityOptions}
+                      whatsAppCountry={whatsAppCountry}
+                      setWhatsAppCountry={setWhatsAppCountry}
+                      whatsAppNumber={whatsAppNumber}
+                      setWhatsAppNumber={setWhatsAppNumber}
+                      setErrors={setErrors}
+                      getCountryData={getCountryData}
+                      safeGetCountryCallingCode={safeGetCountryCallingCode}
+                    />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key={`guest-form-tab-${activeGuestTab}`}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    transition={{ duration: 0.24, ease: [0.4, 0, 0.2, 1] }}
+                  >
+                    <GuestFormsSection
+                      bookingType={bookingType}
+                      activeGuestTab={activeGuestTab}
+                      guestDetails={guestDetails}
+                      errors={errors}
+                      paymentConfirmed={paymentConfirmed}
+                      onGuestDetailsUpdate={handleGuestDetailsUpdate}
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       )}

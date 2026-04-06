@@ -40,7 +40,7 @@ export default function GuestFormsSection({
     guestIndex >= 0 && guestIndex < guestDetails.length;
 
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence mode="wait" initial={false}>
       {isGuestIndexInRange ? (
         <GuestForm
           key={`guest-${guestIndex}`}

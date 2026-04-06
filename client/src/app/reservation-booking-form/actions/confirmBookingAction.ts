@@ -15,6 +15,7 @@ import {
 
 type ConfirmBookingActionInput = {
   db: Firestore;
+  paymentConfirmed: boolean;
   isLastMinute: boolean;
   allPlansSelected: boolean;
   numberOfPeople: number;
@@ -33,6 +34,7 @@ type ConfirmBookingActionInput = {
 
 export const runConfirmBookingAction = async ({
   db,
+  paymentConfirmed,
   isLastMinute,
   allPlansSelected,
   numberOfPeople,
@@ -50,6 +52,11 @@ export const runConfirmBookingAction = async ({
 }: ConfirmBookingActionInput): Promise<void> => {
   try {
     setConfirmingBooking(true);
+
+    if (!paymentConfirmed) {
+      onAlert("Please complete Step 2 payment before selecting a payment plan.");
+      return;
+    }
 
     if (!isLastMinute && !allPlansSelected) {
       onAlert("Please select a payment plan for all travelers to continue");
