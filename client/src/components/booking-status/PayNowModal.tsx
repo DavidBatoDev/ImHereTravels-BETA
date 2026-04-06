@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -227,6 +228,43 @@ export default function PayNowModal({
   };
 
   const paymentReference = `${bookingId}-${installmentTerm.toUpperCase()}`;
+  const bankTransferRows: Array<{
+    label: string;
+    value: string;
+    key: string;
+    valueClassName?: string;
+  }> = [
+    {
+      label: "Account Holder",
+      value: REVOLUT_BANK_DETAILS.accountHolder,
+      key: "holder",
+    },
+    {
+      label: "IBAN",
+      value: REVOLUT_BANK_DETAILS.iban,
+      key: "iban",
+      valueClassName: "break-all",
+    },
+    { label: "BIC / SWIFT", value: REVOLUT_BANK_DETAILS.bic, key: "bic" },
+    { label: "Sort Code", value: REVOLUT_BANK_DETAILS.sortCode, key: "sort" },
+    {
+      label: "Account Number",
+      value: REVOLUT_BANK_DETAILS.accountNumber,
+      key: "account",
+    },
+    { label: "Bank", value: REVOLUT_BANK_DETAILS.bankName, key: "bank" },
+    {
+      label: "Reference",
+      value: paymentReference,
+      key: "ref",
+      valueClassName: "break-all",
+    },
+    {
+      label: "Amount",
+      value: `${currencySymbol}${amount.toFixed(2)}`,
+      key: "amount",
+    },
+  ];
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
@@ -237,6 +275,9 @@ export default function PayNowModal({
             <CreditCard className="h-5 w-5 text-crimson-red" />
             Pay {currencySymbol}{amount.toFixed(2)} — {installmentTerm === "full_payment" ? "Full Payment" : installmentTerm.toUpperCase()}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Select a payment method and follow the instructions to complete this installment payment.
+          </DialogDescription>
         </DialogHeader>
 
         <Tabs
@@ -247,17 +288,17 @@ export default function PayNowModal({
           <TabsList className="mt-1 grid h-auto w-full grid-cols-2 rounded-lg border border-gray-200 bg-gray-100 p-1">
             <TabsTrigger
               value="revolut"
-              className="flex items-center gap-1.5 rounded-md border border-transparent text-xs sm:text-sm text-gray-700 transition-colors data-[state=active]:border-crimson-red data-[state=active]:bg-white data-[state=active]:text-crimson-red data-[state=active]:shadow-sm"
+              className="h-auto min-h-[2.5rem] w-full min-w-0 items-start justify-start gap-1.5 whitespace-normal rounded-md border border-transparent px-2 py-1.5 text-left text-[11px] leading-tight text-gray-700 transition-colors data-[state=active]:border-crimson-red data-[state=active]:bg-white data-[state=active]:text-crimson-red data-[state=active]:shadow-sm sm:items-center sm:justify-center sm:px-3 sm:text-center sm:text-sm"
             >
-              <Building2 className="h-4 w-4" />
-              Bank Transfer (Revolut)
+              <Building2 className="mt-0.5 h-3.5 w-3.5 shrink-0 sm:mt-0 sm:h-4 sm:w-4" />
+              <span className="block min-w-0">Bank Transfer (Revolut)</span>
             </TabsTrigger>
             <TabsTrigger
               value="stripe"
-              className="flex items-center gap-1.5 rounded-md border border-transparent text-xs sm:text-sm text-gray-700 transition-colors data-[state=active]:border-crimson-red data-[state=active]:bg-white data-[state=active]:text-crimson-red data-[state=active]:shadow-sm"
+              className="h-auto min-h-[2.5rem] w-full min-w-0 items-start justify-start gap-1.5 whitespace-normal rounded-md border border-transparent px-2 py-1.5 text-left text-[11px] leading-tight text-gray-700 transition-colors data-[state=active]:border-crimson-red data-[state=active]:bg-white data-[state=active]:text-crimson-red data-[state=active]:shadow-sm sm:items-center sm:justify-center sm:px-3 sm:text-center sm:text-sm"
             >
-              <CreditCard className="h-4 w-4" />
-              Debit/Credit Card (Stripe)
+              <CreditCard className="mt-0.5 h-3.5 w-3.5 shrink-0 sm:mt-0 sm:h-4 sm:w-4" />
+              <span className="block min-w-0">Debit/Credit Card (Stripe)</span>
             </TabsTrigger>
           </TabsList>
 
@@ -289,30 +330,25 @@ export default function PayNowModal({
                     Bank Transfer Details
                   </h4>
                   <div className="bg-gray-50 rounded-lg p-4 space-y-2.5 border border-gray-200">
-                    {[
-                      { label: "Account Holder", value: REVOLUT_BANK_DETAILS.accountHolder, key: "holder" },
-                      { label: "IBAN", value: REVOLUT_BANK_DETAILS.iban, key: "iban" },
-                      { label: "BIC / SWIFT", value: REVOLUT_BANK_DETAILS.bic, key: "bic" },
-                      { label: "Sort Code", value: REVOLUT_BANK_DETAILS.sortCode, key: "sort" },
-                      { label: "Account Number", value: REVOLUT_BANK_DETAILS.accountNumber, key: "account" },
-                      { label: "Bank", value: REVOLUT_BANK_DETAILS.bankName, key: "bank" },
-                      { label: "Reference", value: paymentReference, key: "ref" },
-                      { label: "Amount", value: `${currencySymbol}${amount.toFixed(2)}`, key: "amount" },
-                    ].map(({ label, value, key }) => (
+                    {bankTransferRows.map(({ label, value, key, valueClassName }) => (
                       <div
                         key={key}
-                        className="flex items-center justify-between py-1.5 border-b border-gray-100 last:border-0"
+                        className="grid grid-cols-1 gap-1 py-1.5 border-b border-gray-100 last:border-0 sm:grid-cols-[130px_minmax(0,1fr)] sm:items-center sm:gap-3"
                       >
                         <span className="text-xs text-gray-500 font-medium">
                           {label}
                         </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-gray-900 font-mono">
+                        <div className="flex min-w-0 items-start justify-between gap-2">
+                          <span
+                            className={`min-w-0 flex-1 break-words text-sm font-medium text-gray-900 font-mono sm:text-right ${
+                              valueClassName || ""
+                            }`}
+                          >
                             {value}
                           </span>
                           <button
                             onClick={() => handleCopy(value, key)}
-                            className="p-1 rounded hover:bg-gray-200 transition-colors"
+                            className="shrink-0 p-1 rounded hover:bg-gray-200 transition-colors"
                             title={`Copy ${label}`}
                           >
                             {copiedField === key ? (
@@ -465,23 +501,23 @@ export default function PayNowModal({
               </div>
 
               <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Amount</span>
-                  <span className="font-semibold text-gray-900">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="shrink-0 text-gray-500">Amount</span>
+                  <span className="min-w-0 break-words text-right font-semibold text-gray-900">
                     {currencySymbol}{amount.toFixed(2)}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Payment</span>
-                  <span className="text-gray-900">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="shrink-0 text-gray-500">Payment</span>
+                  <span className="min-w-0 break-words text-right text-gray-900">
                     {installmentTerm === "full_payment"
                       ? "Full Payment"
                       : installmentTerm.toUpperCase()}
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Booking</span>
-                  <span className="font-mono text-xs text-gray-900">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="shrink-0 text-gray-500">Booking</span>
+                  <span className="min-w-0 break-all text-right font-mono text-xs text-gray-900">
                     {bookingId}
                   </span>
                 </div>

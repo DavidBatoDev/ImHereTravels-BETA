@@ -277,6 +277,13 @@ export default function BookingStatusPage() {
     id: "full_payment" | "p1" | "p2" | "p3" | "p4";
     amount: number;
   } | null>(null);
+  const [importantNoticeExpanded, setImportantNoticeExpanded] = useState(false);
+  const [isHeaderVisible, setIsHeaderVisible] = useState(true);
+  const lastScrollYRef = useRef(0);
+  const headerVisibilityRef = useRef(true);
+  const scrollAccumulatorRef = useRef(0);
+  const lastHeaderToggleTsRef = useRef(0);
+  const lastScrollDirectionRef = useRef<1 | -1 | 0>(0);
   const [flexitourDateOptions, setFlexitourDateOptions] = useState<
     Array<{ value: string; label: string }>
   >([]);
@@ -353,6 +360,105 @@ export default function BookingStatusPage() {
 
       html.style.colorScheme = previous.htmlColorScheme;
       body.style.colorScheme = previous.bodyColorScheme;
+    };
+  }, []);
+
+  // Hide header while scrolling down, reveal it when scrolling up.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    lastScrollYRef.current = window.scrollY;
+    headerVisibilityRef.current = true;
+    scrollAccumulatorRef.current = 0;
+    lastHeaderToggleTsRef.current = window.performance.now();
+    lastScrollDirectionRef.current = 0;
+    let rafId: number | null = null;
+    const TOP_SHOW_THRESHOLD = 28;
+    const HIDE_SCROLL_THRESHOLD = 80;
+    const MIN_DELTA = 2;
+    const DIRECTIONAL_SCROLL_ACCUMULATION = 18;
+    const MAX_SCROLL_ACCUMULATION = 96;
+    const TOGGLE_COOLDOWN_MS = 220;
+
+    const applyHeaderVisibility = (nextVisible: boolean, now: number) => {
+      if (headerVisibilityRef.current === nextVisible) return;
+      if (now - lastHeaderToggleTsRef.current < TOGGLE_COOLDOWN_MS) return;
+      headerVisibilityRef.current = nextVisible;
+      lastHeaderToggleTsRef.current = now;
+      setIsHeaderVisible(nextVisible);
+    };
+
+    const onScroll = () => {
+      if (rafId !== null) return;
+
+      rafId = window.requestAnimationFrame(() => {
+        const now = window.performance.now();
+        const currentY = Math.max(window.scrollY, 0);
+        const delta = currentY - lastScrollYRef.current;
+        lastScrollYRef.current = currentY;
+
+        if (currentY <= TOP_SHOW_THRESHOLD) {
+          scrollAccumulatorRef.current = 0;
+          lastScrollDirectionRef.current = 0;
+          if (!headerVisibilityRef.current) {
+            headerVisibilityRef.current = true;
+            lastHeaderToggleTsRef.current = now;
+            setIsHeaderVisible(true);
+          }
+          rafId = null;
+          return;
+        }
+
+        if (Math.abs(delta) < MIN_DELTA) {
+          rafId = null;
+          return;
+        }
+
+        const scrollingDown = delta > 0;
+        const nextDirection = scrollingDown ? 1 : -1;
+        if (lastScrollDirectionRef.current !== nextDirection) {
+          lastScrollDirectionRef.current = nextDirection;
+          scrollAccumulatorRef.current = 0;
+        }
+
+        const boundedDelta = Math.max(
+          Math.min(delta, MAX_SCROLL_ACCUMULATION),
+          -MAX_SCROLL_ACCUMULATION,
+        );
+        scrollAccumulatorRef.current = Math.max(
+          Math.min(
+            scrollAccumulatorRef.current + boundedDelta,
+            MAX_SCROLL_ACCUMULATION,
+          ),
+          -MAX_SCROLL_ACCUMULATION,
+        );
+
+        if (
+          scrollingDown &&
+          currentY > HIDE_SCROLL_THRESHOLD &&
+          scrollAccumulatorRef.current >= DIRECTIONAL_SCROLL_ACCUMULATION
+        ) {
+          applyHeaderVisibility(false, now);
+          scrollAccumulatorRef.current = 0;
+        } else if (
+          !scrollingDown &&
+          scrollAccumulatorRef.current <= -DIRECTIONAL_SCROLL_ACCUMULATION
+        ) {
+          applyHeaderVisibility(true, now);
+          scrollAccumulatorRef.current = 0;
+        }
+
+        rafId = null;
+      });
+    };
+
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
+      }
     };
   }, []);
 
@@ -1675,16 +1781,22 @@ export default function BookingStatusPage() {
       style={{ colorScheme: "light" }}
     >
       {/* Header */}
-      <header className="bg-white/95 text-gray-900 shadow-sm border-b border-gray-200/80 print:shadow-none">
-        <div className="container mx-auto max-w-6xl px-3 sm:px-6 lg:px-8 py-3 sm:py-5">
-          <div className="flex flex-row items-center justify-between gap-2 sm:gap-4">
+      <header
+        className={`fixed inset-x-0 top-0 z-50 border-b border-gray-200/80 bg-white/95 text-gray-900 shadow-sm backdrop-blur-sm transition-[transform,opacity] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform motion-reduce:transition-none print:relative print:translate-y-0 print:opacity-100 print:shadow-none ${
+          isHeaderVisible
+            ? "translate-y-0 opacity-100"
+            : "-translate-y-full opacity-0 pointer-events-none"
+        }`}
+      >
+        <div className="container mx-auto h-[72px] max-w-6xl px-3 sm:px-6 lg:px-8 min-[1120px]:h-[90px]">
+          <div className="flex h-full flex-row items-center justify-between gap-2 sm:gap-4">
             <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               <Image
-                src="/logos/Digital_Horizontal_Red.svg"
+                src="/logos/Digital_Wordmark_Red.svg"
                 alt="ImHereTravels"
-                width={200}
-                height={50}
-                className="h-6 sm:h-8 lg:h-10 w-auto"
+                width={220}
+                height={48}
+                className="h-9 min-[1120px]:h-[42px] w-auto"
               />
             </div>
             <Button
@@ -1703,9 +1815,13 @@ export default function BookingStatusPage() {
           </div>
         </div>
       </header>
+      <div
+        aria-hidden="true"
+        className="h-[72px] print:hidden min-[1120px]:h-[90px]"
+      />
 
       {/* Main Content */}
-      <main className="container mx-auto max-w-6xl px-4 sm:px-6 py-5 sm:py-8">
+      <main className="container mx-auto max-w-6xl px-4 sm:px-6 pt-5 pb-24 sm:pt-8 sm:pb-12">
         {/* Payment Success/Error Message */}
         {paymentMessage && (
           <div
@@ -1762,8 +1878,8 @@ export default function BookingStatusPage() {
           </div>
         )}
 
-        {/* Important Notice */}
-        <div className="mb-4 sm:mb-6 rounded-2xl border border-amber-200 bg-amber-50/95 px-4 py-4 sm:px-5 sm:py-5 shadow-[0_10px_30px_-24px_rgba(28,31,42,0.35)] animate-slideUpFadeIn motion-reduce:animate-none print:border print:border-amber-200">
+        {/* Important Notice (print-safe static variant) */}
+        <div className="hidden print:block mb-4 sm:mb-6 rounded-2xl border border-amber-200 bg-amber-50/95 px-4 py-4 sm:px-5 sm:py-5 shadow-[0_10px_30px_-24px_rgba(28,31,42,0.35)] animate-slideUpFadeIn motion-reduce:animate-none print:border print:border-amber-200">
           <div className="flex items-start gap-3">
             <div className="mt-1 h-10 w-1.5 rounded-full bg-sunglow-yellow/90" />
             <AlertCircle className="h-5 w-5 text-sunglow-yellow mt-1.5 flex-shrink-0" />
@@ -1779,6 +1895,72 @@ export default function BookingStatusPage() {
                 contact our support team directly.
               </p>
             </div>
+          </div>
+        </div>
+
+        {/* Important Notice (floating collapsible) */}
+        <div className="fixed z-40 right-3 bottom-[4.75rem] sm:right-6 sm:bottom-6 print:hidden">
+          <div className="relative pointer-events-auto">
+            <div
+              id="important-notice-panel"
+              aria-hidden={!importantNoticeExpanded}
+              className={`absolute bottom-12 right-0 w-[min(20rem,calc(100vw-1.25rem))] origin-bottom-right overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/95 px-4 py-3 shadow-[0_10px_30px_-24px_rgba(28,31,42,0.35)] backdrop-blur-sm transition-[opacity,transform,max-height] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+                importantNoticeExpanded
+                  ? "pointer-events-auto max-h-64 opacity-100 translate-y-0 scale-100"
+                  : "pointer-events-none max-h-0 opacity-0 translate-y-1 scale-95"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="mt-1 h-10 w-1.5 rounded-full bg-sunglow-yellow/90" />
+                  <AlertCircle className="h-5 w-5 text-sunglow-yellow mt-1 flex-shrink-0" />
+                  <h3 className="text-sm font-semibold text-amber-900">
+                    Important Notice
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setImportantNoticeExpanded(false)}
+                  aria-expanded={importantNoticeExpanded}
+                  aria-controls="important-notice-panel"
+                  aria-label="Collapse important notice"
+                  className="inline-flex shrink-0 items-center rounded-md border border-amber-300 bg-white/70 px-2 py-1 text-xs font-semibold text-amber-900 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70 focus-visible:ring-offset-1"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" />
+                </button>
+              </div>
+              <p className="mt-2 text-xs sm:text-sm text-amber-800">
+                Due to high customer demand, this booking status page might not
+                be updated in real-time. Our ImHereTravels admin team is
+                continuously updating booking statuses. Please allow some time
+                for recent changes to reflect here. For urgent inquiries,
+                contact our support team directly.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setImportantNoticeExpanded((previous) => !previous)}
+              aria-expanded={importantNoticeExpanded}
+              aria-controls="important-notice-panel"
+              aria-label={
+                importantNoticeExpanded
+                  ? "Collapse important notice"
+                  : "Expand important notice"
+              }
+              className={`inline-flex h-10 w-10 items-center justify-center rounded-full border shadow-[0_10px_30px_-24px_rgba(28,31,42,0.35)] transition-[transform,box-shadow,background-color,border-color,color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70 focus-visible:ring-offset-2 motion-reduce:transition-none ${
+                importantNoticeExpanded
+                  ? "scale-105 border-amber-300 bg-amber-100 text-amber-900"
+                  : "scale-100 border-amber-200 bg-amber-50/95 text-amber-900 hover:bg-amber-100 hover:-translate-y-0.5"
+              }`}
+            >
+              <AlertCircle
+                className={`h-4 w-4 text-sunglow-yellow transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+                  importantNoticeExpanded ? "rotate-12" : "rotate-0"
+                }`}
+              />
+              <span className="sr-only">Important Notice</span>
+            </button>
           </div>
         </div>
 
@@ -1898,179 +2080,192 @@ export default function BookingStatusPage() {
 
               <div
                 id="flexitour-panel"
-                className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-[var(--entry-ease)] motion-reduce:transition-none ${
-                  flexitourExpanded ? "max-h-[2200px] opacity-100" : "max-h-0 opacity-0"
+                aria-hidden={!flexitourExpanded}
+                className={`grid overflow-hidden transition-[grid-template-rows] duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+                  flexitourExpanded
+                    ? "grid-rows-[1fr]"
+                    : "grid-rows-[0fr]"
                 }`}
               >
-                <p className="mt-2 text-xs text-gray-600">
-                  Need to move your trip? Select a new package date, choose a
-                  payment plan, then review before confirming.
-                </p>
-
-                <div className="mt-3 space-y-2 sm:space-y-3">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
-                    <div className="space-y-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                        New tour date
-                      </p>
-                      <Select
-                        value={flexitourSelectedDate}
-                        onValueChange={(value) => {
-                          setFlexitourSelectedDate(value);
-                          setFlexitourSelectedPlan("");
-                          setFlexitourMessage(null);
-                          setFlexitourPreview(null);
-                        }}
-                        disabled={
-                          flexitourLoadingDates ||
-                          flexitourMainBookerOnly ||
-                          flexitourLimitReached ||
-                          !flexitourHasOptions
-                        }
-                      >
-                        <SelectTrigger className="h-9 bg-white text-gray-900 border-gray-300 transition-all duration-200 hover:border-crimson-red/60 focus:ring-crimson-red/25">
-                          <SelectValue
-                            placeholder={
-                              flexitourLoadingDates
-                                ? "Loading available dates..."
-                                : "No valid dates available"
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white border-gray-200 text-gray-900">
-                          {flexitourDateOptions.map((option) => (
-                            <SelectItem
-                              key={option.value}
-                              value={option.value}
-                              className="transition-colors duration-150"
-                            >
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-1">
-                      <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                        Payment plan
-                      </p>
-                      <Select
-                        value={flexitourSelectedPlan}
-                        onValueChange={(value) => {
-                          setFlexitourSelectedPlan(value);
-                          setFlexitourMessage(null);
-                          setFlexitourPreview(null);
-                        }}
-                        disabled={
-                          flexitourLoadingDates ||
-                          flexitourMainBookerOnly ||
-                          flexitourLimitReached ||
-                          !flexitourHasOptions ||
-                          !flexitourSelectedDate ||
-                          !flexitourHasPlanOptions
-                        }
-                      >
-                        <SelectTrigger className="h-9 bg-white text-gray-900 border-gray-300 transition-all duration-200 hover:border-crimson-red/60 focus:ring-crimson-red/25">
-                          <SelectValue placeholder="Select payment plan" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-white border-gray-200 text-gray-900">
-                          {flexitourPlanOptions.map((option) => (
-                            <SelectItem
-                              key={option.value}
-                              value={option.value}
-                              className="transition-colors duration-150"
-                            >
-                              {option.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  <Button
-                    onClick={handleFlexitourReview}
-                    disabled={flexitourActionDisabled}
-                    size="sm"
-                    className="bg-crimson-red hover:bg-crimson-red/90 text-white w-full sm:w-auto transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md motion-reduce:hover:translate-y-0"
-                  >
-                    {flexitourPreviewLoading
-                      ? "Preparing Preview..."
-                      : "Review Date Change"}
-                  </Button>
-                </div>
-
-                {isGroupBooking && !booking.isMainBooker && (
-                  <p className="mt-2 text-xs text-gray-700">
-                    Only the main booker can change dates for this{" "}
-                    {booking.bookingType.toLowerCase()}.
-                  </p>
-                )}
-
-                {isGroupBooking && booking.isMainBooker && (
-                  <p className="mt-2 text-xs text-gray-700">
-                    This change will update linked group bookings.
-                  </p>
-                )}
-
-                {flexitourLimitReached && (
-                  <p className="mt-2 text-xs text-red-700">
-                    Flexitour limit reached. No more date changes are available.
-                  </p>
-                )}
-
-                {!flexitourLoadingDates &&
-                  !flexitourHasOptions &&
-                  !flexitourLimitReached && (
-                    <p className="mt-2 text-xs text-red-700">
-                      There are currently no valid future dates for this package.
-                    </p>
-                  )}
-
-                {!flexitourLoadingDates &&
-                  flexitourHasOptions &&
-                  !flexitourHasPlanOptions &&
-                  !flexitourLimitReached && (
-                    <p className="mt-2 text-xs text-red-700">
-                      No eligible payment plan is available for this selected date
-                      based on your already paid terms.
-                    </p>
-                  )}
-
-                {flexitourPaidInstallmentCount > 0 && flexitourHasPlanOptions && (
-                  <p className="mt-2 text-xs text-gray-700">
-                    {flexitourHasSettlementP1Option
-                      ? "Paid terms stay locked. P1 is available as a settlement row for your remaining balance."
-                      : `Paid terms stay locked. Plans up to P${flexitourPaidInstallmentCount} are hidden.`}
-                  </p>
-                )}
-
-                {flexitourSelectedIsUnchanged && (
-                  <p className="mt-2 text-xs text-gray-700">
-                    Please choose a different tour date from your current
-                    schedule.
-                  </p>
-                )}
-
-                {flexitourHasPlanOptions && !flexitourSelectedPlan && (
-                  <p className="mt-2 text-xs text-gray-700">
-                    Select an available payment plan before reviewing your date
-                    change.
-                  </p>
-                )}
-
-                {flexitourMessage && (
+                <div className="min-h-0 overflow-hidden">
                   <div
-                    className={`mt-2 rounded-md border px-3 py-2 text-xs sm:text-sm ${
-                      flexitourMessage.type === "success"
-                        ? "bg-white border-creative-midnight/20 text-creative-midnight"
-                        : "bg-red-50 border-red-200 text-red-900"
+                    className={`transform-gpu transition-[opacity,transform] duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+                      flexitourExpanded
+                        ? "pointer-events-auto opacity-100 translate-y-0"
+                        : "pointer-events-none opacity-0 -translate-y-1"
                     }`}
                   >
-                    {flexitourMessage.text}
+                    <p className="mt-2 text-xs text-gray-600">
+                      Need to move your trip? Select a new package date, choose a
+                      payment plan, then review before confirming.
+                    </p>
+
+                  <div className="mt-3 space-y-2 sm:space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3">
+                      <div className="space-y-1">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                          New tour date
+                        </p>
+                        <Select
+                          value={flexitourSelectedDate}
+                          onValueChange={(value) => {
+                            setFlexitourSelectedDate(value);
+                            setFlexitourSelectedPlan("");
+                            setFlexitourMessage(null);
+                            setFlexitourPreview(null);
+                          }}
+                          disabled={
+                            flexitourLoadingDates ||
+                            flexitourMainBookerOnly ||
+                            flexitourLimitReached ||
+                            !flexitourHasOptions
+                          }
+                        >
+                          <SelectTrigger className="h-9 bg-white text-gray-900 border-gray-300 transition-all duration-200 hover:border-crimson-red/60 focus:ring-crimson-red/25">
+                            <SelectValue
+                              placeholder={
+                                flexitourLoadingDates
+                                  ? "Loading available dates..."
+                                  : "No valid dates available"
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white border-gray-200 text-gray-900">
+                            {flexitourDateOptions.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                                className="transition-colors duration-150"
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-1">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                          Payment plan
+                        </p>
+                        <Select
+                          value={flexitourSelectedPlan}
+                          onValueChange={(value) => {
+                            setFlexitourSelectedPlan(value);
+                            setFlexitourMessage(null);
+                            setFlexitourPreview(null);
+                          }}
+                          disabled={
+                            flexitourLoadingDates ||
+                            flexitourMainBookerOnly ||
+                            flexitourLimitReached ||
+                            !flexitourHasOptions ||
+                            !flexitourSelectedDate ||
+                            !flexitourHasPlanOptions
+                          }
+                        >
+                          <SelectTrigger className="h-9 bg-white text-gray-900 border-gray-300 transition-all duration-200 hover:border-crimson-red/60 focus:ring-crimson-red/25">
+                            <SelectValue placeholder="Select payment plan" />
+                          </SelectTrigger>
+                          <SelectContent className="bg-white border-gray-200 text-gray-900">
+                            {flexitourPlanOptions.map((option) => (
+                              <SelectItem
+                                key={option.value}
+                                value={option.value}
+                                className="transition-colors duration-150"
+                              >
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <Button
+                      onClick={handleFlexitourReview}
+                      disabled={flexitourActionDisabled}
+                      size="sm"
+                      className="bg-crimson-red hover:bg-crimson-red/90 text-white w-full sm:w-auto transition-transform duration-200 hover:-translate-y-0.5 hover:shadow-md motion-reduce:hover:translate-y-0"
+                    >
+                      {flexitourPreviewLoading
+                        ? "Preparing Preview..."
+                        : "Review Date Change"}
+                    </Button>
                   </div>
-                )}
+
+                  {isGroupBooking && !booking.isMainBooker && (
+                    <p className="mt-2 text-xs text-gray-700">
+                      Only the main booker can change dates for this{" "}
+                      {booking.bookingType.toLowerCase()}.
+                    </p>
+                  )}
+
+                  {isGroupBooking && booking.isMainBooker && (
+                    <p className="mt-2 text-xs text-gray-700">
+                      This change will update linked group bookings.
+                    </p>
+                  )}
+
+                  {flexitourLimitReached && (
+                    <p className="mt-2 text-xs text-red-700">
+                      Flexitour limit reached. No more date changes are available.
+                    </p>
+                  )}
+
+                  {!flexitourLoadingDates &&
+                    !flexitourHasOptions &&
+                    !flexitourLimitReached && (
+                      <p className="mt-2 text-xs text-red-700">
+                        There are currently no valid future dates for this package.
+                      </p>
+                    )}
+
+                  {!flexitourLoadingDates &&
+                    flexitourHasOptions &&
+                    !flexitourHasPlanOptions &&
+                    !flexitourLimitReached && (
+                      <p className="mt-2 text-xs text-red-700">
+                        No eligible payment plan is available for this selected date
+                        based on your already paid terms.
+                      </p>
+                    )}
+
+                  {flexitourPaidInstallmentCount > 0 && flexitourHasPlanOptions && (
+                    <p className="mt-2 text-xs text-gray-700">
+                      {flexitourHasSettlementP1Option
+                        ? "Paid terms stay locked. P1 is available as a settlement row for your remaining balance."
+                        : `Paid terms stay locked. Plans up to P${flexitourPaidInstallmentCount} are hidden.`}
+                    </p>
+                  )}
+
+                  {flexitourSelectedIsUnchanged && (
+                    <p className="mt-2 text-xs text-gray-700">
+                      Please choose a different tour date from your current
+                      schedule.
+                    </p>
+                  )}
+
+                  {flexitourHasPlanOptions && !flexitourSelectedPlan && (
+                    <p className="mt-2 text-xs text-gray-700">
+                      Select an available payment plan before reviewing your date
+                      change.
+                    </p>
+                  )}
+
+                    {flexitourMessage && (
+                      <div
+                        className={`mt-2 rounded-md border px-3 py-2 text-xs sm:text-sm ${
+                          flexitourMessage.type === "success"
+                            ? "bg-white border-creative-midnight/20 text-creative-midnight"
+                            : "bg-red-50 border-red-200 text-red-900"
+                        }`}
+                      >
+                        {flexitourMessage.text}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 
