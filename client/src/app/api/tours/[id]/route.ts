@@ -7,7 +7,7 @@ import {
   deleteDoc,
   Timestamp,
 } from "firebase/firestore";
-import { useAuthStore } from "@/store/auth-store";
+import { verifyRequestUserId } from "@/lib/firebase-admin-auth";
 
 const TOURS_COLLECTION = "tourPackages";
 
@@ -20,8 +20,8 @@ function convertTravelDatesToTimestamps(travelDates: any[]): any[] {
       startDate: Timestamp.fromDate(new Date(td.startDate)),
       endDate: Timestamp.fromDate(new Date(td.endDate)),
       isAvailable: td.isAvailable,
-      maxCapacity: td.maxCapacity || 0,
-      currentBookings: td.currentBookings || 0,
+      maxCapacity: td.maxCapacity ?? null,
+      currentBookings: td.currentBookings ?? null,
     };
 
     // Include optional fields if they exist
@@ -59,7 +59,7 @@ function convertTravelDatesToTimestamps(travelDates: any[]): any[] {
  */
 export async function GET(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -69,7 +69,7 @@ export async function GET(
     if (!docSnap.exists()) {
       return NextResponse.json(
         { success: false, error: "Tour not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -83,7 +83,7 @@ export async function GET(
         error: "Failed to fetch tour",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -93,13 +93,22 @@ export async function GET(
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const currentUserId = await verifyRequestUserId(
+      request.headers.get("authorization"),
+    );
+
+    if (!currentUserId) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
+    }
+
     const { id } = await params;
     const updates = await request.json();
-    const { user } = useAuthStore.getState();
-    const currentUserId = user?.uid || "anonymous";
 
     console.log(`Updating tour ${id} with user ID:`, currentUserId);
 
@@ -111,7 +120,7 @@ export async function PATCH(
     if (!currentDoc.exists()) {
       return NextResponse.json(
         { success: false, error: "Tour not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -129,14 +138,15 @@ export async function PATCH(
     // Convert travelDates if they're being updated
     if (updates.travelDates) {
       updateData.travelDates = convertTravelDatesToTimestamps(
-        updates.travelDates
+        updates.travelDates,
       );
     }
 
     // Handle media updates properly
     if (updates.media) {
       updateData.media = {
-        coverImage: updates.media.coverImage || currentData.media?.coverImage || "",
+        coverImage:
+          updates.media.coverImage || currentData.media?.coverImage || "",
         gallery: updates.media.gallery || currentData.media?.gallery || [],
       };
     }
@@ -154,7 +164,7 @@ export async function PATCH(
         error: "Failed to update tour",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -164,7 +174,7 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -175,7 +185,7 @@ export async function DELETE(
     if (!docSnap.exists()) {
       return NextResponse.json(
         { success: false, error: "Tour not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -192,7 +202,7 @@ export async function DELETE(
         error: "Failed to delete tour",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

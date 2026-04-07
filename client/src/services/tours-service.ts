@@ -1,8 +1,6 @@
 import { Timestamp } from "firebase/firestore";
-import {
-  TourPackage,
-  TourFilters,
-} from "@/types/tours";
+import { auth } from "@/lib/firebase";
+import { TourPackage, TourFilters } from "@/types/tours";
 import {
   deleteMultipleFiles,
   extractFilePathFromUrl,
@@ -10,6 +8,18 @@ import {
 } from "@/utils/file-upload";
 
 const API_BASE = "/api/tours";
+
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error("You must be signed in to manage tours");
+  }
+
+  const token = await user.getIdToken();
+  return {
+    Authorization: `Bearer ${token}`,
+  };
+}
 
 // ============================================================================
 // FORM DATA TYPES (what the form actually sends)
@@ -27,12 +37,12 @@ interface TourFormDataWithStringDates {
     startDate: string;
     endDate: string;
     isAvailable: boolean;
-    maxCapacity?: number;
-    currentBookings?: number;
+    maxCapacity?: number | null;
+    currentBookings?: number | null;
   }[];
   pricing: {
     original: number;
-    discounted?: number;
+    discounted?: number | null;
     deposit: number;
     currency: "USD" | "EUR" | "GBP";
   };
@@ -60,12 +70,14 @@ interface TourFormDataWithStringDates {
 // ============================================================================
 
 export async function createTour(
-  tourData: TourFormDataWithStringDates
+  tourData: TourFormDataWithStringDates,
 ): Promise<string> {
   try {
+    const authHeaders = await getAuthHeaders();
+
     const response = await fetch(API_BASE, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders },
       body: JSON.stringify(tourData),
     });
 
@@ -79,7 +91,9 @@ export async function createTour(
     return data.tourId;
   } catch (error) {
     console.error("Error creating tour:", error);
-    throw new Error("Failed to create tour");
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to create tour",
+    );
   }
 }
 
@@ -91,7 +105,7 @@ export async function getTours(
   filters?: TourFilters,
   sortBy: string = "createdAt",
   sortOrder: "asc" | "desc" = "desc",
-  pageLimit: number = 10
+  pageLimit: number = 10,
 ): Promise<{ tours: TourPackage[]; lastDoc: any | null }> {
   try {
     const params = new URLSearchParams();
@@ -212,7 +226,7 @@ export async function getAllTourPackages(): Promise<void> {
       console.log(`   Duration: ${tour.duration} days`);
       console.log(`   Status: ${tour.status}`);
       console.log(
-        `   Price: ${tour.pricing.currency} ${tour.pricing.original}`
+        `   Price: ${tour.pricing.currency} ${tour.pricing.original}`,
       );
       console.log(`   Travel Dates: ${tour.travelDates.length} available`);
       console.log("");
@@ -229,12 +243,14 @@ export async function getAllTourPackages(): Promise<void> {
 
 export async function updateTour(
   id: string,
-  updates: Partial<TourFormDataWithStringDates>
+  updates: Partial<TourFormDataWithStringDates>,
 ): Promise<void> {
   try {
+    const authHeaders = await getAuthHeaders();
+
     const response = await fetch(`${API_BASE}/${id}`, {
       method: "PATCH",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...authHeaders },
       body: JSON.stringify(updates),
     });
 
@@ -247,13 +263,15 @@ export async function updateTour(
     console.log(`✅ Updated tour ${id}`);
   } catch (error) {
     console.error("Error updating tour:", error);
-    throw new Error("Failed to update tour");
+    throw new Error(
+      error instanceof Error ? error.message : "Failed to update tour",
+    );
   }
 }
 
 export async function updateTourMedia(
   id: string,
-  mediaData: { coverImage?: string; gallery?: string[] }
+  mediaData: { coverImage?: string; gallery?: string[] },
 ): Promise<void> {
   try {
     const response = await fetch(`${API_BASE}/${id}/media`, {
@@ -278,12 +296,12 @@ export async function updateTourMedia(
 // Clean up removed gallery images from storage
 export async function cleanupRemovedGalleryImages(
   originalGallery: string[],
-  newGallery: string[]
+  newGallery: string[],
 ): Promise<void> {
   try {
     // Find images that were removed (exist in original but not in new)
     const removedImages = originalGallery.filter(
-      (url) => !newGallery.includes(url)
+      (url) => !newGallery.includes(url),
     );
 
     if (removedImages.length === 0) {
@@ -311,7 +329,7 @@ export async function cleanupRemovedGalleryImages(
     } else {
       console.error(
         "Failed to clean up some gallery images:",
-        deleteResult.error
+        deleteResult.error,
       );
     }
   } catch (error) {
@@ -322,7 +340,7 @@ export async function cleanupRemovedGalleryImages(
 
 export async function updateTourStatus(
   id: string,
-  status: "active" | "draft" | "archived"
+  status: "active" | "draft" | "archived",
 ): Promise<void> {
   try {
     const response = await fetch(`${API_BASE}/${id}/status`, {
@@ -392,7 +410,7 @@ export async function archiveTour(id: string): Promise<void> {
 // ============================================================================
 
 export async function batchUpdateTours(
-  updates: { id: string; data: Partial<TourFormDataWithStringDates> }[]
+  updates: { id: string; data: Partial<TourFormDataWithStringDates> }[],
 ): Promise<void> {
   try {
     const response = await fetch(`${API_BASE}/batch/update`, {
@@ -500,7 +518,7 @@ export function validateTourData(data: TourFormDataWithStringDates): string[] {
           errors.push(`Travel date ${index + 1}: Invalid date format`);
         } else if (startDate >= endDate) {
           errors.push(
-            `Travel date ${index + 1}: End date must be after start date`
+            `Travel date ${index + 1}: End date must be after start date`,
           );
         }
       }
