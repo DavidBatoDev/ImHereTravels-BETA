@@ -92,6 +92,27 @@ import {
 } from "@/services/tours-service";
 import { testSupabaseStorageConnection } from "@/utils/file-upload";
 
+const toOptionalNumber = (value: unknown): number | undefined => {
+  if (value === "" || value === null || value === undefined) {
+    return undefined;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === "." || trimmed === "-" || trimmed === "+") {
+      return undefined;
+    }
+  }
+
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : undefined;
+};
+
+const optionalNumberSchema = z.preprocess(
+  toOptionalNumber,
+  z.number().optional(),
+);
+
 // Form validation schema
 const tourFormSchema = z.object({
   name: z.string().min(3, "Tour name must be at least 3 characters"),
@@ -110,14 +131,14 @@ const tourFormSchema = z.object({
       z.object({
         startDate: z.string().min(1, "Start date is required"),
         endDate: z.string().min(1, "End date is required"),
-        tourDays: z.number().optional(),
+        tourDays: optionalNumberSchema,
         isAvailable: z.boolean(),
-        maxCapacity: z.number().optional(),
-        currentBookings: z.number().optional(),
+        maxCapacity: optionalNumberSchema,
+        currentBookings: optionalNumberSchema,
         hasCustomPricing: z.boolean().optional(),
-        customOriginal: z.number().optional(),
-        customDiscounted: z.number().optional(),
-        customDeposit: z.number().optional(),
+        customOriginal: optionalNumberSchema,
+        customDiscounted: optionalNumberSchema,
+        customDeposit: optionalNumberSchema,
         hasCustomOriginal: z.boolean().optional(),
         hasCustomDiscounted: z.boolean().optional(),
         hasCustomDeposit: z.boolean().optional(),
@@ -125,9 +146,15 @@ const tourFormSchema = z.object({
     )
     .min(1, "At least one travel date is required"),
   pricing: z.object({
-    original: z.number().min(1, "Original price must be greater than 0"),
-    discounted: z.number().optional(),
-    deposit: z.number().min(1, "Deposit is required"),
+    original: z.preprocess(
+      toOptionalNumber,
+      z.number().min(1, "Original price must be greater than 0"),
+    ),
+    discounted: optionalNumberSchema,
+    deposit: z.preprocess(
+      toOptionalNumber,
+      z.number().min(1, "Deposit is required"),
+    ),
     currency: z.enum(["USD", "EUR", "GBP"]),
   }),
   details: z.object({
@@ -418,7 +445,41 @@ export default function TourForm({
     event.currentTarget.blur();
   };
 
-  const form = useForm<TourFormData>({
+  const numberToInputValue = (value: unknown): string => {
+    return value === undefined || value === null ? "" : String(value);
+  };
+
+  const isValidIntegerInput = (value: string): boolean => {
+    return /^\d*$/.test(value);
+  };
+
+  const isValidDecimalInput = (value: string): boolean => {
+    return /^\d*\.?\d*$/.test(value);
+  };
+
+  const handleIntegerInputChange = (
+    value: string,
+    onChange: (value: string | undefined) => void,
+  ): void => {
+    if (!isValidIntegerInput(value)) {
+      return;
+    }
+
+    onChange(value === "" ? undefined : value);
+  };
+
+  const handleDecimalInputChange = (
+    value: string,
+    onChange: (value: string | undefined) => void,
+  ): void => {
+    if (!isValidDecimalInput(value)) {
+      return;
+    }
+
+    onChange(value === "" ? undefined : value);
+  };
+
+  const form = useForm<any>({
     resolver: zodResolver(tourFormSchema),
     defaultValues: {
       name: "",
@@ -434,8 +495,8 @@ export default function TourForm({
           startDate: "",
           endDate: "",
           isAvailable: true,
-          maxCapacity: 0,
-          currentBookings: 0,
+          maxCapacity: undefined,
+          currentBookings: undefined,
           hasCustomPricing: false,
           customOriginal: undefined,
           customDiscounted: undefined,
@@ -446,9 +507,9 @@ export default function TourForm({
         },
       ],
       pricing: {
-        original: 0,
-        discounted: 0,
-        deposit: 0,
+        original: undefined,
+        discounted: undefined,
+        deposit: undefined,
         currency: "USD",
       },
       details: {
@@ -548,14 +609,8 @@ export default function TourForm({
           endDate,
           tourDays,
           isAvailable: td.isAvailable,
-          maxCapacity:
-            td.maxCapacity === null || td.maxCapacity === undefined
-              ? 0
-              : td.maxCapacity,
-          currentBookings:
-            td.currentBookings === null || td.currentBookings === undefined
-              ? 0
-              : td.currentBookings,
+          maxCapacity: td.maxCapacity ?? undefined,
+          currentBookings: td.currentBookings ?? undefined,
           hasCustomPricing:
             td.customOriginal !== undefined ||
             td.customDiscounted !== undefined ||
@@ -577,8 +632,8 @@ export default function TourForm({
           startDate: "",
           endDate: "",
           isAvailable: true,
-          maxCapacity: 0,
-          currentBookings: 0,
+          maxCapacity: undefined,
+          currentBookings: undefined,
           hasCustomPricing: false,
           customOriginal: undefined,
           customDiscounted: undefined,
@@ -609,19 +664,15 @@ export default function TourForm({
         travelDates: travelDates,
         pricing: tour.pricing
           ? {
-              original: tour.pricing.original || 0,
-              discounted:
-                tour.pricing.discounted === null ||
-                tour.pricing.discounted === undefined
-                  ? 0
-                  : tour.pricing.discounted,
-              deposit: tour.pricing.deposit || 0,
+              original: tour.pricing.original ?? undefined,
+              discounted: tour.pricing.discounted ?? undefined,
+              deposit: tour.pricing.deposit ?? undefined,
               currency: tour.pricing.currency || "USD",
             }
           : {
-              original: 0,
-              discounted: 0,
-              deposit: 0,
+              original: undefined,
+              discounted: undefined,
+              deposit: undefined,
               currency: "USD",
             },
         details: tour.details
@@ -675,14 +726,14 @@ export default function TourForm({
             startDate: "",
             endDate: "",
             isAvailable: true,
-            maxCapacity: 0,
-            currentBookings: 0,
+            maxCapacity: undefined,
+            currentBookings: undefined,
           },
         ],
         pricing: {
-          original: 0,
-          discounted: 0,
-          deposit: 0,
+          original: undefined,
+          discounted: undefined,
+          deposit: undefined,
           currency: "USD",
         },
         details: {
@@ -1353,6 +1404,16 @@ export default function TourForm({
     }
   };
 
+  const handleInvalidSubmit = (errors: Record<string, unknown>) => {
+    console.error("Form validation failed:", errors);
+    toast({
+      title: "Cannot create tour yet",
+      description:
+        "Please complete the required fields highlighted in the form.",
+      variant: "destructive",
+    });
+  };
+
   // Test Supabase storage connection
   const testStorageConnection = async () => {
     try {
@@ -1461,6 +1522,7 @@ export default function TourForm({
           >
             <Form {...form}>
               <form
+                id="tour-form"
                 onSubmit={form.handleSubmit(handleSubmit)}
                 className="p-6 space-y-6"
               >
@@ -1930,8 +1992,8 @@ export default function TourForm({
                                   endDate: values?.endDate || "",
                                   tourDays: values?.tourDays,
                                   isAvailable: values?.isAvailable ?? true,
-                                  maxCapacity: values?.maxCapacity ?? 0,
-                                  currentBookings: values?.currentBookings ?? 0,
+                                  maxCapacity: values?.maxCapacity,
+                                  currentBookings: values?.currentBookings,
                                   customOriginal: values?.customOriginal,
                                   customDiscounted: values?.customDiscounted,
                                   customDeposit: values?.customDeposit,
@@ -2021,27 +2083,37 @@ export default function TourForm({
                                   <div className="relative">
                                     <Clock className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                     <Input
-                                      type="number"
-                                      min="1"
-                                      step="1"
+                                      type="text"
+                                      inputMode="numeric"
+                                      pattern="[0-9]*"
                                       placeholder="e.g., 9"
-                                      value={field.value || ""}
-                                      onWheel={handleNumberWheel}
+                                      value={numberToInputValue(field.value)}
                                       onChange={(e) => {
-                                        const daysValue = e.target.value
-                                          ? parseInt(e.target.value, 10)
-                                          : 0;
-                                        field.onChange(daysValue || "");
+                                        const rawValue = e.target.value;
+                                        if (!isValidIntegerInput(rawValue)) {
+                                          return;
+                                        }
+
+                                        const daysValue =
+                                          rawValue === ""
+                                            ? undefined
+                                            : Number.parseInt(rawValue, 10);
+                                        field.onChange(daysValue);
                                         // Auto-calculate end date when days change
                                         const startDate = form.getValues(
                                           `travelDates.${index}.startDate` as any,
                                         ) as string;
-                                        const days = daysValue;
-                                        if (startDate && days > 0) {
+                                        if (
+                                          startDate &&
+                                          daysValue &&
+                                          daysValue > 0
+                                        ) {
                                           const start = new Date(startDate);
                                           const end = new Date(start);
                                           // Subtract 1 because the start date counts as day 1
-                                          end.setDate(end.getDate() + days - 1);
+                                          end.setDate(
+                                            end.getDate() + daysValue - 1,
+                                          );
                                           const endDateString = end
                                             .toISOString()
                                             .split("T")[0];
@@ -2124,15 +2196,16 @@ export default function TourForm({
                                 </FormLabel>
                                 <FormControl>
                                   <Input
-                                    type="number"
-                                    min="0"
-                                    step="1"
+                                    type="text"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
                                     placeholder="e.g., 12"
                                     {...field}
-                                    onWheel={handleNumberWheel}
+                                    value={numberToInputValue(field.value)}
                                     onChange={(e) =>
-                                      field.onChange(
-                                        parseInt(e.target.value || "0", 10),
+                                      handleIntegerInputChange(
+                                        e.target.value,
+                                        field.onChange,
                                       )
                                     }
                                     className="h-9 text-sm border-2 border-border focus:border-spring-green"
@@ -2164,16 +2237,6 @@ export default function TourForm({
                                     `travelDates.${index}.hasCustomOriginal` as any,
                                     true,
                                   );
-                                  if (
-                                    form.getValues(
-                                      `travelDates.${index}.customOriginal` as any,
-                                    ) === undefined
-                                  ) {
-                                    form.setValue(
-                                      `travelDates.${index}.customOriginal` as any,
-                                      "",
-                                    );
-                                  }
                                 }}
                                 disabled={
                                   form.watch(
@@ -2193,16 +2256,6 @@ export default function TourForm({
                                     `travelDates.${index}.hasCustomDeposit` as any,
                                     true,
                                   );
-                                  if (
-                                    form.getValues(
-                                      `travelDates.${index}.customDeposit` as any,
-                                    ) === undefined
-                                  ) {
-                                    form.setValue(
-                                      `travelDates.${index}.customDeposit` as any,
-                                      "",
-                                    );
-                                  }
                                 }}
                                 disabled={
                                   form.watch(
@@ -2269,17 +2322,17 @@ export default function TourForm({
                                       </div>
                                       <FormControl>
                                         <Input
-                                          type="number"
-                                          min="0"
-                                          step="0.01"
+                                          type="text"
+                                          inputMode="decimal"
                                           placeholder="e.g., 299.99"
                                           {...field}
-                                          onWheel={handleNumberWheel}
+                                          value={numberToInputValue(
+                                            field.value,
+                                          )}
                                           onChange={(e) =>
-                                            field.onChange(
-                                              e.target.value
-                                                ? parseFloat(e.target.value)
-                                                : "",
+                                            handleDecimalInputChange(
+                                              e.target.value,
+                                              field.onChange,
                                             )
                                           }
                                           className="h-8 text-sm border-2 border-border focus:border-vivid-orange"
@@ -2331,17 +2384,17 @@ export default function TourForm({
                                       </div>
                                       <FormControl>
                                         <Input
-                                          type="number"
-                                          min="0"
-                                          step="0.01"
+                                          type="text"
+                                          inputMode="decimal"
                                           placeholder="e.g., 249.99"
                                           {...field}
-                                          onWheel={handleNumberWheel}
+                                          value={numberToInputValue(
+                                            field.value,
+                                          )}
                                           onChange={(e) =>
-                                            field.onChange(
-                                              e.target.value
-                                                ? parseFloat(e.target.value)
-                                                : "",
+                                            handleDecimalInputChange(
+                                              e.target.value,
+                                              field.onChange,
                                             )
                                           }
                                           className="h-8 text-sm border-2 border-border focus:border-vivid-orange"
@@ -2418,17 +2471,17 @@ export default function TourForm({
                                       </div>
                                       <FormControl>
                                         <Input
-                                          type="number"
-                                          min="0"
-                                          step="0.01"
+                                          type="text"
+                                          inputMode="decimal"
                                           placeholder="e.g., 100.00"
                                           {...field}
-                                          onWheel={handleNumberWheel}
+                                          value={numberToInputValue(
+                                            field.value,
+                                          )}
                                           onChange={(e) =>
-                                            field.onChange(
-                                              e.target.value
-                                                ? parseFloat(e.target.value)
-                                                : "",
+                                            handleDecimalInputChange(
+                                              e.target.value,
+                                              field.onChange,
                                             )
                                           }
                                           className="h-8 text-sm border-2 border-border focus:border-vivid-orange"
@@ -2453,8 +2506,8 @@ export default function TourForm({
                           endDate: "",
                           tourDays: undefined,
                           isAvailable: true,
-                          maxCapacity: 0,
-                          currentBookings: 0,
+                          maxCapacity: undefined,
+                          currentBookings: undefined,
                           hasCustomPricing: false,
                         })
                       }
@@ -2494,14 +2547,14 @@ export default function TourForm({
                             </FormLabel>
                             <FormControl>
                               <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
+                                type="text"
+                                inputMode="decimal"
                                 {...field}
-                                onWheel={handleNumberWheel}
+                                value={numberToInputValue(field.value)}
                                 onChange={(e) =>
-                                  field.onChange(
-                                    parseFloat(e.target.value) || 0,
+                                  handleDecimalInputChange(
+                                    e.target.value,
+                                    field.onChange,
                                   )
                                 }
                                 className="border-2 border-border focus:border-vivid-orange"
@@ -2522,14 +2575,14 @@ export default function TourForm({
                             </FormLabel>
                             <FormControl>
                               <Input
-                                type="number"
-                                min="0"
-                                step="0.01"
+                                type="text"
+                                inputMode="decimal"
                                 {...field}
-                                onWheel={handleNumberWheel}
+                                value={numberToInputValue(field.value)}
                                 onChange={(e) =>
-                                  field.onChange(
-                                    parseFloat(e.target.value) || 0,
+                                  handleDecimalInputChange(
+                                    e.target.value,
+                                    field.onChange,
                                   )
                                 }
                                 className="border-2 border-border focus:border-vivid-orange"
@@ -3272,10 +3325,12 @@ export default function TourForm({
                 Cancel
               </Button>
               <Button
-                type="submit"
+                type="button"
                 disabled={isSubmitting || isLoading}
                 className="w-full flex items-center gap-2 bg-crimson-red hover:bg-light-red text-white text-xs py-2"
-                onClick={form.handleSubmit(handleSubmit)}
+                onClick={() =>
+                  form.handleSubmit(handleSubmit, handleInvalidSubmit)()
+                }
               >
                 <Save className="h-3 w-3" />
                 {isSubmitting

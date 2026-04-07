@@ -12,7 +12,7 @@ import {
   Timestamp,
   DocumentSnapshot,
 } from "firebase/firestore";
-import { useAuthStore } from "@/store/auth-store";
+import { verifyRequestUserId } from "@/lib/firebase-admin-auth";
 
 const TOURS_COLLECTION = "tourPackages";
 
@@ -25,8 +25,8 @@ function convertTravelDatesToTimestamps(travelDates: any[]): any[] {
       startDate: Timestamp.fromDate(new Date(td.startDate)),
       endDate: Timestamp.fromDate(new Date(td.endDate)),
       isAvailable: td.isAvailable,
-      maxCapacity: td.maxCapacity || 0,
-      currentBookings: td.currentBookings || 0,
+      maxCapacity: td.maxCapacity ?? null,
+      currentBookings: td.currentBookings ?? null,
     };
 
     // Include optional fields if they exist
@@ -64,9 +64,18 @@ function convertTravelDatesToTimestamps(travelDates: any[]): any[] {
  */
 export async function POST(request: NextRequest) {
   try {
+    const currentUserId = await verifyRequestUserId(
+      request.headers.get("authorization"),
+    );
+
+    if (!currentUserId) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
+    }
+
     const tourData = await request.json();
-    const { user } = useAuthStore.getState();
-    const currentUserId = user?.uid || "anonymous";
 
     console.log("Creating tour with user ID:", currentUserId);
 
@@ -74,7 +83,7 @@ export async function POST(request: NextRequest) {
 
     // Convert travelDates from string dates to Timestamps
     const convertedTravelDates = convertTravelDatesToTimestamps(
-      tourData.travelDates
+      tourData.travelDates,
     );
 
     const tourPackage = {
@@ -102,10 +111,7 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    const docRef = await addDoc(
-      collection(db, TOURS_COLLECTION),
-      tourPackage
-    );
+    const docRef = await addDoc(collection(db, TOURS_COLLECTION), tourPackage);
 
     console.log(`✅ Created tour with ID: ${docRef.id}`);
 
@@ -118,7 +124,7 @@ export async function POST(request: NextRequest) {
         error: "Failed to create tour",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -137,7 +143,9 @@ export async function GET(request: NextRequest) {
     const priceMax = searchParams.get("priceMax");
     const search = searchParams.get("search");
     const sortBy = searchParams.get("sortBy") || "createdAt";
-    const sortOrder = (searchParams.get("sortOrder") || "desc") as "asc" | "desc";
+    const sortOrder = (searchParams.get("sortOrder") || "desc") as
+      | "asc"
+      | "desc";
     const pageLimit = parseInt(searchParams.get("limit") || "10");
     const lastDocId = searchParams.get("lastDocId");
 
@@ -196,7 +204,7 @@ export async function GET(request: NextRequest) {
         (tour) =>
           tour.name?.toLowerCase().includes(searchTerm) ||
           tour.description?.toLowerCase().includes(searchTerm) ||
-          tour.location?.toLowerCase().includes(searchTerm)
+          tour.location?.toLowerCase().includes(searchTerm),
       );
     }
 
@@ -215,7 +223,7 @@ export async function GET(request: NextRequest) {
         error: "Failed to fetch tours",
         details: error instanceof Error ? error.message : "Unknown error",
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

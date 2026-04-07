@@ -37,12 +37,12 @@ export interface TravelDate {
   endDate: Timestamp;
   tourDays?: number; // Number of days for the tour
   isAvailable: boolean;
-  maxCapacity?: number;
-  currentBookings?: number;
+  maxCapacity?: number | null;
+  currentBookings?: number | null;
   // Optional per-date custom pricing overrides
-  customOriginal?: number;
-  customDiscounted?: number;
-  customDeposit?: number;
+  customOriginal?: number | null;
+  customDiscounted?: number | null;
+  customDeposit?: number | null;
   // UI flags to explicitly add/remove individual custom fields
   hasCustomOriginal?: boolean;
   hasCustomDiscounted?: boolean;
@@ -55,7 +55,7 @@ export interface TravelDate {
 
 export interface TourPricing {
   original: number;
-  discounted?: number;
+  discounted?: number | null;
   deposit: number;
   currency: "USD" | "EUR" | "GBP";
 }
@@ -169,12 +169,12 @@ export interface TourFormDataWithStringDates {
     endDate: string;
     tourDays?: number; // Number of days for the tour
     isAvailable: boolean;
-    maxCapacity?: number;
-    currentBookings?: number;
+    maxCapacity?: number | null;
+    currentBookings?: number | null;
     // Optional per-date custom pricing values
-    customOriginal?: number;
-    customDiscounted?: number;
-    customDeposit?: number;
+    customOriginal?: number | null;
+    customDiscounted?: number | null;
+    customDeposit?: number | null;
     // UI flags to explicitly add/remove individual custom fields
     hasCustomOriginal?: boolean;
     hasCustomDiscounted?: boolean;
@@ -182,7 +182,7 @@ export interface TourFormDataWithStringDates {
   }[];
   pricing: {
     original: number;
-    discounted?: number;
+    discounted?: number | null;
     deposit: number;
     currency: "USD" | "EUR" | "GBP";
   };

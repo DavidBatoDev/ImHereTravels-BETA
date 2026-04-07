@@ -306,6 +306,7 @@ export default function ToursList() {
         description: "Failed to create tour. Please try again.",
         variant: "destructive",
       });
+      throw error;
     } finally {
       setIsSubmitting(false);
     }
