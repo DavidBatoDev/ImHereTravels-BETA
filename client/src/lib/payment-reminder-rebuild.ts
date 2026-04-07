@@ -266,7 +266,7 @@ export async function rebuildPaymentReminderArtifactsForBooking({
     });
     result.fieldsCleared = true;
 
-    if (reminderWasEnabled) {
+    if (reminderWasEnabled && currentBookingData.enablePaymentReminder === true) {
       await updateDoc(doc(db, "bookings", bookingId), {
         enablePaymentReminder: true,
         updatedAt: new Date(),

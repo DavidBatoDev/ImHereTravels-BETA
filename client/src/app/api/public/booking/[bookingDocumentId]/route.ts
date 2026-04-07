@@ -155,6 +155,9 @@ export async function GET(
 
       // Payment Plan
       paymentPlan: bookingData.paymentPlan,
+      paymentPlanSelectionRequired: bookingData.paymentPlanSelectionRequired,
+      paymentPlanSelectionRequiredAt: bookingData.paymentPlanSelectionRequiredAt,
+      paymentPlanSelectionRequiredReason: bookingData.paymentPlanSelectionRequiredReason,
       bookingStatus: bookingData.bookingStatus,
 
       // Payment Terms
@@ -198,6 +201,7 @@ export async function GET(
       flexitourUsedChanges: bookingData.flexitourUsedChanges,
       flexitourHistory: bookingData.flexitourHistory,
       flexitourLastChangedAt: bookingData.flexitourLastChangedAt,
+      flexitourP1SettlementMode: bookingData.flexitourP1SettlementMode,
 
       // Payment Reminders
       enablePaymentReminder: bookingData.enablePaymentReminder,

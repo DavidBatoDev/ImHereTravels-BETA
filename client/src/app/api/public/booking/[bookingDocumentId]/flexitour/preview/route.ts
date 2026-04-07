@@ -67,6 +67,42 @@ function parseDateValue(rawValue: unknown): Date | null {
   return null;
 }
 
+function parseDueDateValue(rawValue: unknown): Date | null {
+  if (typeof rawValue === "string") {
+    const raw = rawValue.trim();
+    if (!raw) return null;
+
+    const explicitDateMatch = raw.match(/[A-Za-z]{3}\s+\d{1,2},\s+\d{4}/);
+    if (explicitDateMatch?.[0]) {
+      const parsedExplicit = parseDateValue(explicitDateMatch[0]);
+      if (parsedExplicit) return parsedExplicit;
+    }
+
+    if (raw.includes(",")) {
+      const parts = raw.split(",").map((part) => part.trim());
+      if (parts.length >= 2) {
+        const firstDate = `${parts[0]}, ${parts[1]}`;
+        const parsedFirstDate = parseDateValue(firstDate);
+        if (parsedFirstDate) return parsedFirstDate;
+      }
+
+      const parsedFirstPart = parseDateValue(parts[0]);
+      if (parsedFirstPart) return parsedFirstPart;
+    }
+  }
+
+  return parseDateValue(rawValue);
+}
+
+function isDateOnOrAfterToday(date: Date): boolean {
+  const todayUtc = new Date();
+  todayUtc.setUTCHours(0, 0, 0, 0);
+  const targetUtc = new Date(
+    Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()),
+  );
+  return targetUtc.getTime() >= todayUtc.getTime();
+}
+
 function formatDateKey(date: Date): string {
   const y = date.getUTCFullYear();
   const m = String(date.getUTCMonth() + 1).padStart(2, "0");
@@ -428,7 +464,9 @@ export async function POST(
     const paidInstallmentCount = countPaidInstallmentTerms(bookingData);
     const fullPaymentAlreadyPaid = hasPaidDate(bookingData.fullPaymentDatePaid);
     const p1AlreadyPaid = hasPaidDate(bookingData.p1DatePaid);
-    const isP1OnlyAvailable = eligiblePlans.length === 1 && eligiblePlans[0] === "P1";
+    const currentP1DueDate = parseDueDateValue(bookingData.p1DueDate);
+    const isCurrentP1DueDateOnOrAfterToday =
+      currentP1DueDate !== null && isDateOnOrAfterToday(currentP1DueDate);
 
     const existingPaymentPlan =
       typeof bookingData.paymentPlan === "string" ? bookingData.paymentPlan : "";
@@ -464,7 +502,7 @@ export async function POST(
       selectedPaymentPlan === "P1" &&
       p1AlreadyPaid &&
       !fullPaymentAlreadyPaid &&
-      isP1OnlyAvailable &&
+      isCurrentP1DueDateOnOrAfterToday &&
       currentRemainingBalance > 0;
 
     if (
@@ -482,23 +520,25 @@ export async function POST(
       );
     }
 
-    if (selectedPaymentPlan === "P1" && p1AlreadyPaid && !isP1SettlementMode) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            "P1 is already paid. P1 can only be selected as a settlement plan when only P1 is available for the selected date.",
-        },
-        { status: 400 },
-      );
-    }
-
     if (fullPaymentAlreadyPaid && selectedPaymentPlan !== "Full Payment") {
       return NextResponse.json(
         {
           success: false,
           error:
             "Selected payment plan is invalid because full payment has already been marked paid.",
+        },
+        { status: 400 },
+      );
+    }
+
+    if (selectedPaymentPlan === "P1" && p1AlreadyPaid && !isP1SettlementMode) {
+      return NextResponse.json(
+        {
+          success: false,
+          error:
+            !isCurrentP1DueDateOnOrAfterToday
+              ? "P1 settlement is unavailable because the current P1 due date is already in the past. Please choose a higher plan depth or Full Payment."
+              : "P1 is already paid. P1 can only be selected as a settlement plan while the current P1 due date is not yet in the past.",
         },
         { status: 400 },
       );

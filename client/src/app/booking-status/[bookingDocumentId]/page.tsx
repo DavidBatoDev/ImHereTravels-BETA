@@ -85,6 +85,9 @@ interface BookingData {
   remainingBalance: number;
   paymentProgress: number | string;
   paymentPlan?: string;
+  paymentPlanSelectionRequired?: boolean;
+  paymentPlanSelectionRequiredAt?: any;
+  paymentPlanSelectionRequiredReason?: string;
   bookingStatus: string;
   fullPaymentDueDate?: any;
   fullPaymentAmount?: number;
@@ -659,6 +662,9 @@ export default function BookingStatusPage() {
         remainingBalance: bookingData.remainingBalance,
         paymentProgress: paymentProgressValue,
         paymentPlan: bookingData.paymentPlan,
+        paymentPlanSelectionRequired: bookingData.paymentPlanSelectionRequired,
+        paymentPlanSelectionRequiredAt: bookingData.paymentPlanSelectionRequiredAt,
+        paymentPlanSelectionRequiredReason: bookingData.paymentPlanSelectionRequiredReason,
         bookingStatus: bookingData.bookingStatus,
         fullPaymentDueDate: bookingData.fullPaymentDueDate,
         fullPaymentAmount: bookingData.fullPaymentAmount,
@@ -1144,9 +1150,21 @@ export default function BookingStatusPage() {
         );
       }
 
-      const successText =
+      const guestNotificationSummary =
+        result?.data?.guestNotifications &&
+        typeof result.data.guestNotifications === "object"
+          ? result.data.guestNotifications
+          : null;
+      const targetedGuests = Number(guestNotificationSummary?.targeted || 0);
+      const sentGuestEmails = Number(guestNotificationSummary?.sent || 0);
+
+      const successTextBase =
         result?.message ||
         "Flexitour date updated successfully. Payment schedule is being refreshed.";
+      const successText =
+        targetedGuests > 0
+          ? `${successTextBase} Guest payment-plan emails sent: ${sentGuestEmails}/${targetedGuests}.`
+          : successTextBase;
       setFlexitourMessage(null);
       setFlexitourPreview(null);
       toast({
@@ -1375,6 +1393,10 @@ export default function BookingStatusPage() {
   const isGroupBooking =
     booking.bookingType === "Duo Booking" ||
     booking.bookingType === "Group Booking";
+  const isPaymentPlanSelectionRequired =
+    booking.paymentPlanSelectionRequired === true;
+  const hasActivePaymentPlan =
+    !!booking.paymentPlan && !isPaymentPlanSelectionRequired;
   const flexitourMainBookerOnly = isGroupBooking && !booking.isMainBooker;
   const flexitourLimitReached = flexitourUsedChanges >= flexitourMaxChanges;
   const flexitourHasOptions = flexitourDateOptions.length > 0;
@@ -1546,6 +1568,14 @@ export default function BookingStatusPage() {
   const hasPaidDate = (value: unknown): boolean => {
     return !!getDateFromValue(value);
   };
+  const isDateOnOrAfterToday = (value: unknown): boolean => {
+    const parsed = getDateFromValue(value);
+    if (!parsed) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    parsed.setHours(0, 0, 0, 0);
+    return parsed.getTime() >= today.getTime();
+  };
   const formatDateLabel = (value: unknown): string => {
     const parsed = getDateFromValue(value);
     return parsed ? format(parsed, "MMM dd, yyyy") : "---";
@@ -1559,6 +1589,7 @@ export default function BookingStatusPage() {
   ].filter(hasPaidDate).length;
   const flexitourP1Paid = hasPaidDate(booking.p1DatePaid);
   const flexitourFullPaymentPaid = hasPaidDate(booking.fullPaymentDatePaid);
+  const flexitourCurrentP1DueDateActive = isDateOnOrAfterToday(booking.p1DueDate);
 
   const flexitourPlanOptions: FlexitourPlanOption[] = (() => {
     if (!flexitourSelectedDate) return [];
@@ -1588,7 +1619,8 @@ export default function BookingStatusPage() {
     const allowP1SettlementMode =
       flexitourPaidInstallmentCount === 1 &&
       flexitourP1Paid &&
-      maxMonths === 1;
+      flexitourCurrentP1DueDateActive &&
+      !flexitourFullPaymentPaid;
     const options: FlexitourPlanOption[] = [];
 
     for (let months = 1; months <= maxMonths; months += 1) {
@@ -2096,8 +2128,9 @@ export default function BookingStatusPage() {
                     }`}
                   >
                     <p className="mt-2 text-xs text-gray-600">
-                      Need to move your trip? Select a new package date, choose a
-                      payment plan, then review before confirming.
+                      {isGroupBooking && booking.isMainBooker
+                        ? "Need to move your trip? Select a new package date, choose your own payment plan, then review before confirming."
+                        : "Need to move your trip? Select a new package date, choose a payment plan, then review before confirming."}
                     </p>
 
                   <div className="mt-3 space-y-2 sm:space-y-3">
@@ -2203,7 +2236,10 @@ export default function BookingStatusPage() {
 
                   {isGroupBooking && booking.isMainBooker && (
                     <p className="mt-2 text-xs text-gray-700">
-                      This change will update linked group bookings.
+                      This change updates linked group bookings. Your selected
+                      plan applies only to your booking, and guests with
+                      remaining balance will be emailed to choose their own
+                      plans.
                     </p>
                   )}
 
@@ -2269,12 +2305,24 @@ export default function BookingStatusPage() {
               </div>
             </div>
 
-            {/* Payment Options (when no payment plan yet) */}
-            {!booking.paymentPlan && availablePaymentPlans.length > 0 && (
+            {/* Payment Options (when no active payment plan is set) */}
+            {(!booking.paymentPlan || isPaymentPlanSelectionRequired) &&
+              availablePaymentPlans.length > 0 && (
               <div
                 className={`${sectionSurfaceClass} ${sectionEntryAnimationClass}`}
                 style={{ animationDelay: "220ms" }}
               >
+                {isPaymentPlanSelectionRequired && (
+                  <div className="mb-4 rounded-xl border border-crimson-red/30 bg-crimson-red/10 px-3 py-2.5 text-xs sm:text-sm text-gray-900">
+                    <p className="font-semibold text-crimson-red">
+                      Payment plan action required
+                    </p>
+                    <p className="mt-1">
+                      Your main booker changed the tour date. Please select your
+                      new payment plan to continue.
+                    </p>
+                  </div>
+                )}
                 <p className={sectionHeadingEyebrowClass}>Plan Selection</p>
                 <h2 className="text-lg sm:text-xl font-hk-grotesk font-bold text-gray-900 mb-4 sm:mb-5 flex items-center gap-2">
                   <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-crimson-red" />
@@ -2534,7 +2582,7 @@ export default function BookingStatusPage() {
                     </span>
                     .
                     {isGroupBooking && booking.isMainBooker
-                      ? " This also updates linked group bookings."
+                      ? " This also updates linked group bookings, while each guest will need to choose their own payment plan for the new date."
                       : ""}
                   </div>
                 </AlertDialogHeader>
@@ -2557,7 +2605,7 @@ export default function BookingStatusPage() {
             </AlertDialog>
 
             {/* Payment Schedule */}
-            {booking.paymentPlan && paymentTerms.length > 0 && (
+            {hasActivePaymentPlan && paymentTerms.length > 0 && (
               <div
                 className={`${sectionSurfaceClass} ${sectionEntryAnimationClass}`}
                 style={{ animationDelay: "260ms" }}
@@ -2873,7 +2921,7 @@ export default function BookingStatusPage() {
           {/* Right Column - Payment Summary & Support */}
           <div className="space-y-5 lg:space-y-6 min-w-0 max-w-full">
             {/* Payment Overview */}
-            {booking.paymentPlan && (
+            {hasActivePaymentPlan && (
               <div
                 className={`${sectionSurfaceClass} ${sectionEntryAnimationClass}`}
                 style={{ animationDelay: "200ms" }}
@@ -2912,7 +2960,7 @@ export default function BookingStatusPage() {
                       <p className="text-xl sm:text-2xl font-bold text-crimson-red">
                         £{remainingBalanceAmount.toFixed(2)}
                       </p>
-                      {booking.paymentPlan && (
+                      {hasActivePaymentPlan && (
                         <p className="text-xs text-gray-600 mt-0.5">
                           {booking.paymentPlan}
                         </p>
