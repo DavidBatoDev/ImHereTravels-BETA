@@ -1941,7 +1941,7 @@ export default function EditBookingModal({
     if (!selectedOption) return;
 
     let originalTourCost = selectedOption.pricing.original;
-    let discountedTourCost = selectedOption.pricing.discounted;
+    let discountedTourCost = selectedOption.pricing.discounted ?? undefined;
     let reservationFee = selectedOption.pricing.deposit;
 
     const bookingDateKey = getDateKey(formData.tourDate);
@@ -1955,7 +1955,10 @@ export default function EditBookingModal({
         if (matchingDate.customOriginal !== undefined) {
           originalTourCost = matchingDate.customOriginal;
         }
-        if (matchingDate.customDiscounted !== undefined) {
+        if (
+          matchingDate.customDiscounted !== undefined &&
+          matchingDate.customDiscounted !== null
+        ) {
           discountedTourCost = matchingDate.customDiscounted;
         }
         if (matchingDate.customDeposit !== undefined) {
@@ -4258,14 +4261,18 @@ export default function EditBookingModal({
                             </td>
                             <td className="py-2 px-2 text-foreground">
                               {formData.fullPaymentDueDate
-                                ? typeof formData.fullPaymentDueDate === "string"
+                                ? typeof formData.fullPaymentDueDate ===
+                                  "string"
                                   ? formData.fullPaymentDueDate
                                   : formData.fullPaymentDueDate instanceof Date
-                                    ? formData.fullPaymentDueDate.toLocaleDateString("en-US", {
-                                        month: "short",
-                                        day: "numeric",
-                                        year: "numeric",
-                                      })
+                                    ? formData.fullPaymentDueDate.toLocaleDateString(
+                                        "en-US",
+                                        {
+                                          month: "short",
+                                          day: "numeric",
+                                          year: "numeric",
+                                        },
+                                      )
                                     : "N/A"
                                 : "N/A"}
                             </td>
