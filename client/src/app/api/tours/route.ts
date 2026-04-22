@@ -86,6 +86,34 @@ export async function POST(request: NextRequest) {
       tourData.travelDates,
     );
 
+    // Snapshot travel-date pricing for the initial history entry
+    const initialHistoryTravelDates = convertedTravelDates.map((td: any) => {
+      const entry: any = {
+        date: td.startDate.toDate().toISOString(),
+      };
+      if (td.customOriginal !== undefined && td.customOriginal !== null) {
+        entry.customOriginal = td.customOriginal;
+      }
+      if (td.customDiscounted !== undefined && td.customDiscounted !== null) {
+        entry.customDiscounted = td.customDiscounted;
+      }
+      if (td.customDeposit !== undefined && td.customDeposit !== null) {
+        entry.customDeposit = td.customDeposit;
+      }
+      return entry;
+    });
+
+    const initialHistoryEntry: any = {
+      version: 1,
+      effectiveDate: now,
+      pricing: tourData.pricing,
+      changedBy: currentUserId,
+      reason: "Initial tour package creation",
+    };
+    if (initialHistoryTravelDates.length > 0) {
+      initialHistoryEntry.travelDates = initialHistoryTravelDates;
+    }
+
     const tourPackage = {
       ...tourData,
       travelDates: convertedTravelDates,
@@ -94,15 +122,7 @@ export async function POST(request: NextRequest) {
         gallery: tourData.media?.gallery || [],
       },
       currentVersion: 1,
-      pricingHistory: [
-        {
-          version: 1,
-          effectiveDate: now,
-          pricing: tourData.pricing,
-          changedBy: currentUserId,
-          reason: "Initial tour package creation",
-        },
-      ],
+      pricingHistory: [initialHistoryEntry],
       metadata: {
         createdAt: now,
         updatedAt: now,

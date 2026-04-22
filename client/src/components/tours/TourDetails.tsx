@@ -268,26 +268,40 @@ export default function TourDetails({
                         <Banknote className="w-5 h-5 text-royal-purple" />
                         Pricing History
                         <Badge variant="outline" className="ml-2">
-                          {tour.pricingHistory.length + 1} Version
-                          {tour.pricingHistory.length + 1 > 1 ? "s" : ""}
+                          {tour.pricingHistory.length} Version
+                          {tour.pricingHistory.length > 1 ? "s" : ""}
                         </Badge>
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-4">
                         {/* Current Version */}
+                        {(() => {
+                          const currentVersionNum = tour.currentVersion || 1;
+                          const currentEntry = tour.pricingHistory.find(
+                            (h) => h.version === currentVersionNum,
+                          );
+                          const currentEffectiveDate =
+                            currentEntry?.effectiveDate &&
+                            typeof currentEntry.effectiveDate === "object" &&
+                            "toDate" in currentEntry.effectiveDate
+                              ? currentEntry.effectiveDate.toDate()
+                              : null;
+                          return (
                         <div className="p-4 bg-spring-green/10 border-2 border-spring-green rounded-lg">
                           <div className="flex items-center justify-between mb-3">
                             <div className="flex items-center gap-2">
                               <span className="font-semibold text-foreground">
-                                Version {tour.currentVersion || 1}
+                                Version {currentVersionNum}
                               </span>
                               <Badge className="bg-spring-green text-white">
                                 Current
                               </Badge>
                             </div>
                             <span className="text-sm text-muted-foreground">
-                              {format(new Date(), "MMM dd, yyyy")}
+                              {currentEffectiveDate
+                                ? format(currentEffectiveDate, "MMM dd, yyyy")
+                                : "—"}
                             </span>
                           </div>
                           {tour.travelDates && tour.travelDates.length > 0 && (
@@ -344,9 +358,13 @@ export default function TourDetails({
                           )}
                         </div>
 
+                          );
+                        })()}
+
                         {/* Historical Versions */}
                         {tour.pricingHistory
                           .slice()
+                          .filter((h) => h.version !== (tour.currentVersion || 1))
                           .sort((a, b) => b.version - a.version)
                           .map((history) => (
                             <div
