@@ -50,6 +50,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getDefaultPaymentPlan } from "@/lib/payment-plan-defaults";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -787,6 +788,21 @@ export default function EditBookingModal({
     }
   }, [booking, isOpen]);
 
+  // Auto-default paymentPlan = "Full Payment" on modal open when the booking is
+  // already in a Last Minute state with an empty plan. The transition watcher
+  // below only fires on changes, so this covers the initial-load case.
+  useEffect(() => {
+    if (!isOpen || !booking) return;
+    const autoDefault = getDefaultPaymentPlan(
+      String((booking as any).availablePaymentTerms || ""),
+      (booking as any).paymentPlan,
+    );
+    if (autoDefault && autoDefault !== (booking as any).paymentPlan) {
+      setFormData((prev: any) => ({ ...prev, paymentPlan: autoDefault }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, booking?.id]);
+
   // Optimized function to reload Event Name options based on Tour Package and Date
   const reloadEventNameOptions = useCallback(
     async (currentTourPackageName: string, currentTourDate: any) => {
@@ -1405,6 +1421,14 @@ export default function EditBookingModal({
         to: currentValue,
       });
       reloadPaymentPlanOptions(String(currentValue || ""));
+
+      const autoDefault = getDefaultPaymentPlan(
+        String(currentValue || ""),
+        formData.paymentPlan,
+      );
+      if (autoDefault && autoDefault !== formData.paymentPlan) {
+        setFormData((prev: any) => ({ ...prev, paymentPlan: autoDefault }));
+      }
     }
 
     // Update the ref for next comparison
