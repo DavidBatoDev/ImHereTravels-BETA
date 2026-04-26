@@ -426,8 +426,19 @@ export default function ConfirmedBookingModal({
   const paid = safeNumber(bookingData?.paid, 0);
   const totalCost = getTotalCost();
   const remaining = Math.max(0, totalCost - paid);
-  const progress =
-    totalCost === 0 ? 0 : Math.min(100, Math.round((paid / totalCost) * 100));
+  const progress = (() => {
+    const stored = (bookingData as any)?.paymentProgress;
+    if (stored !== undefined && stored !== null) {
+      if (typeof stored === "string") {
+        const parsed = parseFloat(stored.replace(/%/g, ""));
+        if (!isNaN(parsed)) return Math.min(Math.max(Math.round(parsed), 0), 100);
+      }
+      if (typeof stored === "number" && !isNaN(stored)) {
+        return Math.min(Math.max(Math.round(stored), 0), 100);
+      }
+    }
+    return 0;
+  })();
 
   // Determine payment plan
   const paymentPlan = bookingData?.paymentPlan || "";

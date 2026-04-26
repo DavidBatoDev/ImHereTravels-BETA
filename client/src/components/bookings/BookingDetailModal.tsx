@@ -438,17 +438,22 @@ export default function BookingDetailModal({
     return originalCost;
   };
 
-  // Calculate payment progress dynamically
+  // Read payment progress from the stored paymentProgress column
   const calculatePaymentProgress = (booking: Booking | null) => {
     if (!booking) return 0;
 
-    const totalCost = getTotalCost(booking);
-    const paid = safeNumber(booking.paid, 0);
+    const stored = (booking as any).paymentProgress;
+    if (stored !== undefined && stored !== null) {
+      if (typeof stored === "string") {
+        const parsed = parseFloat(stored.replace(/%/g, ""));
+        if (!isNaN(parsed)) return Math.min(Math.max(Math.round(parsed), 0), 100);
+      }
+      if (typeof stored === "number" && !isNaN(stored)) {
+        return Math.min(Math.max(Math.round(stored), 0), 100);
+      }
+    }
 
-    if (totalCost === 0) return 0;
-
-    const progress = Math.round((paid / totalCost) * 100);
-    return Math.min(progress, 100);
+    return 0;
   };
 
   // Helper function to determine booking status category
