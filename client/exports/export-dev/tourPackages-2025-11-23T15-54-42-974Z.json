@@ -598,22 +598,105 @@
   },
   {
     "id": "agD7Q7PMvPZAFywNWcs8",
+    "name": "Japan Adventure (Standard)",
+    "slug": "japan-adventure",
+    "tourCode": "JA",
+    "location": "Other",
+    "duration": "10 Days and 9 Nights",
+    "destinations": ["Tokyo", "Atami", "Kyoto"],
+    "itinerarySummary": "Day 1–10 (Tokyo → Atami → Kyoto → Checkout)",
+    "description": "Experience the perfect blend of tradition and innovation on this unforgettable journey through Japan. We start off in Tokyo, the vibrant capital where modern skyscrapers meet historic temples. Enjoy a guided city tour featuring iconic sights like the Meiji Shrine and Shibuya Crossing. After a few days in Tokyo, we will ride the world-renowned bullet train to Kyoto, Japan’s cultural heart. Explore ancient temples, serene gardens, and the famous Gion district, home to traditional tea houses and geisha culture. The final stop on the tour will be Sapporo. Discover its laid-back charm, local cuisine, and unique seasonal beauty during a scenic city tour. This tour offers the best of Japan’s dynamic cities, rich heritage, and stunning landscapes.",
+    "status": "active",
+    "url": "",
+    "brochureLink": "",
+    "preDeparturePack": "",
+    "stripePaymentLink": "https://book.stripe.com/fZubJ1ekbfhngKneAvco03G",
+    "pricing": {
+      "original": 1899,
+      "discounted": 0,
+      "deposit": 300,
+      "currency": "GBP"
+    },
+    "highlights": ["Tokyo City Tour", "Famous Bullet Train", "Tea Ceremony in Kyoto"],
     "details": {
+      "highlights": [
+        { "text": "Tokyo City Tour", "image": "https://imheretravels.com/wp-content/uploads/2025/10/japan-trip-highlight-1.webp" },
+        { "text": "Famous Bullet Train", "image": "https://imheretravels.com/wp-content/uploads/2025/10/japan-trip-highlight-2.webp" },
+        { "text": "Tea Ceremony in Kyoto", "image": "https://imheretravels.com/wp-content/uploads/2025/10/japan-day-6.webp" }
+      ],
       "itinerary": [
         {
           "day": 1,
-          "description": "A driver will wait for you upon arrival at the airport and transfer you and your fellow travelers to your accommodation in downtown Tokyo. Use the rest of your day for your own first exploration of the city.",
-          "title": "Welcome to Tokyo!"
+          "title": "Welcome to Tokyo",
+          "description": "A driver will wait for you upon arrival at the airport and transfer you and your fellow travelers to your accommodation in downtown Tokyo. Use the rest of your day for your own first exploration of the city."
+        },
+        {
+          "day": 2,
+          "title": "Tokyo City Tour",
+          "description": "Explore Japan’s dynamic capital like a local! Hop on Tokyo’s world-renowned public transport system and visit must-see neighborhoods and landmarks. Recommended stops: Akihabara (anime, gaming, tech), Ueno, Asakusa with its famous Sensoji Temple and Nakamise Shopping Street, Shibuya and the famous scramble crossing, Harajuku’s fashion district and the nearby Meiji-jingu shrine, and Shinjuku — where we recommend getting a bird’s-eye view of the city from the Tokyo Metropolitan Government Building’s observation deck. Finish the day with a meal in a typical Japanese izakaya and try some local specialties."
+        },
+        {
+          "day": 3,
+          "title": "Tokyo Free Day",
+          "description": "Explore other areas of Tokyo and the surrounding area at your own pace or relax at the hotel — the day is yours. Recommended day trips include Kamakura and Enoshima by the coast, or for something more traditional, Kawagoe in nearby Saitama prefecture. Otherwise, indulge in fun activities such as a visit to the teamLab’s digital art museum or go shopping in one of the countless malls."
+        },
+        {
+          "day": 4,
+          "title": "Tokyo > Kamakura/Enoshima > Atami",
+          "description": "Start your journey in Tokyo and travel to the scenic shores of Enoshima and the historic charm of Kamakura. Capture the iconic \"Slam Dunk\" photo spot and enjoy the relaxed coastal atmosphere before exploring Kamakura’s cultural highlights, including Tsurugaoka Hachimangu Shrine and the impressive Great Buddha at Kotoku-in. This well-paced day blends seaside views with timeless heritage, offering a perfect balance of relaxation and discovery."
+        },
+        {
+          "day": 5,
+          "title": "Izu Day Tour",
+          "description": "After a quick breakfast, set off from the hotel to explore the natural beauty and cultural charm of Izu. Visit the peaceful Moroguchi Shrine, wander through the historic streets of Shuzenji Onsen Town, and take in the dramatic coastal views along the Jogasaki Coast. This relaxing yet scenic journey blends tradition and nature, offering a refreshing escape from the city."
+        },
+        {
+          "day": 6,
+          "title": "Atami Free Day",
+          "description": "Enjoy a relaxing free day in Atami at your pace. Unwind in soothing hot springs, stroll along the scenic coastline, or explore charming local streets and cafés. Whether you choose to relax or discover hidden gems, the day is yours to enjoy."
+        },
+        {
+          "day": 7,
+          "title": "Atami to Kyoto",
+          "description": "Today after breakfast we will hop aboard the famous bullet train (shinkansen). Before check-in, we will immerse ourselves in Japan’s rich culture by participating in a traditional Japanese tea ceremony and learning to make tea sweets under the guidance of a local teacher. The rest of the day is yours at leisure."
+        },
+        {
+          "day": 8,
+          "title": "Kyoto City Tour",
+          "description": "Step into Japan’s ancient capital and immerse yourself in serene temples, historical streets, and unforgettable scenic beauty — all in comfort with a chartered bus for the day. Stops include Kinkakuji, Arashiyama with its bamboo grove and picturesque river, Nishiki Market (Kyoto’s Kitchen — ideal for lunch), Kiyomizudera, and Gion. Afterwards rest up and prepare for dinner and possibly a few drinks."
+        },
+        {
+          "day": 9,
+          "title": "Kyoto Free Day",
+          "description": "Enjoy a free day in Kyoto to explore the city at your pace. Wander through historic streets, visit iconic temples and shrines, or relax in traditional tea houses and gardens. From cultural landmarks to hidden corners, Kyoto offers endless discoveries. Make the day your own and experience the timeless beauty of Japan’s ancient capital."
+        },
+        {
+          "day": 10,
+          "title": "Check Out, Until Next Time!",
+          "description": "Enjoy your last breakfast with a view before heading to the airport. You’re leaving Japan but trust us, part of your heart will stay behind."
         }
       ],
-      "requirements": [],
-      "highlights": [
-        "Skiing"
+      "requirements": [
+        "Valid passport",
+        "Travel insurance required",
+        "Pack warm clothing for February weather: windproof coat, sweaters, thermal layers, scarf, gloves, and hat",
+        "Comfortable waterproof walking shoes or boots",
+        "Layers recommended as indoor spaces are well-heated",
+        "Respect for local customs and dress codes (especially at temples and shrines)",
+        "Aged 18–45 (tour is designed for adventurous travellers, most guests 21–35)"
       ]
     },
-    "tourCode": "JA",
-    "slug": "japan-adventure",
-    "preDeparturePack": "",
+    "media": {
+      "coverImage": "https://imheretravels.com/wp-content/uploads/2025/10/japan-header-6.webp",
+      "gallery": [
+        "https://imheretravels.com/wp-content/uploads/2025/10/japan-header-1.webp",
+        "https://imheretravels.com/wp-content/uploads/2025/10/japan-header-2.webp",
+        "https://imheretravels.com/wp-content/uploads/2025/10/japan-header-3.webp",
+        "https://imheretravels.com/wp-content/uploads/2025/10/japan-header-4.webp",
+        "https://imheretravels.com/wp-content/uploads/2025/10/japan-header-5.webp",
+        "https://imheretravels.com/wp-content/uploads/2025/10/japan-header-7.webp"
+      ]
+    },
     "travelDates": [
       {
         "endDate": {
@@ -623,7 +706,7 @@
         },
         "isAvailable": true,
         "currentBookings": 0,
-        "maxCapacity": 0,
+        "maxCapacity": 20,
         "startDate": {
           "type": "firestore/timestamp/1.0",
           "seconds": 1773446400,
@@ -631,9 +714,6 @@
         }
       }
     ],
-    "brochureLink": "",
-    "stripePaymentLink": "https://book.stripe.com/fZubJ1ekbfhngKneAvco03G",
-    "location": "Other",
     "pricingHistory": [
       {
         "date": {
@@ -642,23 +722,16 @@
         },
         "price": 2050,
         "changedBy": "6VhhlJhcEGdjZCQINyu566DU5Xp2"
+      },
+      {
+        "date": {
+          "_seconds": 1745798400,
+          "_nanoseconds": 0
+        },
+        "price": 1899,
+        "changedBy": "migration-script"
       }
     ],
-    "name": "Japan Adventure (Standard)",
-    "media": {
-      "gallery": [],
-      "coverImage": "https://imheretravels.com/wp-content/uploads/2025/10/japan-header-6.webp"
-    },
-    "url": "",
-    "pricing": {
-      "discounted": 0,
-      "deposit": 250,
-      "original": 2050,
-      "currency": "GBP"
-    },
-    "description": "Experience the perfect blend of tradition and innovation on this unforgettable journey through Japan. We start off in Tokyo, the vibrant capital where modern skyscrapers meet historic temples. Enjoy a guided city tour featuring iconic sights like the Meiji Shrine and Shibuya Crossing. After a few days in Tokyo, we will ride the world-renowned bullet train to Kyoto, Japan’s cultural heart. Explore ancient temples, serene gardens, and the famous Gion district, home to traditional tea houses and geisha culture. The final stop on the tour will be Sapporo. Discover its laid-back charm, local cuisine, and unique seasonal beauty during a scenic city tour. This tour offers the best of Japan’s dynamic cities, rich heritage, and stunning landscapes.",
-    "status": "active",
-    "duration": "10 days",
     "metadata": {
       "createdAt": {
         "_nanoseconds": 923000000,
@@ -668,9 +741,11 @@
       "bookingsCount": 0,
       "updatedAt": {
         "type": "firestore/timestamp/1.0",
-        "seconds": 1763526347,
-        "nanoseconds": 116000000
-      }
+        "seconds": 1745798400,
+        "nanoseconds": 0
+      },
+      "updatedBy": "migration-script",
+      "migratedBy": "046-update-japan-adventure"
     }
   },
   {
