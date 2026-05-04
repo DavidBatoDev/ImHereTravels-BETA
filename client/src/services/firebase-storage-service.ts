@@ -50,6 +50,7 @@ export class FirebaseStorageService {
   private static instance: FirebaseStorageService;
   private readonly COLLECTION_NAME = "file_objects";
   private readonly STORAGE_PATH = "images";
+  private readonly VIDEOS_STORAGE_PATH = "videos";
 
   private constructor() {}
 
@@ -157,6 +158,104 @@ export class FirebaseStorageService {
   }
 
   /**
+   * Upload a video file to videos/ in Firebase Storage and create a Firestore document.
+   * Mirrors uploadFile but writes to a separate storage path. Reuses file_objects collection.
+   */
+  async uploadVideo(
+    file: File,
+    tags: string[] = [],
+    metadata: Partial<ImageItem["metadata"]> = {}
+  ): Promise<ImageItem> {
+    try {
+      const currentUser = auth.currentUser;
+      if (!currentUser) {
+        throw new Error("User must be authenticated to upload files");
+      }
+
+      const timestamp = Date.now();
+      const uniqueName = `${timestamp}_${file.name}`;
+      const storagePath = `${this.VIDEOS_STORAGE_PATH}/${uniqueName}`;
+
+      const storageRef = ref(storage, storagePath);
+      const snapshot = await uploadBytes(storageRef, file);
+      console.log("Video uploaded to Firebase Storage:", snapshot);
+
+      const downloadURL = await getDownloadURL(storageRef);
+
+      const cleanMetadata: FirebaseFileObject["metadata"] = {
+        description: metadata.description || "",
+        location: metadata.location || "",
+        category: metadata.category || "video",
+      };
+
+      const fileObject: FirebaseFileObject = {
+        id: uniqueName,
+        name: uniqueName,
+        originalName: file.name,
+        size: file.size,
+        contentType: file.type,
+        storagePath: storagePath,
+        downloadURL: downloadURL,
+        uploadedAt: new Date(),
+        uploadedBy: currentUser.uid,
+        tags: tags,
+        metadata: cleanMetadata,
+        lastModified: new Date(),
+      };
+
+      this.validateFileObject(fileObject);
+
+      const docRef = doc(collection(db, this.COLLECTION_NAME), uniqueName);
+      await setDoc(docRef, fileObject);
+
+      const imageItem: ImageItem = {
+        id: uniqueName,
+        name: file.name,
+        url: downloadURL,
+        size: this.formatFileSize(file.size),
+        type: file.type,
+        uploadedAt: fileObject.uploadedAt.toISOString().split("T")[0],
+        tags: tags,
+        metadata: fileObject.metadata,
+        firebaseStoragePath: storagePath,
+        firestoreId: uniqueName,
+        downloadURL: downloadURL,
+        contentType: file.type,
+        lastModified: fileObject.lastModified,
+        uploadedBy: currentUser.uid,
+      };
+
+      return imageItem;
+    } catch (error) {
+      console.error("Error uploading video:", error);
+      throw new Error(`Failed to upload video: ${error}`);
+    }
+  }
+
+  /**
+   * Get only video files (filters by contentType starting with "video/")
+   */
+  async getVideos(): Promise<ImageItem[]> {
+    try {
+      const q = query(collection(db, this.COLLECTION_NAME));
+      const querySnapshot = await getDocs(q);
+      const files: ImageItem[] = [];
+
+      querySnapshot.forEach((doc) => {
+        const data = doc.data() as FirebaseFileObject;
+        if (data.contentType && data.contentType.startsWith("video/")) {
+          files.push(this.convertFirebaseObjectToImageItem(data));
+        }
+      });
+
+      return files;
+    } catch (error) {
+      console.error("Error getting videos:", error);
+      throw new Error(`Failed to get videos: ${error}`);
+    }
+  }
+
+  /**
    * Get all files from Firestore (no filtering - all done on frontend)
    */
   async getFiles(): Promise<ImageItem[]> {
@@ -168,6 +267,10 @@ export class FirebaseStorageService {
 
       querySnapshot.forEach((doc) => {
         const data = doc.data() as FirebaseFileObject;
+        // Exclude videos so the Gallery tab only shows images / non-video files
+        if (data.contentType && data.contentType.startsWith("video/")) {
+          return;
+        }
         files.push(this.convertFirebaseObjectToImageItem(data));
       });
 

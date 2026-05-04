@@ -66,29 +66,38 @@ export const onTourPackagePriceUpdate = onDocumentUpdated(
       `💰 Price update detected for package ${event.params.packageId}`,
     );
 
-    const currentHistory = after.pricingHistory || [];
-    const currentVersion = after.currentVersion || 1;
-    const newVersion = currentVersion + 1;
+    const result = await admin.firestore().runTransaction(async (tx) => {
+      const snap = await tx.get(change.after.ref);
+      const data =
+        (snap.data() as TourPackageState<admin.firestore.Timestamp>) || {};
 
-    const historyEntry = buildNewHistoryEntry(
-      after,
-      newVersion,
-      admin.firestore.Timestamp.now(),
-      toIsoDate,
-    );
+      const currentHistory = data.pricingHistory || [];
+      const currentVersion = data.currentVersion || 1;
+      const newVersion = currentVersion + 1;
 
-    const updatedHistory = [...currentHistory, historyEntry];
+      const historyEntry = buildNewHistoryEntry(
+        data,
+        newVersion,
+        admin.firestore.Timestamp.now(),
+        toIsoDate,
+      );
 
-    await change.after.ref.update({
-      pricingHistory: updatedHistory,
-      currentVersion: newVersion,
-      priceUpdateReason: admin.firestore.FieldValue.delete(),
+      tx.update(change.after.ref, {
+        pricingHistory: [...currentHistory, historyEntry],
+        currentVersion: newVersion,
+        priceUpdateReason: admin.firestore.FieldValue.delete(),
+      });
+
+      return { currentVersion, newVersion, historyEntry };
     });
 
     console.log(
-      `✅ Price history updated: Version ${currentVersion} → ${newVersion}`,
+      `✅ Price history updated: Version ${result.currentVersion} → ${result.newVersion}`,
     );
-    console.log(`📦 History entry:`, JSON.stringify(historyEntry, null, 2));
+    console.log(
+      `📦 History entry:`,
+      JSON.stringify(result.historyEntry, null, 2),
+    );
 
     return null;
   },

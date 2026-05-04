@@ -49,6 +49,26 @@ export class StorageService {
     }
   }
 
+  // Get all videos
+  async getVideos(): Promise<ImageItem[]> {
+    try {
+      return await firebaseStorageService.getVideos();
+    } catch (error) {
+      console.error("Error getting videos:", error);
+      return [];
+    }
+  }
+
+  // Upload video to Firebase (videos/ path)
+  async uploadVideo(file: File, tags: string[] = []): Promise<ImageItem> {
+    try {
+      return await firebaseStorageService.uploadVideo(file, tags);
+    } catch (error) {
+      console.error("Error uploading video:", error);
+      throw error;
+    }
+  }
+
   // Delete image from Firebase
   async deleteImage(id: string): Promise<boolean> {
     try {

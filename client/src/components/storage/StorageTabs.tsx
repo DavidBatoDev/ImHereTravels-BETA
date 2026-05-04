@@ -2,6 +2,7 @@
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import GalleryTab from "./GalleryTab";
+import VideosTab from "./VideosTab";
 
 export default function StorageTabs() {
   return (
@@ -20,12 +21,18 @@ export default function StorageTabs() {
 
       {/* Tabs */}
       <Tabs defaultValue="gallery" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 bg-muted border border-royal-purple/20 dark:border-border">
+        <TabsList className="grid w-full grid-cols-4 bg-muted border border-royal-purple/20 dark:border-border">
           <TabsTrigger
             value="gallery"
             className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
           >
             Gallery
+          </TabsTrigger>
+          <TabsTrigger
+            value="videos"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
+          >
+            Videos
           </TabsTrigger>
           <TabsTrigger
             value="documents"
@@ -43,6 +50,10 @@ export default function StorageTabs() {
 
         <TabsContent value="gallery" className="mt-6">
           <GalleryTab />
+        </TabsContent>
+
+        <TabsContent value="videos" className="mt-6">
+          <VideosTab />
         </TabsContent>
 
         <TabsContent value="documents" className="mt-6">
