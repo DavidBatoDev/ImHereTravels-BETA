@@ -148,6 +148,14 @@ import {
   runMigration as runMigration045,
   rollbackMigration as rollbackMigration045,
 } from "./045-late-fee-notice-email-template";
+import {
+  runMigration as runMigration046,
+  rollbackMigration as rollbackMigration046,
+} from "./046-update-japan-adventure";
+import {
+  runMigration as runMigration047,
+  rollbackMigration as rollbackMigration047,
+} from "./047-update-japan-adventure-skiing";
 import migration034 from "./034-initialize-columns-metadata";
 
 // ============================================================================
@@ -224,6 +232,18 @@ async function main() {
           );
         }
       }
+      break;
+
+    case "046":
+      console.log("📊 Running migration: 046-update-japan-adventure");
+      const result046 = await runMigration046(dryRun);
+      console.log(`\n🎯 ${result046.message}`);
+      break;
+
+    case "047":
+      console.log("📊 Running migration: 047-update-japan-adventure-skiing");
+      const result047 = await runMigration047(dryRun);
+      console.log(`\n🎯 ${result047.message}`);
       break;
 
     case "003":
@@ -671,6 +691,16 @@ async function main() {
     case "rollback044":
       console.log("🔄 Rolling back migration: 044-late-fees-config");
       await rollbackMigration044();
+      break;
+
+    case "rollback046":
+      console.log("🔄 Rolling back migration: 046-update-japan-adventure");
+      await rollbackMigration046();
+      break;
+
+    case "rollback047":
+      console.log("🔄 Rolling back migration: 047-update-japan-adventure-skiing");
+      await rollbackMigration047();
       break;
 
     case "rollback045":
@@ -1324,6 +1354,22 @@ async function main() {
           `📊 Details: ${dryRunResult045.details.created} would be created, ${dryRunResult045.details.skipped} would be skipped`,
         );
       }
+      break;
+
+    case "dry-run046":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 046-update-japan-adventure",
+      );
+      const dryRunResult046 = await runMigration046(true);
+      console.log(`\n🎯 ${dryRunResult046.message}`);
+      break;
+
+    case "dry-run047":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 047-update-japan-adventure-skiing",
+      );
+      const dryRunResult047 = await runMigration047(true);
+      console.log(`\n🎯 ${dryRunResult047.message}`);
       break;
 
     case "help":
