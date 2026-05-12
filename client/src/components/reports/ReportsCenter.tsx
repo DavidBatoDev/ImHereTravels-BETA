@@ -379,6 +379,27 @@ export default function ReportsCenter() {
               </Card>
             </div>
 
+            {/* Detailed Reports Navigation */}
+            <div>
+              <h2 className="text-sm font-semibold text-gray-700 mb-2">Detailed Reports</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                <Card
+                  className="cursor-pointer hover:shadow-md hover:border-royal-purple/40 transition-all"
+                  onClick={() => router.push(`/reports/customers?start=${dateRange.startDate}&end=${dateRange.endDate}`)}
+                >
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Customer Guest List</CardTitle>
+                    <Users className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-xs text-muted-foreground">
+                      Guest demographics, nationality &amp; age breakdown
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+
             {/* Revenue Trends */}
             <Card>
               <CardHeader>
