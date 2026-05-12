@@ -3754,7 +3754,7 @@ export default function EditBookingModal({
                                     <div className="flex items-center gap-1 px-2 py-1 bg-muted/40 rounded-md border border-border">
                                       <Lock className="h-3 w-3 text-muted-foreground" />
                                       <span className="text-[10px] text-muted-foreground font-medium">
-                                        Lock Pricing
+                                        Lock Edits
                                       </span>
                                       <Switch
                                         checked={!!formData.lockPricing}
