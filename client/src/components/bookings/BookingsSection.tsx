@@ -38,6 +38,7 @@ import {
   CardDescription,
   CardHeader,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Search,
   Filter,
@@ -245,6 +246,7 @@ export default function BookingsSection() {
     outstandingBalances: number;
     expectedRevenue: number;
   } | null>(null);
+  const [isReportMetricsLoading, setIsReportMetricsLoading] = useState(true);
 
   // Ref for the bookings container to enable scrolling after adding a booking
   const bookingsContainerRef = useRef<HTMLDivElement>(null);
@@ -674,6 +676,7 @@ export default function BookingsSection() {
 
     const loadFinancialMetrics = async () => {
       try {
+        if (active) setIsReportMetricsLoading(true);
         const bounds = await financialReportsService.getDataBounds();
         const report = await financialReportsService.generateReport({
           preset: "all_time",
@@ -689,6 +692,8 @@ export default function BookingsSection() {
         });
       } catch (error) {
         console.error("Failed to load financial metrics for bookings:", error);
+      } finally {
+        if (active) setIsReportMetricsLoading(false);
       }
     };
 
@@ -988,9 +993,17 @@ export default function BookingsSection() {
   };
 
   // Get column label from column ID
+  const humanizeColumnId = (columnId: string) =>
+    columnId
+      .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .replace(/\b\w/g, (char) => char.toUpperCase());
+
   const getColumnLabel = (columnId: string) => {
     const column = columns.find((col) => col.id === columnId);
-    return column?.columnName || columnId;
+    return column?.columnName || humanizeColumnId(columnId);
   };
 
   // Get sample preview value for a column
@@ -1100,16 +1113,20 @@ export default function BookingsSection() {
 
     if (value === null || value === undefined) return "N/A";
 
-    // Special handling for tourDate - it's a select type but stores Timestamp
-    if (columnId === "tourDate") {
-      return safeDate(value).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    }
+    // Date-like fields should always format cleanly, even before column metadata loads.
+    const isLikelyDateField =
+      columnId === "tourDate" ||
+      columnId === "reservationDate" ||
+      columnId === "returnDate" ||
+      column?.dataType === "date";
+    const isTimestampLike =
+      value &&
+      typeof value === "object" &&
+      (typeof (value as any).toDate === "function" ||
+        typeof (value as any).seconds === "number" ||
+        typeof (value as any)._seconds === "number");
 
-    if (column?.dataType === "date") {
+    if (isLikelyDateField || isTimestampLike) {
       return safeDate(value).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
@@ -1435,25 +1452,39 @@ export default function BookingsSection() {
                   <p className="text-[11px] sm:text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">
                     Net Revenue
                   </p>
-                  <p className="text-2xl sm:text-3xl font-bold text-spring-green">
-                    {formatCurrency(reportMetrics?.netRevenue ?? 0)}
-                  </p>
+                  {isReportMetricsLoading ? (
+                    <Skeleton className="h-9 w-36" />
+                  ) : (
+                    <p className="text-2xl sm:text-3xl font-bold text-spring-green">
+                      {formatCurrency(reportMetrics?.netRevenue ?? 0)}
+                    </p>
+                  )}
                   <div className="flex items-center gap-1.5 mt-2">
                     <div className="w-2 h-2 rounded-full bg-vivid-orange"></div>
                     <p className="text-xs text-muted-foreground">
                       Outstanding Balances:{" "}
-                      <span className="text-vivid-orange font-bold">
-                        {formatCurrency(reportMetrics?.outstandingBalances ?? 0)}
-                      </span>
+                      {isReportMetricsLoading ? (
+                        <span className="inline-block h-4 w-20 align-middle ml-1 rounded-md bg-muted animate-pulse" />
+                      ) : (
+                        <span className="text-vivid-orange font-bold">
+                          {formatCurrency(
+                            reportMetrics?.outstandingBalances ?? 0,
+                          )}
+                        </span>
+                      )}
                     </p>
                   </div>
                   <div className="flex items-center gap-1.5 mt-1">
                     <div className="w-2 h-2 rounded-full bg-crimson-red"></div>
                     <p className="text-xs text-muted-foreground">
                       Expected Revenue:{" "}
-                      <span className="text-crimson-red font-bold">
-                        {formatCurrency(reportMetrics?.expectedRevenue ?? 0)}
-                      </span>
+                      {isReportMetricsLoading ? (
+                        <span className="inline-block h-4 w-20 align-middle ml-1 rounded-md bg-muted animate-pulse" />
+                      ) : (
+                        <span className="text-crimson-red font-bold">
+                          {formatCurrency(reportMetrics?.expectedRevenue ?? 0)}
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>

@@ -97,6 +97,10 @@ export default function ToursList() {
   const [isModalLoading, setIsModalLoading] = useState(false);
 
   const { toast } = useToast();
+  const nameCollator = useMemo(
+    () => new Intl.Collator(undefined, { sensitivity: "base" }),
+    [],
+  );
 
   // Create Fuse instance for fuzzy search
   const fuse = useMemo(() => {
@@ -147,8 +151,18 @@ export default function ToursList() {
       results = results.filter((tour) => tour.status === statusFilter);
     }
 
-    return results;
-  }, [fuse, searchTerm, statusFilter, allTours]);
+    return [...results].sort((a, b) => {
+      const aName = (a?.name || "").trim();
+      const bName = (b?.name || "").trim();
+
+      // Keep unnamed tours at the end while preserving deterministic ordering.
+      if (!aName && !bName) return 0;
+      if (!aName) return 1;
+      if (!bName) return -1;
+
+      return nameCollator.compare(aName, bName);
+    });
+  }, [fuse, searchTerm, statusFilter, allTours, nameCollator]);
 
   // Load bookings data
   const loadBookings = () => {
