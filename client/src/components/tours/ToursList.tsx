@@ -57,6 +57,7 @@ import {
   Calendar,
   TrendingUp,
   X,
+  GitBranch,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -72,13 +73,90 @@ import {
 import {
   getTours,
   createTour,
-  updateTour,
+  updateTourWithSyncCheck,
   deleteTour,
   archiveTour,
   testFirestoreConnection,
 } from "@/services/tours-service";
+import { syncAllFromParent } from "@/services/hosted-tours-service";
+import {
+  HostedTour,
+  ChangeLogEntry,
+  getSyncFieldForChange,
+} from "@/types/hosted-tours";
 import TourForm from "./TourForm";
 import TourDetails from "./TourDetails";
+import SyncConfirmModal from "./SyncConfirmModal";
+import CreateHostedTourModal from "./CreateHostedTourModal";
+
+function normalizeDateOnly(value: any): string {
+  if (!value) return "";
+  if (typeof value === "object" && typeof value.toDate === "function") {
+    return value.toDate().toISOString().split("T")[0];
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      return parsed.toISOString().split("T")[0];
+    }
+    return trimmed;
+  }
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) {
+    return parsed.toISOString().split("T")[0];
+  }
+  return String(value);
+}
+
+function toTravelDateKey(date: any): string {
+  const start = normalizeDateOnly(date?.startDate);
+  const end = normalizeDateOnly(date?.endDate);
+  if (!start && !end) return "";
+  return `${start}__${end}`;
+}
+
+function withMissingParentTravelDateChange(
+  baseChanges: ChangeLogEntry[],
+  parentTravelDates: any[],
+  unlockedHostedTours: HostedTour[],
+): ChangeLogEntry[] {
+  // If travel dates are already part of changed parent fields, do not add a duplicate row.
+  if (baseChanges.some((change) => getSyncFieldForChange(change) === "travelDates")) {
+    return baseChanges;
+  }
+
+  const parentDateKeys = new Set(
+    (parentTravelDates ?? []).map(toTravelDateKey).filter(Boolean),
+  );
+  if (parentDateKeys.size === 0 || unlockedHostedTours.length === 0) {
+    return baseChanges;
+  }
+
+  const missingDateKeys = new Set<string>();
+  unlockedHostedTours.forEach((hostedTour) => {
+    const hostedKeys = new Set(
+      (hostedTour.travelDates ?? []).map(toTravelDateKey).filter(Boolean),
+    );
+    parentDateKeys.forEach((key) => {
+      if (!hostedKeys.has(key)) missingDateKeys.add(key);
+    });
+  });
+
+  if (missingDateKeys.size === 0) return baseChanges;
+
+  return [
+    ...baseChanges,
+    {
+      field: "travelDates.missingInHosted",
+      label: "Travel Dates (Missing in Hosted)",
+      oldValue: [],
+      newValue: Array.from(missingDateKeys).sort(),
+      syncField: "travelDates",
+    },
+  ];
+}
 
 export default function ToursList() {
   const router = useRouter();
@@ -95,6 +173,16 @@ export default function ToursList() {
   const [tourToDelete, setTourToDelete] = useState<TourPackage | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isModalLoading, setIsModalLoading] = useState(false);
+  const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
+  const [pendingSyncData, setPendingSyncData] = useState<{
+    changes: ChangeLogEntry[];
+    hostedTours: HostedTour[];
+    parentTourId: string;
+    parentTourName: string;
+  } | null>(null);
+  const [queuedSyncModalOpen, setQueuedSyncModalOpen] = useState(false);
+  const [isCreateHostedModalOpen, setIsCreateHostedModalOpen] = useState(false);
+  const [preSelectedHostedParentId, setPreSelectedHostedParentId] = useState<string | undefined>();
 
   const { toast } = useToast();
   const nameCollator = useMemo(
@@ -270,6 +358,10 @@ export default function ToursList() {
 
   // Handle query parameters for opening modals
   useEffect(() => {
+    // While sync confirmation is in progress, do not auto-open the edit modal
+    // from URL params (which can re-trigger after realtime tour updates).
+    if (queuedSyncModalOpen || isSyncModalOpen || pendingSyncData) return;
+
     const tourId = searchParams?.get("tourId");
     const action = searchParams?.get("action");
     const mode = searchParams?.get("mode");
@@ -289,7 +381,13 @@ export default function ToursList() {
       setSelectedTour(null);
       setIsFormOpen(true);
     }
-  }, [searchParams, allTours]);
+  }, [
+    searchParams,
+    allTours,
+    queuedSyncModalOpen,
+    isSyncModalOpen,
+    pendingSyncData,
+  ]);
 
   // Create tour
   const handleCreateTour = async (data: TourFormDataWithStringDates) => {
@@ -326,6 +424,27 @@ export default function ToursList() {
     }
   };
 
+  // Close form and clear URL params helper
+  const closeTourForm = () => {
+    setIsFormOpen(false);
+    setSelectedTour(null);
+    const params = new URLSearchParams(searchParams?.toString() ?? "");
+    params.delete("tourId");
+    params.delete("action");
+    params.delete("mode");
+    router.push(`/tours?${params.toString()}`, { scroll: false });
+  };
+
+  // Close the edit dialog first, then open sync modal to avoid stacked-dialog pointer lock.
+  useEffect(() => {
+    if (!queuedSyncModalOpen || isFormOpen || !pendingSyncData) return;
+    const timeoutId = window.setTimeout(() => {
+      setIsSyncModalOpen(true);
+      setQueuedSyncModalOpen(false);
+    }, 80);
+    return () => window.clearTimeout(timeoutId);
+  }, [queuedSyncModalOpen, isFormOpen, pendingSyncData]);
+
   // Update tour
   const handleUpdateTour = async (data: TourFormDataWithStringDates) => {
     if (!selectedTour) return;
@@ -333,22 +452,58 @@ export default function ToursList() {
     try {
       setIsSubmitting(true);
 
-      await updateTour(selectedTour.id, data);
+      const result = await updateTourWithSyncCheck(selectedTour.id, data, selectedTour);
+
+      const unlockedHostedTours = result.hostedTours.filter((tour) => !tour.isLocked);
+      const syncableChanges = withMissingParentTravelDateChange(
+        result.changes.filter((change) => !!getSyncFieldForChange(change)),
+        data.travelDates ?? [],
+        unlockedHostedTours,
+      );
+      const hasSyncableChanges = syncableChanges.length > 0;
+      const shouldShowSyncModal = hasSyncableChanges && unlockedHostedTours.length > 0;
+
+      // Show sync modal only when there are unlocked attached hosted tours.
+      if (shouldShowSyncModal) {
+        setPendingSyncData({
+          changes: syncableChanges,
+          hostedTours: unlockedHostedTours,
+          parentTourId: selectedTour.id,
+          parentTourName: selectedTour.name,
+        });
+        setQueuedSyncModalOpen(true);
+        // Keep selectedTour for context; close form first, then open sync modal.
+        setIsFormOpen(false);
+        return;
+      }
+
+      closeTourForm();
+
+      if (result.hostedToursLookupFailed) {
+        toast({
+          title: "Parent tour updated",
+          description: "Could not check attached hosted tours for sync.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (
+        hasSyncableChanges &&
+        result.hostedTours.length > 0 &&
+        unlockedHostedTours.length === 0
+      ) {
+        toast({
+          title: "Parent tour updated",
+          description: "All attached hosted tours are locked.",
+        });
+        return;
+      }
 
       toast({
-        title: "Success",
-        description: "Tour updated successfully!",
+        title: "Parent tour updated",
+        description: "Changes saved successfully.",
       });
-
-      setIsFormOpen(false);
-      setSelectedTour(null);
-
-      // Clear URL parameters after update
-      const params = new URLSearchParams(searchParams?.toString() ?? "");
-      params.delete("tourId");
-      params.delete("action");
-      params.delete("mode");
-      router.push(`/tours?${params.toString()}`, { scroll: false });
     } catch (error) {
       console.error("Error updating tour:", error);
       toast({
@@ -930,6 +1085,16 @@ export default function ToursList() {
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuItem
+                          onClick={() => {
+                            setPreSelectedHostedParentId(tour.id);
+                            setIsCreateHostedModalOpen(true);
+                          }}
+                          className="text-royal-purple focus:text-royal-purple"
+                        >
+                          <GitBranch className="h-4 w-4 mr-2" />
+                          Create Hosted Tour
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           onClick={() => confirmDelete(tour)}
                           className="text-crimson-red focus:text-crimson-red"
                         >
@@ -1105,6 +1270,55 @@ export default function ToursList() {
         isLoading={isSubmitting}
       />
 
+      {/* Sync Confirm Modal — appears after updating a parent tour that has hosted tours */}
+      {pendingSyncData && (
+        <SyncConfirmModal
+          isOpen={isSyncModalOpen}
+          onClose={() => {
+            setQueuedSyncModalOpen(false);
+            setIsSyncModalOpen(false);
+            setPendingSyncData(null);
+            closeTourForm();
+          }}
+          parentTourName={pendingSyncData.parentTourName}
+          hostedTours={pendingSyncData.hostedTours}
+          changes={pendingSyncData.changes}
+          onSync={(selectedFields) =>
+            syncAllFromParent(
+              pendingSyncData.parentTourId,
+              pendingSyncData.changes,
+              selectedFields,
+            )
+          }
+          onSkip={() => {
+            setQueuedSyncModalOpen(false);
+            setIsSyncModalOpen(false);
+            setPendingSyncData(null);
+            closeTourForm();
+            toast({
+              title: "Parent tour updated",
+              description: "Hosted tours were not synced.",
+            });
+          }}
+        />
+      )}
+
+      {/* Create Hosted Tour Modal */}
+      <CreateHostedTourModal
+        isOpen={isCreateHostedModalOpen}
+        onClose={() => {
+          setIsCreateHostedModalOpen(false);
+          setPreSelectedHostedParentId(undefined);
+        }}
+        tours={allTours}
+        onSuccess={() => {
+          setIsCreateHostedModalOpen(false);
+          setPreSelectedHostedParentId(undefined);
+          toast({ title: "Hosted tour created", description: "Switch to the Hosted Tours tab to view it." });
+        }}
+        preSelectedParentId={preSelectedHostedParentId}
+      />
+
       {/* Tour Details Dialog */}
       <TourDetails
         tour={selectedTour}
@@ -1164,3 +1378,4 @@ export default function ToursList() {
     </div>
   );
 }
+

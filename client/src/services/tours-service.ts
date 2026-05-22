@@ -579,6 +579,42 @@ function isValidUrl(string: string): boolean {
 }
 
 // ============================================================================
+// HOSTED TOUR SYNC HELPER
+// ============================================================================
+
+/**
+ * Updates a tour then returns any attached hosted tours and the computed
+ * change log so the caller can offer to sync changes to hosted tours.
+ */
+export async function updateTourWithSyncCheck(
+  id: string,
+  updates: TourFormDataWithStringDates,
+  oldTour: TourPackage,
+): Promise<{
+  changes: import("@/types/hosted-tours").ChangeLogEntry[];
+  hostedTours: import("@/types/hosted-tours").HostedTour[];
+  hostedToursLookupFailed: boolean;
+}> {
+  const { computeChangeLog, getHostedTours } = await import(
+    "@/services/hosted-tours-service"
+  );
+
+  await updateTour(id, updates);
+  const changes = computeChangeLog(oldTour, updates);
+
+  let hostedTours: import("@/types/hosted-tours").HostedTour[] = [];
+  let hostedToursLookupFailed = false;
+  try {
+    hostedTours = await getHostedTours(id);
+  } catch (error) {
+    hostedToursLookupFailed = true;
+    console.error("Parent tour updated, but hosted tours lookup failed:", error);
+  }
+
+  return { changes, hostedTours, hostedToursLookupFailed };
+}
+
+// ============================================================================
 // TEST FUNCTION - For debugging database connection
 // ============================================================================
 export async function testFirestoreConnection(): Promise<void> {

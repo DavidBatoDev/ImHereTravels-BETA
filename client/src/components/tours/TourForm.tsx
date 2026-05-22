@@ -202,6 +202,7 @@ interface TourFormProps {
   onSubmit: (data: TourFormDataWithStringDates) => Promise<void | string>;
   tour?: TourPackage | null;
   isLoading?: boolean;
+  sidebarExtra?: React.ReactNode;
 }
 
 export default function TourForm({
@@ -210,6 +211,7 @@ export default function TourForm({
   onSubmit,
   tour,
   isLoading = false,
+  sidebarExtra,
 }: TourFormProps) {
   // Section navigation state
   const [activeSection, setActiveSection] = useState<string>("");
@@ -1389,7 +1391,6 @@ export default function TourForm({
       await handleFormSubmit(cleanedData);
 
       console.log("Form submission completed successfully");
-      onClose();
     } catch (error) {
       console.error("Error submitting tour:", error);
       toast({
@@ -3314,8 +3315,16 @@ export default function TourForm({
               })}
             </nav>
 
+            {sidebarExtra && (
+              <div className="pt-4 border-t border-border/50 space-y-2">
+                {sidebarExtra}
+              </div>
+            )}
+
             {/* Action Buttons */}
-            <div className="pt-4 border-t border-border/50 space-y-2">
+            <div
+              className={`${sidebarExtra ? "pt-3" : "pt-4"} border-t border-border/50 space-y-2`}
+            >
               <Button
                 type="button"
                 variant="outline"

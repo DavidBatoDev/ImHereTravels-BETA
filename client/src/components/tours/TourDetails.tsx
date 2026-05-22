@@ -671,19 +671,7 @@ export default function TourDetails({
                           }
                         >
                           <FileText className="w-4 h-4 mr-2" />
-                          Download Brochure
-                        </Button>
-                      )}
-                      {tour.stripePaymentLink && (
-                        <Button
-                          variant="outline"
-                          className="w-full justify-start border-spring-green text-spring-green hover:bg-spring-green hover:text-white"
-                          onClick={() =>
-                            window.open(tour.stripePaymentLink, "_blank")
-                          }
-                        >
-                          <CreditCard className="w-4 h-4 mr-2" />
-                          Book Now
+                          View Brochure
                         </Button>
                       )}
                     </CardContent>

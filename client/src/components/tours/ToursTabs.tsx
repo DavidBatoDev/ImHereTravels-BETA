@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ToursList from "./ToursList";
 import DiscountedToursTab from "@/app/tours/DiscountedToursTab";
+import HostedToursList from "./HostedToursList";
 
 const urlToInternalTab = (urlTab: string | null): string => {
   switch (urlTab) {
@@ -12,6 +13,8 @@ const urlToInternalTab = (urlTab: string | null): string => {
       return "packages";
     case "discounted":
       return "discounted";
+    case "hosted":
+      return "hosted";
     default:
       return "packages";
   }
@@ -23,6 +26,8 @@ const internalTabToUrl = (internalTab: string): string => {
       return "packages";
     case "discounted":
       return "discounted";
+    case "hosted":
+      return "hosted";
     default:
       return "packages";
   }
@@ -59,7 +64,7 @@ export default function ToursTabs() {
       </div>
 
       <Tabs value={activeTab} onValueChange={onChange} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 bg-muted border border-border">
+        <TabsList className="grid w-full grid-cols-3 bg-muted border border-border">
           <TabsTrigger
             value="packages"
             className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
@@ -72,6 +77,12 @@ export default function ToursTabs() {
           >
             Discounted Tours
           </TabsTrigger>
+          <TabsTrigger
+            value="hosted"
+            className="data-[state=active]:bg-primary data-[state=active]:text-white data-[state=active]:shadow transition-all duration-200"
+          >
+            Hosted Tours
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="packages" className="mt-6">
@@ -80,6 +91,10 @@ export default function ToursTabs() {
 
         <TabsContent value="discounted" className="mt-6">
           <DiscountedToursTab />
+        </TabsContent>
+
+        <TabsContent value="hosted" className="mt-6">
+          <HostedToursList />
         </TabsContent>
       </Tabs>
     </div>
