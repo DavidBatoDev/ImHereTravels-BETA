@@ -67,10 +67,22 @@ const getEligibleLastFridayDates = (
     );
   });
 
+  // Bookings made on/after June 1 2026: 2-month-before-tour cutoff.
+  const POLICY_DATE = new Date(2026, 5, 1);
+  const isNewPolicy = reservationDate.getTime() >= POLICY_DATE.getTime();
+  const twoMonthsBeforeTour = new Date(
+    tourDate.getFullYear(),
+    tourDate.getMonth() - 2,
+    tourDate.getDate(),
+  );
+  const cutoffDate = isNewPolicy
+    ? twoMonthsBeforeTour
+    : new Date(tourDate.getTime() - 3 * DAY_MS);
+
   return lastFridayDates.filter(
     (date) =>
       date.getTime() > reservationDate.getTime() + 2 * DAY_MS &&
-      date.getTime() <= tourDate.getTime() - 3 * DAY_MS,
+      date.getTime() <= cutoffDate.getTime(),
   );
 };
 

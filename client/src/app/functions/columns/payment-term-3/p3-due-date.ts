@@ -134,10 +134,22 @@ export default function getP3DueDateFunction(
     const offset = (lastDay.getDay() - 5 + 7) % 7; // days back to last Friday
     return new Date(res.getFullYear(), res.getMonth() + i + 1, -offset);
   });
+  // Bookings made on/after June 1 2026 use the 2-month-before-tour cutoff.
+  const POLICY_DATE = new Date(2026, 5, 1);
+  const isNewPolicy = res.getTime() >= POLICY_DATE.getTime();
+  const twoMonthsBeforeTour = new Date(
+    tour.getFullYear(),
+    tour.getMonth() - 2,
+    tour.getDate(),
+  );
+  const cutoffDate = isNewPolicy
+    ? twoMonthsBeforeTour
+    : new Date(tour.getTime() - 3 * DAY_MS);
+
   const validDates = lastDayDates.filter(
     (d) =>
       d.getTime() > res.getTime() + 2 * DAY_MS &&
-      d.getTime() <= tour.getTime() - 3 * DAY_MS,
+      d.getTime() <= cutoffDate.getTime(),
   );
 
   if (validDates.length < 3) return "";

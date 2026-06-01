@@ -42,6 +42,7 @@ type Step3PaymentPlanSelectorCardProps = {
   availablePaymentPlans: AvailablePaymentPlan[];
   selectionLocked: boolean;
   onSelectPaymentPlanForActiveTraveler: (planId: string) => void;
+  tourDate?: string;
 };
 
 export default function Step3PaymentPlanSelectorCard({
@@ -56,12 +57,28 @@ export default function Step3PaymentPlanSelectorCard({
   availablePaymentPlans,
   selectionLocked,
   onSelectPaymentPlanForActiveTraveler,
+  tourDate,
 }: Step3PaymentPlanSelectorCardProps) {
   const reservationFeePerPerson = depositAmount / numberOfPeople;
   const remainingBalance = selectedTourPrice - reservationFeePerPerson;
   const selectedPlansCount = availablePaymentTerm.isLastMinute
     ? numberOfPeople
     : getSelectedPaymentPlansCount(paymentPlans);
+
+  const finalPaymentDeadlineLabel = (() => {
+    if (!tourDate) return null;
+    const t = new Date(tourDate + "T00:00:00Z");
+    if (isNaN(t.getTime())) return null;
+    const deadline = new Date(
+      Date.UTC(t.getUTCFullYear(), t.getUTCMonth() - 2, t.getUTCDate()),
+    );
+    return deadline.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  })();
 
   return (
     <div className="rounded-xl bg-card border border-sunglow-yellow/20 dark:border-crimson-red/30 shadow-md dark:shadow-lg overflow-hidden transition-all duration-300 hover:border-crimson-red">
@@ -160,6 +177,40 @@ export default function Step3PaymentPlanSelectorCard({
                     <p className="text-xs sm:text-sm text-amber-600 dark:text-amber-400 mb-2.5">
                       Preview only: plan selection unlocks after Step 2 payment.
                     </p>
+                  )}
+
+                  {finalPaymentDeadlineLabel && (
+                    <div className="bg-red-500/10 border border-red-500/30 p-3 rounded-md mb-2.5">
+                      <div className="flex items-start gap-2.5">
+                        <svg
+                          className="h-4 w-4 text-red-500 flex-shrink-0 mt-0.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={2}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
+                        <div>
+                          <div className="font-semibold text-xs sm:text-sm text-red-600 dark:text-red-400">
+                            Final balance deadline:{" "}
+                            <span className="font-bold">
+                              {finalPaymentDeadlineLabel}
+                            </span>
+                          </div>
+                          <div className="text-[11px] sm:text-xs text-muted-foreground mt-0.5">
+                            Your full tour balance must be received no later than
+                            2 months before your departure date. Any outstanding
+                            balance after this date may result in your booking
+                            being cancelled.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   )}
 
                   <div className="space-y-2">

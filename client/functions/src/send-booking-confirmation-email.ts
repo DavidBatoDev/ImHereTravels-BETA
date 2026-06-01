@@ -311,6 +311,22 @@ export const sendBookingConfirmationEmail = onCall(
         p4DueDate: formatDateLikeSheets(bookingData.p4DueDate),
         p4DatePaid: formatDateLikeSheets(bookingData.p4DatePaid),
         tourPackageCoverImage,
+        finalPaymentDeadline: (() => {
+          const raw = bookingData.tourDate;
+          if (!raw) return "";
+          let d: Date | null = null;
+          if (typeof raw === "object" && (raw as any)._seconds)
+            d = new Date((raw as any)._seconds * 1000);
+          else if (raw instanceof Date) d = raw;
+          else if (typeof raw === "string") {
+            const parsed = new Date(raw.trim());
+            d = isNaN(parsed.getTime()) ? null : parsed;
+          }
+          if (!d) return "";
+          return formatDateLikeSheets(
+            new Date(d.getFullYear(), d.getMonth() - 2, d.getDate()),
+          );
+        })(),
       };
 
       // Process template

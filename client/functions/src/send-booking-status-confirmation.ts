@@ -246,6 +246,24 @@ export const sendBookingStatusConfirmation = onCall(
         bookingStatusUrl: bookingStatusUrl,
         currentYear: new Date().getFullYear(),
         tourPackageCoverImage,
+        finalPaymentDeadline: (() => {
+          const raw = bookingData.tourDate;
+          if (!raw) return "";
+          let d: Date | null = null;
+          if (typeof raw === "object" && (raw as any)._seconds)
+            d = new Date((raw as any)._seconds * 1000);
+          else if (typeof raw === "object" && (raw as any).seconds)
+            d = new Date((raw as any).seconds * 1000);
+          else if (raw instanceof Date) d = raw;
+          else if (typeof raw === "string") {
+            const parsed = new Date(raw.trim());
+            d = isNaN(parsed.getTime()) ? null : parsed;
+          }
+          if (!d) return "";
+          return formatDateLikeSheets(
+            new Date(d.getFullYear(), d.getMonth() - 2, d.getDate()),
+          );
+        })(),
       };
 
       // Process template using EmailTemplateService (Nunjucks)

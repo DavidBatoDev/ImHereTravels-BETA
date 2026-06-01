@@ -855,7 +855,39 @@ export default function BookingsSection() {
       }
     }
 
+    // Check if the final 2-month balance deadline has passed and booking isn't fully paid
+    const progress = calculatePaymentProgress(booking);
+    if (progress < 100) {
+      const finalDeadline = getFinalBalanceDeadline(booking);
+      if (finalDeadline && finalDeadline.date < now) {
+        return { hasOverdue: true, message: `Full balance was due by ${finalDeadline.label} (2 months before tour)` };
+      }
+    }
+
     return { hasOverdue: false, message: "" };
+  };
+
+  // Compute the final balance deadline (tourDate - 2 calendar months).
+  // Returns a { date, label } object or null if tourDate cannot be resolved.
+  const getFinalBalanceDeadline = (booking: Booking): { date: Date; label: string } | null => {
+    const raw: any = booking.tourDate;
+    if (!raw) return null;
+
+    let d: Date | null = null;
+    if (typeof raw.toDate === "function") d = raw.toDate();
+    else if (raw._seconds) d = new Date(raw._seconds * 1000);
+    else if (raw.seconds) d = new Date(raw.seconds * 1000);
+    else if (raw instanceof Date) d = raw;
+
+    if (!d || isNaN(d.getTime())) return null;
+
+    const deadline = new Date(d.getFullYear(), d.getMonth() - 2, d.getDate());
+    const label = deadline.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
+    return { date: deadline, label };
   };
 
   // Get active filters count
@@ -3165,6 +3197,61 @@ export default function BookingsSection() {
                         )}
                       </div>
                     </div>
+
+                    {/* Final Balance Deadline */}
+                    {(() => {
+                      const deadline = getFinalBalanceDeadline(booking);
+                      const isFullyPaid = calculatePaymentProgress(booking) === 100;
+                      const isCancelled = booking.bookingStatus?.toLowerCase() === "cancelled";
+                      if (!deadline || isFullyPaid || isCancelled) return null;
+
+                      const now = new Date();
+                      const daysUntil = Math.ceil(
+                        (deadline.date.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+                      );
+                      const isOverdue = daysUntil < 0;
+                      const isUrgent = daysUntil >= 0 && daysUntil <= 30;
+
+                      return (
+                        <div
+                          className={`flex items-center gap-1.5 sm:gap-2 p-1.5 sm:p-2 rounded-lg border ${
+                            isOverdue
+                              ? "bg-red-500/10 border-red-500/30"
+                              : isUrgent
+                                ? "bg-amber-500/10 border-amber-500/30"
+                                : "bg-muted/30 border-border/30"
+                          }`}
+                        >
+                          <svg
+                            className={`h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0 ${isOverdue ? "text-red-500" : isUrgent ? "text-amber-500" : "text-muted-foreground"}`}
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            strokeWidth={2}
+                          >
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[7px] sm:text-[9px] text-muted-foreground font-medium">
+                              Final Balance Deadline
+                            </p>
+                            <p
+                              className={`text-[8px] sm:text-[10px] font-bold ${
+                                isOverdue
+                                  ? "text-red-500"
+                                  : isUrgent
+                                    ? "text-amber-500"
+                                    : "text-foreground"
+                              }`}
+                            >
+                              {deadline.label}
+                              {isOverdue && " · Overdue"}
+                              {isUrgent && !isOverdue && ` · ${daysUntil}d left`}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </CardContent>
                 </Card>
               );

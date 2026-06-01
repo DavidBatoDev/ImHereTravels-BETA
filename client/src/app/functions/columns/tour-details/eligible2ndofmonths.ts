@@ -148,10 +148,24 @@ export default function eligibleSecondsCountFunction(
     },
   );
 
+  // Bookings made on/after June 1 2026: use the 2-month-before-tour cutoff so
+  // that no installment can be scheduled after the final payment deadline.
+  // Pre-policy bookings keep the original 3-day cutoff.
+  const POLICY_DATE = new Date(2026, 5, 1);
+  const isNewPolicy = resD.getTime() >= POLICY_DATE.getTime();
+  const twoMonthsBeforeTour = new Date(
+    tourD.getFullYear(),
+    tourD.getMonth() - 2,
+    tourD.getDate(),
+  );
+  const cutoffDate = isNewPolicy
+    ? twoMonthsBeforeTour
+    : new Date(tourD.getTime() - 3 * DAY_MS);
+
   const eligible = installmentDates.filter(
     (d) =>
       d.getTime() > resD.getTime() + 2 * DAY_MS &&
-      d.getTime() <= tourD.getTime() - 3 * DAY_MS,
+      d.getTime() <= cutoffDate.getTime(),
   );
 
   return eligible.length;

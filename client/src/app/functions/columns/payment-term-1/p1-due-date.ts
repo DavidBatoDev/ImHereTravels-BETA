@@ -239,12 +239,24 @@ export default function getP1DueDateFunction(
     return new Date(res.getFullYear(), res.getMonth() + i + 1, -offset);
   });
 
-  // validDates: (lastDayDates > res + 2) * (lastDayDates <= tour - 3)
+  // Bookings made on/after June 1 2026 use the 2-month-before-tour cutoff.
+  // Older bookings keep the original 3-day cutoff so their schedules are unchanged.
   const DAY_MS = 24 * 60 * 60 * 1000;
+  const POLICY_DATE = new Date(2026, 5, 1);
+  const isNewPolicy = res.getTime() >= POLICY_DATE.getTime();
+  const twoMonthsBeforeTour = new Date(
+    tour.getFullYear(),
+    tour.getMonth() - 2,
+    tour.getDate(),
+  );
+  const cutoffDate = isNewPolicy
+    ? twoMonthsBeforeTour
+    : new Date(tour.getTime() - 3 * DAY_MS);
+
   const validDates = lastDayDates.filter(
     (d) =>
       d.getTime() > res.getTime() + 2 * DAY_MS &&
-      d.getTime() <= tour.getTime() - 3 * DAY_MS,
+      d.getTime() <= cutoffDate.getTime(),
   );
 
   if (validDates.length < 1) return "";

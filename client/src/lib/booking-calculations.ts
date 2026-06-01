@@ -430,10 +430,20 @@ export function getEligible2ndOfMonths(
     },
   );
 
+  // Bookings made on/after June 1 2026: 2-month-before-tour cutoff.
+  const POLICY_DATE = new Date(Date.UTC(2026, 5, 1));
+  const isNewPolicy = resUTC.getTime() >= POLICY_DATE.getTime();
+  const twoMonthsBeforeTour = new Date(
+    Date.UTC(tourUTC.getUTCFullYear(), tourUTC.getUTCMonth() - 2, tourUTC.getUTCDate()),
+  );
+  const cutoffDate = isNewPolicy
+    ? twoMonthsBeforeTour
+    : new Date(tourUTC.getTime() - 3 * DAY_MS);
+
   const eligible = installmentDates.filter(
     (d) =>
       d.getTime() > resUTC.getTime() + 2 * DAY_MS &&
-      d.getTime() <= tourUTC.getTime() - 3 * DAY_MS,
+      d.getTime() <= cutoffDate.getTime(),
   );
 
   return eligible.length;
@@ -577,10 +587,20 @@ export function generateInstallmentDueDates(
     return new Date(t - offset * DAY_MS);
   });
 
+  // Bookings made on/after June 1 2026 use the 2-month-before-tour cutoff.
+  const POLICY_DATE = new Date(Date.UTC(2026, 5, 1));
+  const isNewPolicy = resUTC.getTime() >= POLICY_DATE.getTime();
+  const twoMonthsBeforeTour = new Date(
+    Date.UTC(tourUTC.getUTCFullYear(), tourUTC.getUTCMonth() - 2, tourUTC.getUTCDate()),
+  );
+  const cutoffDate = isNewPolicy
+    ? twoMonthsBeforeTour
+    : new Date(tourUTC.getTime() - 3 * DAY_MS);
+
   const validDates = secondDates.filter(
     (d) =>
       d.getTime() > resUTC.getTime() + 2 * DAY_MS &&
-      d.getTime() <= tourUTC.getTime() - 3 * DAY_MS,
+      d.getTime() <= cutoffDate.getTime(),
   );
 
   const fmt = (d: Date) =>

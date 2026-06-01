@@ -1006,6 +1006,7 @@ const Page = () => {
                           onSelectPaymentPlanForActiveTraveler={
                             handleSelectPaymentPlanForActiveTraveler
                           }
+                          tourDate={tourDate}
                         />
                       </div>
                     )}

@@ -25,6 +25,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Banknote,
+  ScrollText,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import {
@@ -105,6 +106,12 @@ const navigation = [
     href: "/settings",
     icon: Settings,
     description: "System configuration",
+  },
+  {
+    name: "Patch Notes",
+    href: "/patch-notes",
+    icon: ScrollText,
+    description: "Changes & updates",
   },
 ];
 

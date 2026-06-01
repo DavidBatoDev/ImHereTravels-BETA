@@ -367,6 +367,29 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
         const p4Amount = bookingData.p4Amount || 0;
         const p4DueDate = bookingData.p4DueDate;
         const availablePaymentTerms = bookingData.availablePaymentTerms || "";
+
+        // Compute final payment deadline: 2 calendar months before tour date
+        const tourDateObj = (() => {
+          const raw = tourDateRaw;
+          if (!raw) return null;
+          if (typeof raw === "object" && (raw as any)._seconds)
+            return new Date((raw as any)._seconds * 1000);
+          if (raw instanceof Date) return raw;
+          if (typeof raw === "string") {
+            const d = new Date(raw.trim());
+            return isNaN(d.getTime()) ? null : d;
+          }
+          return null;
+        })();
+        const finalPaymentDeadline = tourDateObj
+          ? formatDateLikeSheets(
+              new Date(
+                tourDateObj.getFullYear(),
+                tourDateObj.getMonth() - 2,
+                tourDateObj.getDate(),
+              ),
+            )
+          : "";
         const reasonForCancellation = bookingData.reasonForCancellation || "";
         const accessToken = bookingData.access_token || "";
 
@@ -461,6 +484,7 @@ export const onGenerateEmailDraftChanged = onDocumentUpdated(
           p3DueDate: formatDateLikeSheets(p3DueDate),
           p4Amount: Number(p4Amount).toFixed(2),
           p4DueDate: formatDateLikeSheets(p4DueDate),
+          finalPaymentDeadline,
           isCancelled,
           cancelledRefundAmount: isCancelled
             ? Number(reservationFee).toFixed(2)
