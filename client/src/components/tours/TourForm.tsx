@@ -41,14 +41,6 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import {
   Form,
   FormControl,
   FormDescription,
@@ -197,7 +189,6 @@ const tourFormSchema = z.object({
 type TourFormData = z.infer<typeof tourFormSchema>;
 
 interface TourFormProps {
-  isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: TourFormDataWithStringDates) => Promise<void | string>;
   tour?: TourPackage | null;
@@ -205,7 +196,6 @@ interface TourFormProps {
 }
 
 export default function TourForm({
-  isOpen,
   onClose,
   onSubmit,
   tour,
@@ -260,24 +250,20 @@ export default function TourForm({
     }
   };
 
-  // Track active section on scroll
+  // Track active section on window scroll
   useEffect(() => {
-    if (!isOpen) return;
-
     const handleScroll = () => {
       if (isScrollingProgrammatically.current) return;
       if (!scrollContainerRef.current) return;
 
-      const sections =
+      const sectionEls =
         scrollContainerRef.current.querySelectorAll('[id^="section-"]');
-      if (sections.length === 0) return;
+      if (sectionEls.length === 0) return;
 
-      const container = scrollContainerRef.current;
-      const scrollTop = container.scrollTop;
-      const scrollHeight = container.scrollHeight;
-      const clientHeight = container.clientHeight;
-      const containerRect = container.getBoundingClientRect();
-      const headerHeight = 120;
+      const scrollTop = window.scrollY;
+      const scrollHeight = document.documentElement.scrollHeight;
+      const clientHeight = window.innerHeight;
+      const headerHeight = 160;
 
       const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 10;
       const isAtTop = scrollTop < 10;
@@ -285,10 +271,10 @@ export default function TourForm({
       let mostVisibleSection = "";
       let maxVisibleArea = 0;
 
-      sections.forEach((section, index) => {
+      sectionEls.forEach((section, index) => {
         const rect = section.getBoundingClientRect();
 
-        if (isAtBottom && index === sections.length - 1) {
+        if (isAtBottom && index === sectionEls.length - 1) {
           mostVisibleSection = section.id.replace("section-", "");
           maxVisibleArea = 1000;
           return;
@@ -300,8 +286,8 @@ export default function TourForm({
           return;
         }
 
-        const visibleTop = Math.max(rect.top, containerRect.top + headerHeight);
-        const visibleBottom = Math.min(rect.bottom, containerRect.bottom);
+        const visibleTop = Math.max(rect.top, headerHeight);
+        const visibleBottom = Math.min(rect.bottom, clientHeight);
         const visibleHeight = Math.max(0, visibleBottom - visibleTop);
 
         if (visibleHeight > maxVisibleArea) {
@@ -315,89 +301,36 @@ export default function TourForm({
       }
     };
 
-    const scrollContainer = scrollContainerRef.current;
-    if (scrollContainer) {
-      scrollContainer.addEventListener("scroll", handleScroll);
-      scrollContainer.addEventListener("wheel", handleScroll);
-      setTimeout(handleScroll, 100);
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    setTimeout(handleScroll, 100);
 
-      return () => {
-        scrollContainer.removeEventListener("scroll", handleScroll);
-        scrollContainer.removeEventListener("wheel", handleScroll);
-      };
-    }
-  }, [isOpen, activeSection]);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, [activeSection]);
 
   // Set first section as active on load and initialize scroll tracking
   useEffect(() => {
-    if (isOpen && sections.length > 0) {
+    if (sections.length > 0) {
       // Set first section as active
       if (!activeSection) {
         setActiveSection(sections[0].id);
       }
 
-      // Initialize scroll tracking after DOM is ready
+      // Trigger initial active section detection after DOM is ready
       const initializeScrollTracking = () => {
-        if (scrollContainerRef.current) {
-          const handleScroll = () => {
-            if (isScrollingProgrammatically.current) return;
-            if (!scrollContainerRef.current) return;
-
-            const sections =
-              scrollContainerRef.current.querySelectorAll('[id^="section-"]');
-            if (sections.length === 0) return;
-
-            const container = scrollContainerRef.current;
-            const scrollTop = container.scrollTop;
-            const scrollHeight = container.scrollHeight;
-            const clientHeight = container.clientHeight;
-            const containerRect = container.getBoundingClientRect();
-            const headerHeight = 120;
-
-            const isAtBottom =
-              Math.abs(scrollHeight - scrollTop - clientHeight) < 10;
-            const isAtTop = scrollTop < 10;
-
-            let mostVisibleSection = "";
-            let maxVisibleArea = 0;
-
-            sections.forEach((section, index) => {
-              const rect = section.getBoundingClientRect();
-
-              if (isAtBottom && index === sections.length - 1) {
-                mostVisibleSection = section.id.replace("section-", "");
-                maxVisibleArea = 1000;
-                return;
-              }
-
-              if (isAtTop && index === 0) {
-                mostVisibleSection = section.id.replace("section-", "");
-                maxVisibleArea = 1000;
-                return;
-              }
-
-              const visibleTop = Math.max(
-                rect.top,
-                containerRect.top + headerHeight,
-              );
-              const visibleBottom = Math.min(rect.bottom, containerRect.bottom);
-              const visibleHeight = Math.max(0, visibleBottom - visibleTop);
-
-              if (visibleHeight > maxVisibleArea) {
-                maxVisibleArea = visibleHeight;
-                mostVisibleSection = section.id.replace("section-", "");
-              }
-            });
-
-            if (mostVisibleSection && mostVisibleSection !== activeSection) {
-              setActiveSection(mostVisibleSection);
-            }
-          };
-
-          // Trigger initial scroll calculation
-          setTimeout(handleScroll, 100);
-          setTimeout(handleScroll, 300); // Additional delay to ensure DOM is ready
-        }
+        const runDetection = () => {
+          if (!scrollContainerRef.current) return;
+          const sectionEls =
+            scrollContainerRef.current.querySelectorAll('[id^="section-"]');
+          if (sectionEls.length === 0) return;
+          const firstVisible = sectionEls[0];
+          if (firstVisible) {
+            setActiveSection(firstVisible.id.replace("section-", ""));
+          }
+        };
+        setTimeout(runDetection, 100);
+        setTimeout(runDetection, 300);
       };
 
       // Use requestAnimationFrame to ensure DOM is ready
@@ -405,10 +338,9 @@ export default function TourForm({
         setTimeout(initializeScrollTracking, 100);
       });
     }
-  }, [isOpen, activeSection]);
+  }, [activeSection]);
 
   console.log("TourForm rendered with props:", {
-    isOpen,
     tour: tour?.id,
     isLoading,
   });
@@ -1445,81 +1377,88 @@ export default function TourForm({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[95vh] p-0 bg-background">
-        {/* Loading Overlay */}
-        {isLoading && (
-          <div className="absolute inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center rounded-lg">
-            <div className="flex flex-col items-center gap-4">
-              <div className="relative">
-                <div className="w-16 h-16 border-4 border-crimson-red/30 rounded-full"></div>
-                <div className="w-16 h-16 border-4 border-crimson-red border-t-transparent rounded-full animate-spin absolute inset-0"></div>
-              </div>
-              <div className="text-center">
-                <p className="text-lg font-semibold text-foreground">
-                  Loading Tour Data...
-                </p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Please wait while we fetch the tour details
-                </p>
-              </div>
+    <div className="bg-background relative">
+      {/* Loading Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="relative">
+              <div className="w-16 h-16 border-4 border-crimson-red/30 rounded-full"></div>
+              <div className="w-16 h-16 border-4 border-crimson-red border-t-transparent rounded-full animate-spin absolute inset-0"></div>
             </div>
+            <div className="text-center">
+              <p className="text-lg font-semibold text-foreground">
+                Loading Tour Data...
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Please wait while we fetch the tour details
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Page Header */}
+      <div className="relative px-8 pt-6 pb-6 text-white overflow-hidden flex-shrink-0">
+        {/* Blurred Background Image */}
+        {(uploadedCover || tour?.media?.coverImage) && (
+          <div className="absolute inset-0 z-0">
+            <div
+              className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-110"
+              style={{
+                backgroundImage: `url(${
+                  uploadedCover || tour?.media?.coverImage
+                })`,
+                filter: "blur(20px)",
+              }}
+            />
+            <div className="absolute inset-0 bg-black/60" />
           </div>
         )}
 
-        <DialogHeader className="relative px-8 pt-8 pb-6 text-white rounded-t-lg overflow-hidden">
-          {/* Blurred Background Image */}
-          {(uploadedCover || tour?.media?.coverImage) && (
-            <div className="absolute inset-0 z-0">
-              <div
-                className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-110"
-                style={{
-                  backgroundImage: `url(${
-                    uploadedCover || tour?.media?.coverImage
-                  })`,
-                  filter: "blur(20px)",
-                }}
-              />
-              <div className="absolute inset-0 bg-black/60" />
+        {/* Fallback gradient background when no cover image */}
+        {!uploadedCover && !tour?.media?.coverImage && (
+          <div className="absolute inset-0 bg-gradient-to-r from-crimson-red to-light-red" />
+        )}
+
+        {/* Content with proper z-index */}
+        <div className="relative z-10">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex items-center gap-1 text-white/70 hover:text-white text-sm mb-3 transition-colors"
+          >
+            ← Back to Tours
+          </button>
+          <h1 className="text-3xl font-bold text-white mb-2 drop-shadow-lg">
+            {tour ? "Edit Tour Package" : "Create New Tour Package"}
+          </h1>
+          <p className="text-white/90 text-lg drop-shadow-md">
+            {tour
+              ? "Update the tour package details below."
+              : "Fill in the details to create a new tour package."}
+          </p>
+          <div className="flex items-center gap-4 mt-4 text-white/80">
+            <div className="flex items-center gap-2">
+              <Package className="w-5 h-5 text-white drop-shadow-sm" />
+              <span className="font-medium">Tour Management</span>
             </div>
-          )}
-
-          {/* Fallback gradient background when no cover image */}
-          {!uploadedCover && !tour?.media?.coverImage && (
-            <div className="absolute inset-0 bg-gradient-to-r from-crimson-red to-light-red" />
-          )}
-
-          {/* Content with proper z-index */}
-          <div className="relative z-10">
-            <DialogTitle className="text-3xl font-bold text-white mb-2 drop-shadow-lg">
-              {tour ? "Edit Tour Package" : "Create New Tour Package"}
-            </DialogTitle>
-            <DialogDescription className="text-white/90 text-lg drop-shadow-md">
-              {tour
-                ? "Update the tour package details below."
-                : "Fill in the details to create a new tour package."}
-            </DialogDescription>
-            <div className="flex items-center gap-4 mt-4 text-white/80">
-              <div className="flex items-center gap-2">
-                <Package className="w-5 h-5 text-white drop-shadow-sm" />
-                <span className="font-medium">Tour Management</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Hash className="w-5 h-5 text-white drop-shadow-sm" />
-                <span className="font-medium">
-                  {tour?.tourCode || "New Tour"}
-                </span>
-              </div>
+            <div className="flex items-center gap-2">
+              <Hash className="w-5 h-5 text-white drop-shadow-sm" />
+              <span className="font-medium">
+                {tour?.tourCode || "New Tour"}
+              </span>
             </div>
           </div>
-        </DialogHeader>
+        </div>
+      </div>
 
-        <div className="flex overflow-hidden max-h-[calc(95vh-200px)]">
-          {/* Main Content */}
-          <div
-            ref={scrollContainerRef}
-            className="flex-1 overflow-y-auto h-[95%] pl-6 pb-6 scrollbar-hide scroll-optimized max-w-4xl mx-auto"
-          >
+      <div className="flex">
+        {/* Main Content */}
+        <div
+          ref={scrollContainerRef}
+          className="flex-1 pl-6 pb-6 max-w-4xl mx-auto"
+        >
             <Form {...form}>
               <form
                 id="tour-form"
@@ -3282,7 +3221,7 @@ export default function TourForm({
           </div>
 
           {/* Section Navigator Sidebar */}
-          <div className="w-48 border-l border-border/50 p-4 overflow-y-auto scrollbar-hide scroll-optimized flex flex-col">
+          <div className="w-48 border-l border-border/50 p-4 flex flex-col sticky top-0 self-start max-h-screen overflow-y-auto scrollbar-hide">
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
               Sections
             </h3>
@@ -3342,7 +3281,6 @@ export default function TourForm({
             </div>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
   );
 }

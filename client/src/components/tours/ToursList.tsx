@@ -66,18 +66,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import {
   TourPackage,
-  TourFormDataWithStringDates,
-  TourFilters,
 } from "@/types/tours";
 import {
-  getTours,
-  createTour,
-  updateTour,
   deleteTour,
   archiveTour,
-  testFirestoreConnection,
 } from "@/services/tours-service";
-import TourForm from "./TourForm";
 import TourDetails from "./TourDetails";
 
 export default function ToursList() {
@@ -89,12 +82,10 @@ export default function ToursList() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [selectedTour, setSelectedTour] = useState<TourPackage | null>(null);
-  const [isFormOpen, setIsFormOpen] = useState(false);
   const [isDetailsOpen, setIsDetailsOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [tourToDelete, setTourToDelete] = useState<TourPackage | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isModalLoading, setIsModalLoading] = useState(false);
 
   const { toast } = useToast();
   const nameCollator = useMemo(
@@ -268,98 +259,18 @@ export default function ToursList() {
     };
   }, []); // Only load on mount, filtering is now client-side
 
-  // Handle query parameters for opening modals
+  // Handle query parameters for opening details view
   useEffect(() => {
     const tourId = searchParams?.get("tourId");
-    const action = searchParams?.get("action");
-    const mode = searchParams?.get("mode");
 
     if (tourId && allTours.length > 0) {
       const tour = allTours.find((t) => t.id === tourId);
       if (tour) {
         setSelectedTour(tour);
-        if (mode === "edit") {
-          setIsDetailsOpen(false);
-          setIsFormOpen(true);
-        } else {
-          setIsDetailsOpen(true);
-        }
+        setIsDetailsOpen(true);
       }
-    } else if (action === "new") {
-      setSelectedTour(null);
-      setIsFormOpen(true);
     }
   }, [searchParams, allTours]);
-
-  // Create tour
-  const handleCreateTour = async (data: TourFormDataWithStringDates) => {
-    try {
-      setIsSubmitting(true);
-
-      const tourId = await createTour(data);
-
-      toast({
-        title: "Success",
-        description: "Tour created successfully!",
-      });
-
-      setIsFormOpen(false);
-      setSelectedTour(null);
-
-      // Clear URL parameters after create
-      const params = new URLSearchParams(searchParams?.toString() ?? "");
-      params.delete("action");
-      params.delete("mode");
-      router.push(`/tours?${params.toString()}`, { scroll: false });
-
-      return tourId; // Return the tour ID for blob uploads
-    } catch (error) {
-      console.error("Error creating tour:", error);
-      toast({
-        title: "Error",
-        description: "Failed to create tour. Please try again.",
-        variant: "destructive",
-      });
-      throw error;
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Update tour
-  const handleUpdateTour = async (data: TourFormDataWithStringDates) => {
-    if (!selectedTour) return;
-
-    try {
-      setIsSubmitting(true);
-
-      await updateTour(selectedTour.id, data);
-
-      toast({
-        title: "Success",
-        description: "Tour updated successfully!",
-      });
-
-      setIsFormOpen(false);
-      setSelectedTour(null);
-
-      // Clear URL parameters after update
-      const params = new URLSearchParams(searchParams?.toString() ?? "");
-      params.delete("tourId");
-      params.delete("action");
-      params.delete("mode");
-      router.push(`/tours?${params.toString()}`, { scroll: false });
-    } catch (error) {
-      console.error("Error updating tour:", error);
-      toast({
-        title: "Error",
-        description: "Failed to update tour. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   // Archive tour
   const handleArchiveTour = async (tour: TourPackage) => {
@@ -421,62 +332,21 @@ export default function ToursList() {
     }
   };
 
-  // Handle form submission
-  const handleFormSubmit = async (data: TourFormDataWithStringDates) => {
-    if (selectedTour) {
-      await handleUpdateTour(data);
-    } else {
-      return await handleCreateTour(data); // Return tour ID for blob uploads
-    }
-  };
-
-  // Open create form
+  // Open create form (full page)
   const openCreateForm = () => {
-    setIsModalLoading(true);
-    setSelectedTour(null);
-
-    // Simulate loading time for smooth transition
-    setTimeout(() => {
-      setIsFormOpen(true);
-      setIsModalLoading(false);
-    }, 300);
-
-    // Add action to URL
-    const params = new URLSearchParams(searchParams?.toString() ?? "");
-    params.set("action", "new");
-    router.push(`/tours?${params.toString()}`, { scroll: false });
+    router.push("/tours/new");
   };
 
-  // Open edit form
+  // Open edit form (full page)
   const openEditForm = (tour: TourPackage) => {
-    setIsModalLoading(true);
-    setSelectedTour(tour);
-
-    // Simulate loading time for smooth transition
-    setTimeout(() => {
-      setIsFormOpen(true);
-      setIsModalLoading(false);
-    }, 300);
-
-    // Add tourId and mode to URL
-    const params = new URLSearchParams(searchParams?.toString() ?? "");
-    params.set("tourId", tour.id);
-    params.set("mode", "edit");
-    router.push(`/tours?${params.toString()}`, { scroll: false });
+    router.push(`/tours/${tour.id}/edit`);
   };
 
   // Open tour details
   const openTourDetails = (tour: TourPackage) => {
-    setIsModalLoading(true);
     setSelectedTour(tour);
+    setIsDetailsOpen(true);
 
-    // Simulate loading time for smooth transition
-    setTimeout(() => {
-      setIsDetailsOpen(true);
-      setIsModalLoading(false);
-    }, 300);
-
-    // Add tourId to URL
     const params = new URLSearchParams(searchParams?.toString() ?? "");
     params.set("tourId", tour.id);
     router.push(`/tours?${params.toString()}`, { scroll: false });
@@ -570,24 +440,6 @@ export default function ToursList() {
 
   return (
     <div className="space-y-6">
-      {/* Loading Modal Overlay */}
-      {isModalLoading && (
-        <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="relative">
-              <div className="w-16 h-16 border-4 border-crimson-red/30 rounded-full"></div>
-              <div className="w-16 h-16 border-4 border-crimson-red border-t-transparent rounded-full animate-spin absolute inset-0"></div>
-            </div>
-            <div className="text-center">
-              <p className="text-lg font-semibold text-foreground">
-                Opening...
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">Please wait</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Statistics Cards with Add Button */}
       <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-4">
         {/* Total Tours */}
@@ -1085,25 +937,6 @@ export default function ToursList() {
           </CardContent>
         </Card>
       )}
-
-      {/* Tour Form Dialog */}
-      <TourForm
-        isOpen={isFormOpen}
-        onClose={() => {
-          setIsFormOpen(false);
-          setSelectedTour(null);
-
-          // Remove URL parameters
-          const params = new URLSearchParams(searchParams?.toString() ?? "");
-          params.delete("tourId");
-          params.delete("action");
-          params.delete("mode");
-          router.push(`/tours?${params.toString()}`, { scroll: false });
-        }}
-        onSubmit={handleFormSubmit}
-        tour={selectedTour}
-        isLoading={isSubmitting}
-      />
 
       {/* Tour Details Dialog */}
       <TourDetails
