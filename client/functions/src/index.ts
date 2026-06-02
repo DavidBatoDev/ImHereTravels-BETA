@@ -37,6 +37,7 @@ export { cleanupAbandonedPayments } from "./scheduled-cleanup-abandoned-payments
 export { onTourPackagePriceUpdate } from "./on-tour-package-price-update";
 export { onRevolutPaymentStatusEmail } from "./on-revolut-payment-status-email";
 export { applyLateFeesDaily } from "./scheduled-late-fees";
+export { exportProdFirestoreCollections } from "./scheduled-prod-firestore-export";
 
 // export { telegramBot } from "./telegram-bot";
 // export {
