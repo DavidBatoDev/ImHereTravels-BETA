@@ -13,8 +13,6 @@ function convertTravelDatesToTimestamps(travelDates: any[]): any[] {
       startDate: Timestamp.fromDate(new Date(td.startDate)),
       endDate: Timestamp.fromDate(new Date(td.endDate)),
       isAvailable: td.isAvailable,
-      maxCapacity: td.maxCapacity || 0,
-      currentBookings: td.currentBookings || 0,
     };
 
     // Include optional fields if they exist

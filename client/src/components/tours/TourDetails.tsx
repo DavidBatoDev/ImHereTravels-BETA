@@ -613,17 +613,6 @@ export default function TourDetails({
                                     days
                                   </p>
                                 </div>
-                                {date.maxCapacity && (
-                                  <div className="text-right">
-                                    <p className="text-sm text-muted-foreground">
-                                      Capacity
-                                    </p>
-                                    <p className="font-medium text-foreground">
-                                      {date.currentBookings || 0}/
-                                      {date.maxCapacity}
-                                    </p>
-                                  </div>
-                                )}
                               </div>
                             </div>
                           );

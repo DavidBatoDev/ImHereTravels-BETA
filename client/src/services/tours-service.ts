@@ -37,8 +37,6 @@ interface TourFormDataWithStringDates {
     startDate: string;
     endDate: string;
     isAvailable: boolean;
-    maxCapacity?: number | null;
-    currentBookings?: number | null;
   }[];
   pricing: {
     original: number;

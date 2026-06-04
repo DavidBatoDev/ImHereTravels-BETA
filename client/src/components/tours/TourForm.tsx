@@ -172,8 +172,6 @@ const tourFormSchema = z.object({
         endDate: z.string().min(1, "End date is required"),
         tourDays: optionalNumberSchema,
         isAvailable: z.boolean(),
-        maxCapacity: optionalNumberSchema,
-        currentBookings: optionalNumberSchema,
         hasCustomPricing: z.boolean().optional(),
         customOriginal: optionalNumberSchema,
         customDiscounted: optionalNumberSchema,
@@ -474,8 +472,6 @@ export default function TourForm({
           startDate: "",
           endDate: "",
           isAvailable: true,
-          maxCapacity: undefined,
-          currentBookings: undefined,
           hasCustomPricing: false,
           customOriginal: undefined,
           customDiscounted: undefined,
@@ -586,8 +582,6 @@ export default function TourForm({
           endDate,
           tourDays,
           isAvailable: td.isAvailable,
-          maxCapacity: td.maxCapacity ?? undefined,
-          currentBookings: td.currentBookings ?? undefined,
           hasCustomPricing:
             td.customOriginal !== undefined ||
             td.customDiscounted !== undefined ||
@@ -609,8 +603,6 @@ export default function TourForm({
           startDate: "",
           endDate: "",
           isAvailable: true,
-          maxCapacity: undefined,
-          currentBookings: undefined,
           hasCustomPricing: false,
           customOriginal: undefined,
           customDiscounted: undefined,
@@ -1295,8 +1287,6 @@ export default function TourForm({
           endDate: td.endDate,
           tourDays: td.tourDays,
           isAvailable: td.isAvailable,
-          maxCapacity: td.maxCapacity,
-          currentBookings: td.currentBookings,
           hasCustomPricing: td.hasCustomPricing,
           customOriginal: td.customOriginal,
           customDiscounted: td.customDiscounted,
@@ -1978,8 +1968,6 @@ export default function TourForm({
                                   endDate: values?.endDate || "",
                                   tourDays: values?.tourDays,
                                   isAvailable: values?.isAvailable ?? true,
-                                  maxCapacity: values?.maxCapacity,
-                                  currentBookings: values?.currentBookings,
                                   customOriginal: values?.customOriginal,
                                   customDiscounted: values?.customDiscounted,
                                   customDeposit: values?.customDeposit,
@@ -2167,43 +2155,6 @@ export default function TourForm({
                               ) : null;
                             })()}
                           </div>
-                        </div>
-
-                        {/* Tour Size (max capacity) */}
-                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-3">
-                          <FormField
-                            control={form.control}
-                            name={`travelDates.${index}.maxCapacity`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                                  <Users className="h-4 w-4 text-muted-foreground" />
-                                  Tour Size
-                                </FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="text"
-                                    inputMode="numeric"
-                                    pattern="[0-9]*"
-                                    placeholder="e.g., 12"
-                                    {...field}
-                                    value={numberToInputValue(field.value)}
-                                    onChange={(e) =>
-                                      handleIntegerInputChange(
-                                        e.target.value,
-                                        field.onChange,
-                                      )
-                                    }
-                                    className="h-9 text-sm border-2 border-border focus:border-spring-green"
-                                  />
-                                </FormControl>
-                                <FormDescription className="text-xs text-muted-foreground">
-                                  Max travelers
-                                </FormDescription>
-                                <FormMessage className="text-xs" />
-                              </FormItem>
-                            )}
-                          />
                         </div>
 
                         {/* Custom Pricing per date (compact, per-field add/remove) */}
@@ -2492,8 +2443,6 @@ export default function TourForm({
                           endDate: "",
                           tourDays: undefined,
                           isAvailable: true,
-                          maxCapacity: undefined,
-                          currentBookings: undefined,
                           hasCustomPricing: false,
                         })
                       }

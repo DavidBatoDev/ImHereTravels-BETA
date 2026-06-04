@@ -26,6 +26,12 @@ export interface TourPackage {
   brochureLink?: string; // Google Drive or other brochure link
   stripePaymentLink?: string; // Stripe payment link
   preDeparturePack?: string; // Pre-departure pack link
+  // WWW PRESENTATION FIELDS
+  seo?: { title?: string; description?: string }; // SEO overrides; falls back to name/description
+  comingSoon?: boolean; // Gate full content on www
+  bookingSlug?: string; // Override slug used in booking/reservation URLs
+  depositNote?: string; // Full deposit notice text on booking card; falls back to auto-generated
+  footnote?: string; // Booking card footnote; falls back to "Additional fees may apply"
 }
 
 // ============================================================================
@@ -37,8 +43,6 @@ export interface TravelDate {
   endDate: Timestamp;
   tourDays?: number; // Number of days for the tour
   isAvailable: boolean;
-  maxCapacity?: number | null;
-  currentBookings?: number | null;
   // Optional per-date custom pricing overrides
   customOriginal?: number | null;
   customDiscounted?: number | null;
@@ -82,18 +86,64 @@ export interface PricingHistoryEntry {
 export interface Highlight {
   text: string;
   image?: string;
+  subtitle?: string; // Drives tripHighlights subtitle on www
 }
 
 export interface TourDetails {
   highlights: (string | Highlight)[];
   itinerary: TourItinerary[];
   requirements: string[];
+  // WWW presentation sections (all optional; added additively)
+  route?: string; // e.g. "Punakha → Paro" — key-fact + booking routeLabel
+  tags?: Array<{ label: string; icon: string }>; // Header location/theme tags; falls back to location + destinations
+  inclusions?: TourInclusion[]; // "What's Included" section
+  accommodations?: TourAccommodation[]; // "Where We Stay" section
+  faqs?: TourFaq[]; // FAQ section
+  thingsToKnow?: TourThingToKnow[]; // "Things to Know" cards (per-tour override)
+  tips?: TourTip[]; // Tips section (per-tour override)
+  map?: { image?: string; embedUrl?: string }; // Map section
+}
+
+export interface TourInclusion {
+  icon?: string; // TourIcon value (e.g. "meals", "transport", "activities")
+  label: string;
+  value: string | string[];
+}
+
+export interface TourAccommodation {
+  image: string;
+  name: string;
+  nights: string; // e.g. "2 nights in Hotel"
+}
+
+export interface TourFaq {
+  question: string;
+  answer: string;
+}
+
+export interface TourThingToKnow {
+  icon?: string;
+  title: string;
+  description: string;
+  ctaLabel: string;
+  ctaHref: string;
+}
+
+export interface TourTip {
+  icon?: string;
+  title: string;
+  description: string;
 }
 
 export interface TourItinerary {
   day: number;
   title: string;
   description: string;
+  // Optional per-day presentation fields
+  image?: string;
+  accommodation?: string; // → "Accommodation" detail row
+  activities?: string; // → "Activity" detail row
+  meals?: string; // → "Meals" detail row
 }
 
 export interface TourMedia {
@@ -169,8 +219,6 @@ export interface TourFormDataWithStringDates {
     endDate: string;
     tourDays?: number; // Number of days for the tour
     isAvailable: boolean;
-    maxCapacity?: number | null;
-    currentBookings?: number | null;
     // Optional per-date custom pricing values
     customOriginal?: number | null;
     customDiscounted?: number | null;
