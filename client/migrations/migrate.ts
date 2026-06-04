@@ -156,6 +156,14 @@ import {
   runMigration as runMigration047,
   rollbackMigration as rollbackMigration047,
 } from "./047-update-japan-adventure-skiing";
+import {
+  runMigration as runMigration048,
+  rollbackMigration as rollbackMigration048,
+} from "./048-enrich-tour-presentation";
+import {
+  runMigration as runMigration049,
+  rollbackMigration as rollbackMigration049,
+} from "./049-backfill-gallery-and-tags";
 import migration034 from "./034-initialize-columns-metadata";
 
 // ============================================================================
@@ -244,6 +252,18 @@ async function main() {
       console.log("📊 Running migration: 047-update-japan-adventure-skiing");
       const result047 = await runMigration047(dryRun);
       console.log(`\n🎯 ${result047.message}`);
+      break;
+
+    case "048":
+      console.log("📊 Running migration: 048-enrich-tour-presentation");
+      const result048 = await runMigration048(dryRun);
+      console.log(`\n🎯 ${result048.message}`);
+      break;
+
+    case "049":
+      console.log("📊 Running migration: 049-backfill-gallery-and-tags");
+      const result049 = await runMigration049(dryRun);
+      console.log(`\n🎯 ${result049.message}`);
       break;
 
     case "003":
@@ -1370,6 +1390,32 @@ async function main() {
       );
       const dryRunResult047 = await runMigration047(true);
       console.log(`\n🎯 ${dryRunResult047.message}`);
+      break;
+
+    case "dry-run048":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 048-enrich-tour-presentation",
+      );
+      const dryRunResult048 = await runMigration048(true);
+      console.log(`\n🎯 ${dryRunResult048.message}`);
+      break;
+
+    case "dry-run049":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 049-backfill-gallery-and-tags",
+      );
+      const dryRunResult049 = await runMigration049(true);
+      console.log(`\n🎯 ${dryRunResult049.message}`);
+      break;
+
+    case "rollback048":
+      console.log("↩️ Rolling back migration: 048-enrich-tour-presentation");
+      await rollbackMigration048();
+      break;
+
+    case "rollback049":
+      console.log("↩️ Rolling back migration: 049-backfill-gallery-and-tags");
+      await rollbackMigration049();
       break;
 
     case "help":
