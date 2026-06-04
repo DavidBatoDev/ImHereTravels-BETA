@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
+
 import "@/lib/suppress-warnings";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/ui/theme-provider";
@@ -13,6 +14,24 @@ const dmSans = DM_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-dm-sans",
+  display: "swap",
+});
+
+// Configure Cartograph CF as display font
+const cartographCF = localFont({
+  src: [
+    {
+      path: "../../public/fonts/Cartograph/CartographCF-Regular.otf",
+      weight: "400",
+      style: "normal",
+    },
+    {
+      path: "../../public/fonts/Cartograph/CartographCF-Bold.otf",
+      weight: "700",
+      style: "normal",
+    },
+  ],
+  variable: "--font-cartograph",
   display: "swap",
 });
 
@@ -83,7 +102,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${dmSans.variable} ${hkGrotesk.variable}`}
+      className={`${dmSans.variable} ${hkGrotesk.variable} ${cartographCF.variable}`}
       suppressHydrationWarning
     >
       <body>

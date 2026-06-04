@@ -23,14 +23,35 @@ module.exports = {
         "dm-sans": ["var(--font-dm-sans)", "system-ui", "sans-serif"],
         // Set DM Sans as primary brand font for body text
         sans: ["var(--font-dm-sans)", "system-ui", "sans-serif"],
+        // www-compatible aliases — used by WYSIWYG tour form sections
+        display: ["var(--font-cartograph)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+        body: ["var(--font-dm-sans)", "system-ui", "sans-serif"],
       },
       fontSize: {
-        // Typography hierarchy from brand guidelines
+        // Legacy admin typography tokens
         heading: ["96px", { lineHeight: "120%", letterSpacing: "-2%" }],
         subhead: ["48px", { lineHeight: "120%", letterSpacing: "-2%" }],
         standfirst: ["24px", { lineHeight: "140%", letterSpacing: "0%" }],
-        body: ["16px", { lineHeight: "150%", letterSpacing: "0%" }],
+        "admin-body": ["16px", { lineHeight: "150%", letterSpacing: "0%" }],
         "cta-url": ["16px", { lineHeight: "100%", letterSpacing: "0%" }],
+        // www brand type scale — matches globals.css @theme tokens
+        "h1-desktop": ["3rem", { lineHeight: "1.2", letterSpacing: "-0.05em", fontWeight: "700" }],
+        "h1-mobile":  ["2.5rem", { lineHeight: "1.2", letterSpacing: "-0.05em", fontWeight: "700" }],
+        "h2-desktop": ["2.5rem", { lineHeight: "1.2", letterSpacing: "-0.05em", fontWeight: "700" }],
+        "h2-mobile":  ["2.25rem", { lineHeight: "1.2", letterSpacing: "-0.05em", fontWeight: "700" }],
+        "h3-desktop": ["2.5rem", { lineHeight: "1.2", letterSpacing: "-0.02em", fontWeight: "700" }],
+        "h3-mobile":  ["2rem",   { lineHeight: "1.2", letterSpacing: "0", fontWeight: "700" }],
+        "h4-desktop": ["2rem",   { lineHeight: "1.3", letterSpacing: "-0.01em", fontWeight: "700" }],
+        "h4-mobile":  ["1.5rem", { lineHeight: "1.4", letterSpacing: "0", fontWeight: "700" }],
+        "h5-desktop": ["1.5rem", { lineHeight: "1.4", fontWeight: "700" }],
+        "h5-mobile":  ["1.25rem",{ lineHeight: "1.4", fontWeight: "700" }],
+        "h6-desktop": ["1.25rem",{ lineHeight: "1.4", fontWeight: "700" }],
+        "h6-mobile":  ["1.125rem",{ lineHeight: "1.4", fontWeight: "700" }],
+        "b1":         ["1.25rem", { lineHeight: "1.5", fontWeight: "500" }],
+        "b2-desktop": ["1.125rem",{ lineHeight: "1.5", fontWeight: "500" }],
+        "b2-mobile":  ["1rem",    { lineHeight: "1.5", fontWeight: "500" }],
+        "b4-desktop": ["0.875rem",{ lineHeight: "1.5", fontWeight: "500" }],
+        "b4-mobile":  ["0.75rem", { lineHeight: "1.5", fontWeight: "500" }],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -44,9 +65,11 @@ module.exports = {
         "light-red": "#FF585D",
         white: "#FFFFFF",
         "creative-midnight": "#1C1F2A" /* Pantone 532 C */,
+        midnight: "#1C1F2A" /* www alias for creative-midnight */,
         black: "#000000",
         grey: "#959595",
         "light-grey": "#F2F0EE",
+        "dark-gray": "#505050" /* www body text color */,
 
         /* Secondary Brand Colors */
         "royal-purple": "#685BC7" /* Pantone PMS 2725 C */,
@@ -102,6 +125,20 @@ module.exports = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        // www brand radii — use these in WYSIWYG tour form sections
+        "brand-sm": "0.5rem",  /* 8px */
+        "brand-md": "1rem",    /* 16px */
+        "brand-lg": "1.5rem",  /* 24px */
+      },
+      boxShadow: {
+        // www brand shadow scale — matches globals.css tokens
+        xxsmall: "0 1px 2px 0 rgb(0 0 0 / 0.05)",
+        xsmall:  "0 1px 2px 0 rgb(0 0 0 / 0.06), 0 1px 3px 0 rgb(0 0 0 / 0.1)",
+        small:   "0 2px 4px -2px rgb(0 0 0 / 0.06), 0 4px 8px -2px rgb(0 0 0 / 0.1)",
+        medium:  "0 4px 6px -2px rgb(0 0 0 / 0.03), 0 12px 16px -4px rgb(0 0 0 / 0.08)",
+        large:   "0 8px 8px -4px rgb(0 0 0 / 0.03), 0 20px 24px -4px rgb(0 0 0 / 0.08)",
+        xlarge:  "0 24px 48px -12px rgb(0 0 0 / 0.18)",
+        xxlarge: "0 32px 64px -12px rgb(0 0 0 / 0.14)",
       },
       keyframes: {
         "accordion-down": {

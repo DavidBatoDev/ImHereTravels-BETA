@@ -39,7 +39,7 @@ export default function EditTourPage() {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout fullWidth>
       <PermissionGuard permission="canManageTours">
         <TourForm
           onClose={() => router.push("/tours")}
