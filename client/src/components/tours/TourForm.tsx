@@ -68,7 +68,6 @@ import {
   TravelDate,
 } from "@/types/tours";
 import TourDatePicker from "./TourDatePicker";
-import { Timestamp } from "firebase/firestore";
 import {
   createBlobUrl,
   revokeBlobUrl,
@@ -104,6 +103,54 @@ const optionalNumberSchema = z.preprocess(
   toOptionalNumber,
   z.number().optional(),
 );
+
+const toDateValue = (value: unknown): Date | null => {
+  if (!value) return null;
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? null : value;
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toDate" in value &&
+    typeof (value as { toDate?: unknown }).toDate === "function"
+  ) {
+    const date = (value as { toDate: () => Date }).toDate();
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "seconds" in value &&
+    typeof (value as { seconds?: unknown }).seconds === "number"
+  ) {
+    return new Date((value as { seconds: number }).seconds * 1000);
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "_seconds" in value &&
+    typeof (value as { _seconds?: unknown })._seconds === "number"
+  ) {
+    return new Date((value as { _seconds: number })._seconds * 1000);
+  }
+
+  if (typeof value === "string" || typeof value === "number") {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  return null;
+};
+
+const toIsoDateString = (value: unknown): string => {
+  const date = toDateValue(value);
+  return date ? date.toISOString().split("T")[0] : "";
+};
 
 // Form validation schema
 const tourFormSchema = z.object({
@@ -522,10 +569,8 @@ export default function TourForm({
 
       // Convert Timestamps to string dates for form
       const travelDates = tour.travelDates?.map((td) => {
-        const startDate =
-          td.startDate?.toDate?.()?.toISOString()?.split("T")[0] || "";
-        const endDate =
-          td.endDate?.toDate?.()?.toISOString()?.split("T")[0] || "";
+        const startDate = toIsoDateString(td.startDate);
+        const endDate = toIsoDateString(td.endDate);
 
         // Calculate tourDays if not present
         let tourDays = td.tourDays;
@@ -1904,7 +1949,9 @@ export default function TourForm({
                                 <FormItem>
                                   <div className="flex items-center gap-1.5 px-2 py-1.5 bg-muted/30 rounded border border-border">
                                     <FormLabel className="text-[11px] font-medium text-foreground">
-                                      {field.value ? "Active" : "Off"}
+                                      {field.value
+                                        ? "Active"
+                                        : "Make this tour date available"}
                                     </FormLabel>
                                     <FormControl>
                                       <Switch
