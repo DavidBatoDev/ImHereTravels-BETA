@@ -23,7 +23,7 @@ import {
   QueryDocumentSnapshot,
 } from "firebase/firestore";
 import { storage, db, auth } from "@/lib/firebase";
-import { ImageItem, StorageFilters, StorageStats } from "@/types/storage";
+import { ImageItem, StorageFilters, StorageStats, StorageFolder } from "@/types/storage";
 
 export interface FirebaseFileObject {
   id: string;
@@ -67,7 +67,8 @@ export class FirebaseStorageService {
   async uploadFile(
     file: File,
     tags: string[] = [],
-    metadata: Partial<ImageItem["metadata"]> = {}
+    metadata: Partial<ImageItem["metadata"]> = {},
+    folder?: string
   ): Promise<ImageItem> {
     try {
       const currentUser = auth.currentUser;
@@ -78,7 +79,8 @@ export class FirebaseStorageService {
       // Generate unique filename
       const timestamp = Date.now();
       const uniqueName = `${timestamp}_${file.name}`;
-      const storagePath = `${this.STORAGE_PATH}/${uniqueName}`;
+      const basePath = folder ?? this.STORAGE_PATH;
+      const storagePath = `${basePath}/${uniqueName}`;
 
       // Create storage reference
       const storageRef = ref(storage, storagePath);
@@ -110,7 +112,7 @@ export class FirebaseStorageService {
       console.log("Cleaned metadata:", cleanMetadata);
 
       // Create Firestore document
-      const fileObject: FirebaseFileObject = {
+      const fileObject: FirebaseFileObject & { folder: string } = {
         id: uniqueName,
         name: uniqueName,
         originalName: file.name,
@@ -123,6 +125,7 @@ export class FirebaseStorageService {
         tags: tags,
         metadata: cleanMetadata,
         lastModified: new Date(),
+        folder: basePath,
       };
 
       // Validate file object before saving
@@ -148,6 +151,7 @@ export class FirebaseStorageService {
         contentType: file.type,
         lastModified: fileObject.lastModified,
         uploadedBy: currentUser.uid,
+        folder: basePath,
       };
 
       return imageItem;
@@ -514,7 +518,7 @@ export class FirebaseStorageService {
    * Convert Firebase FileObject to ImageItem for compatibility
    */
   private convertFirebaseObjectToImageItem(
-    fileObject: FirebaseFileObject
+    fileObject: FirebaseFileObject & { folder?: string }
   ): ImageItem {
     // Convert Firestore Timestamps to Date objects if needed
     const uploadedAt = this.convertTimestamp(fileObject.uploadedAt);
@@ -541,6 +545,7 @@ export class FirebaseStorageService {
       contentType: fileObject.contentType,
       lastModified: lastModified || new Date(),
       uploadedBy: fileObject.uploadedBy,
+      folder: fileObject.folder ?? this.STORAGE_PATH,
     };
   }
 
@@ -623,6 +628,76 @@ export class FirebaseStorageService {
       console.warn("Failed to parse timestamp:", timestamp, error);
       return null;
     }
+  }
+
+  // ─── Folder methods ──────────────────────────────────────────────────────────
+
+  /** Return files whose `folder` field matches the given path (with legacy fallback). */
+  async getFilesByFolder(folder: string): Promise<ImageItem[]> {
+    const snap = await getDocs(collection(db, this.COLLECTION_NAME));
+    const ROOT = this.STORAGE_PATH; // "images"
+    const files: ImageItem[] = [];
+    snap.forEach((d) => {
+      const data = d.data() as FirebaseFileObject & { folder?: string };
+      if (data.contentType?.startsWith("video/")) return;
+      const fileFolder = data.folder ?? ROOT;
+      if (fileFolder !== folder) return;
+      files.push(this.convertFirebaseObjectToImageItem(data));
+    });
+    return files;
+  }
+
+  /** Return direct child folders of the given parent path, sorted by name. */
+  async getFolders(parentPath: string): Promise<StorageFolder[]> {
+    // No orderBy — sort client-side to avoid requiring a composite index while it builds.
+    // The index is defined in firestore.indexes.json; once deployed, orderBy can be added back.
+    const q = query(
+      collection(db, "storage_folders"),
+      where("parentPath", "==", parentPath)
+    );
+    const snap = await getDocs(q);
+    const folders = snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        name: data.name,
+        path: data.path,
+        parentPath: data.parentPath,
+        createdAt: data.createdAt?.toDate?.()?.toISOString?.() ?? new Date().toISOString(),
+        createdBy: data.createdBy,
+      } as StorageFolder;
+    });
+    return folders.sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /** Create a new folder document in Firestore. */
+  async createFolder(name: string, parentPath: string): Promise<StorageFolder> {
+    const currentUser = auth.currentUser;
+    if (!currentUser) throw new Error("Must be authenticated to create folders");
+    const folderPath = `${parentPath}/${name}`;
+    const docRef = doc(collection(db, "storage_folders"));
+    const now = new Date();
+    await setDoc(docRef, {
+      id: docRef.id,
+      name,
+      path: folderPath,
+      parentPath,
+      createdAt: now,
+      createdBy: currentUser.uid,
+    });
+    return {
+      id: docRef.id,
+      name,
+      path: folderPath,
+      parentPath,
+      createdAt: now.toISOString(),
+      createdBy: currentUser.uid,
+    };
+  }
+
+  /** Delete a folder document. Files inside are not deleted (they remain in Firestore). */
+  async deleteFolder(folderId: string): Promise<void> {
+    await deleteDoc(doc(db, "storage_folders", folderId));
   }
 
   /**

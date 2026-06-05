@@ -20,6 +20,19 @@ export interface ImageItem {
   contentType?: string;
   lastModified?: Date;
   uploadedBy?: string;
+  /** Logical folder path this file belongs to, e.g. "images" or "images/tours/argentina" */
+  folder?: string;
+}
+
+export interface StorageFolder {
+  id: string;
+  name: string;
+  /** Full logical path, e.g. "images/tours/argentina" */
+  path: string;
+  /** Parent path, e.g. "images/tours" */
+  parentPath: string;
+  createdAt: string;
+  createdBy?: string;
 }
 
 export interface UploadProgress {

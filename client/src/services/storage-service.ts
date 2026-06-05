@@ -3,6 +3,7 @@ import {
   UploadProgress,
   StorageFilters,
   StorageStats,
+  StorageFolder,
 } from "@/types/storage";
 import firebaseStorageService from "./firebase-storage-service";
 
@@ -40,9 +41,9 @@ export class StorageService {
   }
 
   // Upload image to Firebase
-  async uploadImage(file: File, tags: string[] = []): Promise<ImageItem> {
+  async uploadImage(file: File, tags: string[] = [], folder?: string): Promise<ImageItem> {
     try {
-      return await firebaseStorageService.uploadFile(file, tags);
+      return await firebaseStorageService.uploadFile(file, tags, {}, folder);
     } catch (error) {
       console.error("Error uploading image:", error);
       throw error;
@@ -110,6 +111,26 @@ export class StorageService {
       console.error("Error updating image name:", error);
       return null;
     }
+  }
+
+  // ─── Folder methods ────────────────────────────────────────────────────────
+
+  async getFilesByFolder(folder: string): Promise<ImageItem[]> {
+    try { return await firebaseStorageService.getFilesByFolder(folder); }
+    catch (error) { console.error("Error getting files by folder:", error); return []; }
+  }
+
+  async getFolders(parentPath: string): Promise<StorageFolder[]> {
+    try { return await firebaseStorageService.getFolders(parentPath); }
+    catch (error) { console.error("Error getting folders:", error); return []; }
+  }
+
+  async createFolder(name: string, parentPath: string): Promise<StorageFolder> {
+    return firebaseStorageService.createFolder(name, parentPath);
+  }
+
+  async deleteFolder(id: string): Promise<void> {
+    return firebaseStorageService.deleteFolder(id);
   }
 
   // Get storage statistics from Firebase
