@@ -165,14 +165,15 @@ const ALL_ICONS = Object.keys(ICON_COMPONENTS);
  *  A hidden sibling <span> with the same text drives the layout width;
  *  the real <input> is absolutely positioned on top of it. */
 function AutoSizeInput({
-  value, onChange, placeholder, className = "",
-}: { value: string; onChange: (v: string) => void; placeholder?: string; className?: string }) {
+  value, onChange, placeholder, className = "", compact = false,
+}: { value: string; onChange: (v: string) => void; placeholder?: string; className?: string; compact?: boolean }) {
   const [local, setLocal] = useState(value);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const pad = compact ? "" : "px-1";
   return (
     <span className="relative inline-flex min-w-[2ch]">
       {/* Invisible sizer — same font + text as the input */}
-      <span className={`invisible whitespace-pre pointer-events-none select-none px-1 ${className}`} aria-hidden>
+      <span className={`invisible whitespace-pre pointer-events-none select-none ${pad} ${className}`} aria-hidden>
         {local || placeholder || " "}
       </span>
       <input
@@ -188,7 +189,7 @@ function AutoSizeInput({
         placeholder={placeholder}
         className={`absolute inset-0 w-full bg-transparent border-none outline-none
           hover:ring-2 hover:ring-crimson-red/20 focus:ring-2 focus:ring-crimson-red/40
-          transition-shadow placeholder:text-dark-gray/30 rounded-sm px-1 ${className}`}
+          transition-shadow placeholder:text-dark-gray/30 rounded-sm ${pad} ${className}`}
       />
     </span>
   );
@@ -356,6 +357,8 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set([0]));
   const [expandedFaqs, setExpandedFaqs] = useState<Set<number>>(new Set());
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
+  const hlScrollRef = useRef<HTMLDivElement>(null);
+  const accomScrollRef = useRef<HTMLDivElement>(null);
   // Incremented when a tour loads so all InlineInput/InlineTextarea instances remount
   // with fresh initial values (replaces the removed useEffect sync in each primitive).
   const [editorKey, setEditorKey] = useState(0);
@@ -646,7 +649,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   const activeImg = galleryImages[activeGalleryIndex] ?? uploadedCover;
                   return (
                     <>
-                      <div className="relative aspect-[4/3] md:aspect-video w-full overflow-hidden rounded-lg bg-light-grey group/hero">
+                      <div className="relative aspect-[4/3] md:aspect-video w-full overflow-hidden rounded-[24px] bg-light-grey group/hero">
                         {activeImg ? (
                           <img src={resolveImg(activeImg)} alt="Hero" className="w-full h-full object-cover" />
                         ) : (
@@ -682,11 +685,11 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         )}
                         <input type="file" id="cover-upload" accept="image/*" onChange={handleCoverUpload} className="hidden" />
                       </div>
-                      <div className="mt-4 flex gap-2 overflow-x-auto scrollbar-hide">
+                      <div className="pl-1 py-1 mt-4 flex gap-2 overflow-x-auto scrollbar-hide">
                         {galleryImages.map((img, idx) => (
                           <div key={idx} className="relative group/thumb flex-shrink-0 w-[calc((100%-2.5rem)/6)]">
                             <button type="button" onClick={() => setActiveGalleryIndex(idx)}
-                              className={`block aspect-[4/3] w-full rounded-md overflow-hidden transition-opacity ${idx === activeGalleryIndex ? "opacity-100 ring-2 ring-crimson-red" : "opacity-60 hover:opacity-80"}`}>
+                              className={`block aspect-[4/3] w-full rounded-[16px] overflow-hidden transition-opacity ${idx === activeGalleryIndex ? "opacity-100 ring-2 ring-crimson-red" : "opacity-60 hover:opacity-80"}`}>
                               <img src={resolveImg(img)} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
                             </button>
                             <button type="button" onClick={() => { rmGallery(idx); if (activeGalleryIndex >= galleryImages.length - 1) setActiveGalleryIndex(Math.max(0, galleryImages.length - 2)); }}
@@ -696,7 +699,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                           </div>
                         ))}
                         <label htmlFor="gallery-upload"
-                          className="flex-shrink-0 w-[calc((100%-2.5rem)/6)] aspect-[4/3] rounded-md border-2 border-dashed border-dark-gray/20 flex items-center justify-center cursor-pointer hover:border-crimson-red/40 hover:bg-crimson-red/5 transition-colors">
+                          className="flex-shrink-0 w-[calc((100%-2.5rem)/6)] aspect-[4/3] rounded-[16px] border-2 border-dashed border-dark-gray/20 flex items-center justify-center cursor-pointer hover:border-crimson-red/40 hover:bg-crimson-red/5 transition-colors">
                           <Plus className="h-5 w-5 text-dark-gray/40" />
                         </label>
                         <input type="file" id="gallery-upload" accept="image/*" multiple onChange={handleGalleryUpload} className="hidden" />
@@ -706,24 +709,21 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                 })()}
 
                 {/* ── ONE main card: all content sections ──────────────────── */}
-                <div className="mt-6 rounded-lg bg-white px-5 py-8 md:px-10 md:py-10">
+                <div className="mt-6 rounded-[24px] bg-white px-5 py-8 md:px-10 md:py-10">
 
-                  {/* Tour Header: duration | name — single row, font shrinks with text length */}
+                  {/* Tour Header: duration | name — wraps naturally like www */}
                   {(() => {
-                    const combined = `${durationLabel || "11 Days"} | ${name || "Tour Name"}`;
-                    const len = combined.length;
-                    const sz = len <= 20 ? "text-h3-mobile md:text-h3-desktop"
-                      : len <= 32 ? "text-h4-mobile md:text-h4-desktop"
-                      : len <= 50 ? "text-h5-mobile md:text-h5-desktop"
-                      : "text-h6-mobile md:text-h6-desktop";
+                    const hClass = "font-sans text-[2rem] md:text-[2.5rem] font-bold leading-tight tracking-tight text-midnight";
                     return (
                       <EditZone label="Header">
-                        <div className="flex items-baseline gap-x-1">
-                          <AutoSizeInput value={duration} onChange={(v) => sv("duration", v)} placeholder="11 Days"
-                            className={`font-sans ${sz} font-bold text-midnight`} />
-                          <span className={`font-sans ${sz} font-bold text-midnight select-none`}> | </span>
-                          <AutoSizeInput value={name} onChange={(v) => sv("name", v)} placeholder="Tour Name"
-                            className={`font-sans ${sz} font-bold text-midnight`} />
+                        <div className="flex items-start gap-x-1">
+                          <div className="flex items-baseline gap-x-1 flex-shrink-0">
+                            <AutoSizeInput value={duration} onChange={(v) => sv("duration", v)} placeholder="11 days"
+                              className={hClass} />
+                            <span className={`${hClass} select-none`}> | </span>
+                          </div>
+                          <InlineTextarea value={name} onChange={(v) => sv("name", v)} placeholder="Tour Name"
+                            className={`${hClass} flex-1 min-w-[8rem]`} />
                         </div>
                       </EditZone>
                     );
@@ -735,10 +735,10 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                       const tag = tags?.[i];
                       const TagIcon = ICON_COMPONENTS[tag?.icon ?? "location"] ?? MapPin;
                       return (
-                        <span key={field.id} className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 font-body text-b4-desktop ${TAG_PALETTE[i % 4]} group/tag`}>
-                          <TagIcon className="size-3.5 shrink-0" />
-                          <AutoSizeInput value={tag?.label ?? ""} onChange={(v) => sv(`details.tags.${i}.label`, v)} placeholder="Tag" className="font-body text-b4-desktop" />
-                          <button type="button" onClick={() => rmTag(i)} className="opacity-0 group-hover/tag:opacity-100 transition-opacity"><X className="size-3" /></button>
+                        <span key={field.id} className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-body font-medium text-sm ${TAG_PALETTE[i % 4]} group/tag`}>
+                          <TagIcon className="size-3.5 shrink-0" strokeWidth={2.75} />
+                          <AutoSizeInput value={tag?.label ?? ""} onChange={(v) => sv(`details.tags.${i}.label`, v)} placeholder="Tag" className="font-body text-sm" compact />
+                          <button type="button" onClick={() => rmTag(i)} className="w-0 overflow-hidden group-hover/tag:w-auto transition-all opacity-0 group-hover/tag:opacity-100"><X className="size-3" /></button>
                         </span>
                       );
                     })}
@@ -824,13 +824,27 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
 
                   {/* Trip Highlights */}
                   <section className="mt-10 md:mt-14 w-full">
-                    <h2 className="font-sans text-h3-mobile md:text-h3-desktop text-midnight">Trip Highlights</h2>
-                    <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div className="flex items-center justify-between gap-4">
+                      <h2 className="font-sans text-h3-mobile md:text-h3-desktop text-midnight">Trip Highlights</h2>
+                      <div className="flex shrink-0 gap-2">
+                        <button type="button"
+                          onClick={() => hlScrollRef.current?.scrollBy({ left: -(hlScrollRef.current.offsetWidth / 2 + 12), behavior: "smooth" })}
+                          className="flex size-9 items-center justify-center rounded-full border border-midnight text-midnight transition-all hover:border-crimson-red hover:text-crimson-red active:scale-90 active:bg-light-grey">
+                          <ChevronLeft className="size-4" strokeWidth={2.25} />
+                        </button>
+                        <button type="button"
+                          onClick={() => hlScrollRef.current?.scrollBy({ left: hlScrollRef.current.offsetWidth / 2 + 12, behavior: "smooth" })}
+                          className="flex size-9 items-center justify-center rounded-full border border-midnight text-midnight transition-all hover:border-crimson-red hover:text-crimson-red active:scale-90 active:bg-light-grey">
+                          <ChevronRight className="size-4" strokeWidth={2.25} />
+                        </button>
+                      </div>
+                    </div>
+                    <div ref={hlScrollRef} className="mt-8 flex gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
                       {(hlFields as any[]).map((field, i) => {
                         const hl = highlights?.[i];
                         return (
-                          <div key={field.id} className="group/hl flex flex-col gap-4">
-                            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg bg-light-grey">
+                          <div key={field.id} className="group/hl flex-shrink-0 w-[calc(50%-12px)] snap-start flex flex-col gap-4">
+                            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[24px] bg-light-grey">
                               {hl?.image ? (
                                 <>
                                   <img src={resolveImg(hl.image)} alt="" className="w-full h-full object-cover" />
@@ -859,7 +873,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         );
                       })}
                     </div>
-                    <button type="button" onClick={() => (addHl as any)({ text: "", image: undefined, subtitle: undefined })}
+                    <button type="button" onClick={() => { (addHl as any)({ text: "", image: undefined, subtitle: undefined }); setTimeout(() => hlScrollRef.current?.scrollTo({ left: hlScrollRef.current.scrollWidth, behavior: "smooth" }), 50); }}
                       className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
                       <Plus className="h-4 w-4" /> Add highlight
                     </button>
@@ -869,7 +883,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   {(mapData?.image || mapData?.embedUrl) && (
                     <section className="mt-10 md:mt-14 w-full">
                       <h2 className="font-sans text-h3-mobile md:text-h3-desktop text-midnight">Map</h2>
-                      <div className="mt-8 relative aspect-video w-full overflow-hidden rounded-lg bg-light-grey">
+                      <div className="mt-8 relative aspect-video w-full overflow-hidden rounded-[24px] bg-light-grey">
                         {mapData.embedUrl ? <iframe src={mapData.embedUrl} className="w-full h-full" /> : mapData.image ? <img src={resolveImg(mapData.image)} alt="Map" className="w-full h-full object-cover" /> : null}
                       </div>
                     </section>
@@ -900,7 +914,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                               <div className={`pb-5 grid grid-cols-1 gap-x-6 gap-y-4 ${day?.image ? "md:grid-cols-[1fr_348px]" : ""}`}>
                                 <InlineTextarea value={day?.description ?? ""} onChange={(v) => sv(`details.itinerary.${i}.description`, v)} placeholder="Describe this day…" className="font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
                                 {day?.image && (
-                                  <div className="relative aspect-[16/10] overflow-hidden rounded-md bg-light-grey md:row-span-2">
+                                  <div className="relative aspect-[16/10] overflow-hidden rounded-[16px] bg-light-grey md:row-span-2">
                                     <img src={resolveImg(day.image)} alt={`Day ${i + 1}`} className="w-full h-full object-cover" />
                                   </div>
                                 )}
@@ -985,40 +999,48 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
 
                   {/* Where We Stay */}
                   <section className="mt-10 md:mt-14 w-full">
-                    <h2 className="font-sans text-h3-mobile md:text-h3-desktop text-midnight">Where We Stay</h2>
-                    {accomFields.length > 0 ? (
-                      <>
-                        <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
-                          {(accomFields as any[]).map((field, i) => {
-                            const ac = accoms?.[i];
-                            return (
-                              <div key={field.id} className="group/ac flex flex-col gap-4">
-                                <div className="aspect-[4/3] overflow-hidden rounded-lg bg-light-grey">
-                                  {ac?.image ? <img src={resolveImg(ac.image)} alt="" className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full"><ImageIcon className="h-8 w-8 text-dark-gray/30" /></div>}
-                                </div>
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <InlineInput value={ac?.name ?? ""} onChange={(v) => sv(`details.accommodations.${i}.name`, v)} placeholder="Hotel name" className="font-sans text-h6-mobile md:text-h6-desktop font-bold text-midnight flex-1" />
-                                    <button type="button" onClick={() => rmAccom(i)} className="text-crimson-red"><X className="h-4 w-4" /></button>
-                                  </div>
-                                  <InlineInput value={ac?.nights ?? ""} onChange={(v) => sv(`details.accommodations.${i}.nights`, v)} placeholder="e.g. 2 nights" className="font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
-                                  <InlineInput value={ac?.image ?? ""} onChange={(v) => sv(`details.accommodations.${i}.image`, v)} placeholder="Image URL" className="font-body text-b4-desktop text-dark-gray/40" />
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <button type="button" onClick={() => (addAccom as any)({ name: "", nights: "", image: "" })}
-                          className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
-                          <Plus className="h-4 w-4" /> Add accommodation
+                    <div className="flex items-center justify-between gap-4">
+                      <h2 className="font-sans text-h3-mobile md:text-h3-desktop text-midnight">Where We Stay</h2>
+                      <div className="flex shrink-0 gap-2">
+                        <button type="button"
+                          onClick={() => accomScrollRef.current?.scrollBy({ left: -(accomScrollRef.current.offsetWidth / 2 + 12), behavior: "smooth" })}
+                          className="flex size-9 items-center justify-center rounded-full border border-midnight text-midnight transition-all hover:border-crimson-red hover:text-crimson-red active:scale-90 active:bg-light-grey">
+                          <ChevronLeft className="size-4" strokeWidth={2.25} />
                         </button>
-                      </>
-                    ) : (
-                      <button type="button" onClick={() => (addAccom as any)({ name: "", nights: "", image: "" })}
-                        className="mt-4 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
-                        <Plus className="h-4 w-4" /> Add accommodation
-                      </button>
-                    )}
+                        <button type="button"
+                          onClick={() => accomScrollRef.current?.scrollBy({ left: accomScrollRef.current.offsetWidth / 2 + 12, behavior: "smooth" })}
+                          className="flex size-9 items-center justify-center rounded-full border border-midnight text-midnight transition-all hover:border-crimson-red hover:text-crimson-red active:scale-90 active:bg-light-grey">
+                          <ChevronRight className="size-4" strokeWidth={2.25} />
+                        </button>
+                      </div>
+                    </div>
+                    <div ref={accomScrollRef} className="mt-8 flex gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
+                      {(accomFields as any[]).map((field, i) => {
+                        const ac = accoms?.[i];
+                        return (
+                          <div key={field.id} className="group/ac flex-shrink-0 w-[calc(50%-12px)] snap-start flex flex-col gap-4">
+                            <div className="aspect-[4/3] overflow-hidden rounded-[24px] bg-light-grey">
+                              {ac?.image ? <img src={resolveImg(ac.image)} alt="" className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full"><ImageIcon className="h-8 w-8 text-dark-gray/30" /></div>}
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <InlineInput value={ac?.name ?? ""} onChange={(v) => sv(`details.accommodations.${i}.name`, v)} placeholder="Hotel name" className="font-sans text-xl font-bold text-midnight flex-1" />
+                                <button type="button" onClick={() => rmAccom(i)} className="text-crimson-red shrink-0"><X className="h-4 w-4" /></button>
+                              </div>
+                              <InlineInput value={ac?.nights ?? ""} onChange={(v) => sv(`details.accommodations.${i}.nights`, v)} placeholder="e.g. 2 nights in hotel" className="font-body text-sm text-dark-gray" />
+                              <div className="flex items-center gap-1.5">
+                                <ExternalLink className="h-3 w-3 text-dark-gray/40 shrink-0" />
+                                <InlineInput value={ac?.image ?? ""} onChange={(v) => sv(`details.accommodations.${i}.image`, v)} placeholder="Image URL" className="font-body text-xs text-dark-gray/40 flex-1" />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <button type="button" onClick={() => { (addAccom as any)({ name: "", nights: "", image: "" }); setTimeout(() => accomScrollRef.current?.scrollTo({ left: accomScrollRef.current.scrollWidth, behavior: "smooth" }), 50); }}
+                      className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
+                      <Plus className="h-4 w-4" /> Add accommodation
+                    </button>
                   </section>
 
                   {/* FAQs */}
@@ -1078,19 +1100,25 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                             const ttk = ttks?.[i];
                             const Icon = ICON_COMPONENTS[ttk?.icon ?? "info"] ?? Info;
                             return (
-                              <li key={field.id} className="flex flex-col gap-4 rounded-lg border border-light-grey p-6 md:p-8 group/ttk">
-                                <div className="flex items-center gap-3">
+                              <li key={field.id} className="flex flex-col gap-4 rounded-[24px] border border-light-grey p-6 md:p-8 group/ttk">
+                                <div className="flex items-start justify-between">
                                   <Select value={ttk?.icon ?? "info"} onValueChange={(v) => sv(`details.thingsToKnow.${i}.icon`, v)}>
-                                    <SelectTrigger className="size-14 rounded-full bg-light-grey text-midnight border-0 p-0 justify-center [&>svg:last-child]:hidden"><Icon className="h-6 w-6 text-midnight" /></SelectTrigger>
+                                    <SelectTrigger className="flex size-14 items-center justify-center rounded-full bg-light-grey text-midnight border-0 p-0 [&>svg:last-child]:hidden"><Icon className="h-6 w-6 text-midnight" /></SelectTrigger>
                                     <SelectContent>{ALL_ICONS.map((k) => { const IC = ICON_COMPONENTS[k]; return <SelectItem key={k} value={k}><span className="flex items-center gap-2"><IC className="h-4 w-4" />{k}</span></SelectItem>; })}</SelectContent>
                                   </Select>
-                                  <InlineInput value={ttk?.title ?? ""} onChange={(v) => sv(`details.thingsToKnow.${i}.title`, v)} placeholder="Title" className="font-sans text-h5-mobile md:text-h5-desktop text-midnight flex-1" />
                                   <button type="button" onClick={() => rmTtk(i)} className="text-crimson-red opacity-0 group-hover/ttk:opacity-100 transition-opacity"><X className="h-4 w-4" /></button>
                                 </div>
+                                <InlineInput value={ttk?.title ?? ""} onChange={(v) => sv(`details.thingsToKnow.${i}.title`, v)} placeholder="Title" className="font-sans text-h5-mobile md:text-h5-desktop text-midnight" />
                                 <InlineTextarea value={ttk?.description ?? ""} onChange={(v) => sv(`details.thingsToKnow.${i}.description`, v)} placeholder="Description…" className="font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
-                                <div className="mt-auto flex gap-2">
-                                  <InlineInput value={ttk?.ctaLabel ?? ""} onChange={(v) => sv(`details.thingsToKnow.${i}.ctaLabel`, v)} placeholder="CTA Label" className="font-body text-b4-desktop text-crimson-red font-bold flex-1" />
-                                  <InlineInput value={ttk?.ctaHref ?? ""} onChange={(v) => sv(`details.thingsToKnow.${i}.ctaHref`, v)} placeholder="https://…" className="font-body text-b4-desktop text-dark-gray/40 flex-1" />
+                                <div className="mt-auto space-y-1">
+                                  <div className="flex items-center gap-1">
+                                    <InlineInput value={ttk?.ctaLabel ?? ""} onChange={(v) => sv(`details.thingsToKnow.${i}.ctaLabel`, v)} placeholder="CTA label" className="font-body text-sm font-bold text-crimson-red" />
+                                    <ChevronRight className="h-4 w-4 text-crimson-red shrink-0" />
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <ExternalLink className="h-3 w-3 text-dark-gray/40 shrink-0" />
+                                    <InlineInput value={ttk?.ctaHref ?? ""} onChange={(v) => sv(`details.thingsToKnow.${i}.ctaHref`, v)} placeholder="https://www.imheretravels.com/…" className="font-body text-xs text-dark-gray/40 flex-1" />
+                                  </div>
                                 </div>
                               </li>
                             );
@@ -1153,7 +1181,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
 
               {/* ─── RIGHT COLUMN: BookingCard ───────────────────────────── */}
               <div className="mt-6 lg:mt-0 lg:sticky lg:top-[136px] self-start">
-                <div className="overflow-hidden rounded-lg bg-white shadow-medium">
+                <div className="overflow-hidden rounded-[24px] bg-white shadow-medium">
                   {/* Duration + route */}
                   <div className="px-6 pb-5 pt-6 md:px-7 md:pt-7">
                     <InlineTextarea value={cardHeaderTitle} onChange={(v) => sv("cardHeaderTitle", v)} placeholder={durationLabel || "11 Day Tour"} className="font-sans text-h5-mobile md:text-h5-desktop font-bold text-midnight w-full" />
