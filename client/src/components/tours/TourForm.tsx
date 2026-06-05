@@ -35,6 +35,7 @@ import {
 import { generateSlug } from "@/utils";
 import { updateTourMedia, cleanupRemovedGalleryImages } from "@/services/tours-service";
 import TourDatePicker from "./TourDatePicker";
+import ImagePickerModal from "@/components/shared/ImagePickerModal";
 
 // ─── Zod helpers ──────────────────────────────────────────────────────────────
 
@@ -59,6 +60,8 @@ const toDateValue = (v: unknown): Date | null => {
   if (!v) return null;
   if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
   if (typeof v === "object" && "_seconds" in (v as any)) return new Date((v as any)._seconds * 1000);
+  // firebase-admin serializes Timestamps as {seconds, nanoseconds} (no underscore)
+  if (typeof v === "object" && "seconds" in (v as any) && !("toDate" in (v as any))) return new Date((v as any).seconds * 1000);
   if (typeof v === "object" && "toDate" in (v as any)) { const d = (v as any).toDate(); return isNaN(d.getTime()) ? null : d; }
   const d = new Date(v as any);
   return isNaN(d.getTime()) ? null : d;
@@ -76,8 +79,8 @@ const schema = z.object({
   location: z.string().min(1),
   locationOther: z.string().optional().or(z.literal("") as any),
   duration: z.string().min(1),
-  cardHeaderTitle: z.string().min(1),
-  cardSubHeader: z.string().min(1),
+  cardHeaderTitle: z.string(),
+  cardSubHeader: z.string(),
   status: z.enum(["active", "draft", "archived"]),
   comingSoon: z.boolean().default(false),
   bookingSlug: z.string().optional().or(z.literal("")),
@@ -125,7 +128,7 @@ const schema = z.object({
     requirements: z.array(z.string()),
     route: z.string().optional().or(z.literal("")),
     tags: z.array(z.object({ label: z.string(), icon: z.string() })).optional(),
-    inclusions: z.array(z.object({ icon: z.string().optional(), label: z.string(), value: z.string() })).optional(),
+    inclusions: z.array(z.object({ icon: z.string().optional(), label: z.string(), value: z.union([z.string(), z.array(z.string())]) })).optional(),
     accommodations: z.array(z.object({ image: z.string(), name: z.string(), nights: z.string() })).optional(),
     faqs: z.array(z.object({ question: z.string(), answer: z.string() })).optional(),
     thingsToKnow: z.array(z.object({ icon: z.string().optional(), title: z.string(), description: z.string(), ctaLabel: z.string(), ctaHref: z.string() })).optional(),
@@ -357,6 +360,21 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set([0]));
   const [expandedFaqs, setExpandedFaqs] = useState<Set<number>>(new Set());
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
+
+  // Image picker modal state
+  type PickerField =
+    | "cover"
+    | "gallery-add"
+    | `gallery-edit-${number}`
+    | `highlight-${number}`
+    | `accommodation-${number}`
+    | `itinerary-${number}`;
+  const [pickerState, setPickerState] = useState<{
+    field: PickerField;
+    initialUrl?: string;
+    multiple?: boolean;
+  } | null>(null);
+
   const hlScrollRef = useRef<HTMLDivElement>(null);
   const accomScrollRef = useRef<HTMLDivElement>(null);
   // Incremented when a tour loads so all InlineInput/InlineTextarea instances remount
@@ -404,6 +422,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
 
   // Watched values — only fields used for conditional rendering, computed values, or structural display
   const name = w("name") as string;          // toolbar display + slug auto-gen
+  const slug = (w("slug") as string) || (tour?.slug ?? "");
   const duration = w("duration") as string;  // durationLabel computed value
   const cardHeaderTitle = w("cardHeaderTitle") as string;
   const cardSubHeader = w("cardSubHeader") as string;
@@ -468,7 +487,10 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
         tourCode: tour.tourCode || "", description: tour.description || "",
         location: PRESET_LOCATIONS.includes(tour.location ?? "") ? tour.location : tour.location ? "Other" : "",
         locationOther: PRESET_LOCATIONS.includes(tour.location ?? "") ? "" : (tour.location ?? ""),
-        duration: tour.duration || "1 days", cardHeaderTitle: (tour as any).cardHeaderTitle ?? "", cardSubHeader: (tour as any).cardSubHeader ?? "", status: tour.status || "draft",
+        duration: tour.duration || "1 days",
+        cardHeaderTitle: (tour as any).cardHeaderTitle ?? (tour.duration ? tour.duration.replace(/\b(\d+)\s+days?\b/gi, "$1 Day Tour") : ""),
+        cardSubHeader: (tour as any).cardSubHeader ?? tour.location ?? "",
+        status: tour.status || "draft",
         comingSoon: (tour as any).comingSoon ?? false, bookingSlug: (tour as any).bookingSlug ?? "",
         seo: (tour as any).seo ?? { title: "", description: "" },
         stripePaymentLink: tour.stripePaymentLink ?? "", depositNote: (tour as any).depositNote ?? "",
@@ -497,22 +519,40 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   }, [tour, form]);
 
   // ── Media handlers ──────────────────────────────────────────────────────────
-  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]; if (!file) return;
-    const v = validateImageFile(file);
-    if (!v.valid) { toast({ title: "Invalid file", description: v.error, variant: "destructive" }); return; }
-    setCoverBlob(file); setUploadedCover(createBlobUrl(file));
-  };
-  const handleGalleryUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    const valid = files.filter((f) => validateImageFile(f).valid);
-    setGalleryBlobs((p) => [...p, ...valid]);
-    setUploadedGallery((p) => [...p, ...valid.map(createBlobUrl)]);
-  };
   const rmGallery = (i: number) => {
     if (uploadedGallery[i]?.startsWith("blob:")) revokeBlobUrl(uploadedGallery[i]);
     setUploadedGallery((p) => p.filter((_, j) => j !== i));
     setGalleryBlobs((p) => p.filter((_, j) => j !== i));
+  };
+
+  // Called when the user confirms an image (or images) in the picker modal.
+  // Routes the result URL(s) to the correct form field based on which picker was opened.
+  const handlePickerConfirm = (urls: string[]) => {
+    if (!pickerState) return;
+    const { field, initialUrl } = pickerState;
+
+    if (field === "cover") {
+      setUploadedCover(urls[0] ?? null);
+    } else if (field === "gallery-add") {
+      setUploadedGallery((prev) => [...prev, ...urls]);
+    } else if (field.startsWith("gallery-edit-")) {
+      const idx = Number(field.replace("gallery-edit-", ""));
+      if (initialUrl) {
+        setUploadedGallery((prev) => prev.map((u, j) => (j === idx ? (urls[0] ?? u) : u)));
+      }
+    } else if (field.startsWith("highlight-")) {
+      const i = Number(field.replace("highlight-", ""));
+      const hl = (form.getValues as any)(`details.highlights.${i}`);
+      sv(`details.highlights.${i}`, { ...hl, image: urls[0] });
+    } else if (field.startsWith("accommodation-")) {
+      const i = Number(field.replace("accommodation-", ""));
+      sv(`details.accommodations.${i}.image`, urls[0]);
+    } else if (field.startsWith("itinerary-")) {
+      const i = Number(field.replace("itinerary-", ""));
+      sv(`details.itinerary.${i}.image`, urls[0]);
+    }
+
+    setPickerState(null);
   };
 
   // ── Submit ──────────────────────────────────────────────────────────────────
@@ -521,29 +561,43 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
     try {
       if (tour) {
         await onSubmit(data);
-        // Upload new media
+
+        // Upload any legacy blob files (fallback; normally empty with the picker flow)
+        let finalCover = uploadedCover && !uploadedCover.startsWith("blob:") ? uploadedCover : null;
+        let finalGallery = uploadedGallery.filter((u) => !u.startsWith("blob:"));
+
         if (coverBlob || galleryBlobs.length > 0) {
           const r = await uploadAllBlobsToStorage(coverBlob, galleryBlobs, tour.id);
-          const mu: any = {};
-          if (r.coverResult?.success) mu.coverImage = r.coverResult.url;
-          const urls = r.galleryResults?.filter((x) => x.success).map((x) => x.url!) ?? [];
-          if (urls.length) {
-            const existing = uploadedGallery.filter((u) => !u.startsWith("blob:"));
-            mu.gallery = [...existing, ...urls];
-            await cleanupRemovedGalleryImages(originalGallery, mu.gallery);
-          }
-          if (Object.keys(mu).length) await updateTourMedia(tour.id, mu);
+          if (r.coverResult?.success) finalCover = r.coverResult.url ?? null;
+          const blobUrls = r.galleryResults?.filter((x) => x.success).map((x) => x.url!) ?? [];
+          if (blobUrls.length) finalGallery = [...finalGallery, ...blobUrls];
         }
+
+        const mu: any = {};
+        if (finalCover) mu.coverImage = finalCover;
+        if (finalGallery.length || originalGallery.length) {
+          mu.gallery = finalGallery;
+          await cleanupRemovedGalleryImages(originalGallery, finalGallery);
+        }
+        if (Object.keys(mu).length) await updateTourMedia(tour.id, mu);
         toast({ title: "Saved", description: "Tour updated successfully." });
       } else {
         const id = await onSubmit(data);
         const tourId = typeof id === "string" ? id : "";
-        if (tourId && (coverBlob || galleryBlobs.length > 0)) {
-          const r = await uploadAllBlobsToStorage(coverBlob, galleryBlobs, tourId);
+        if (tourId) {
+          let finalCover = uploadedCover && !uploadedCover.startsWith("blob:") ? uploadedCover : null;
+          let finalGallery = uploadedGallery.filter((u) => !u.startsWith("blob:"));
+
+          if (coverBlob || galleryBlobs.length > 0) {
+            const r = await uploadAllBlobsToStorage(coverBlob, galleryBlobs, tourId);
+            if (r.coverResult?.success) finalCover = r.coverResult.url ?? null;
+            const urls = r.galleryResults?.filter((x) => x.success).map((x) => x.url!) ?? [];
+            if (urls.length) finalGallery = [...finalGallery, ...urls];
+          }
+
           const mu: any = {};
-          if (r.coverResult?.success) mu.coverImage = r.coverResult.url;
-          const urls = r.galleryResults?.filter((x) => x.success).map((x) => x.url!) ?? [];
-          if (urls.length) mu.gallery = urls;
+          if (finalCover) mu.coverImage = finalCover;
+          if (finalGallery.length) mu.gallery = finalGallery;
           if (Object.keys(mu).length) await updateTourMedia(tourId, mu);
         }
         toast({ title: "Created", description: "New tour package created." });
@@ -606,7 +660,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
             <Button
               type="button"
               disabled={isSubmitting}
-              onClick={form.handleSubmit(handleSubmit)}
+              onClick={form.handleSubmit(handleSubmit, (errs) => { console.error("Form validation errors:", errs); toast({ title: "Validation error", description: "Check required fields and try again.", variant: "destructive" }); })}
               className="h-9 bg-crimson-red hover:bg-light-red text-white rounded-full px-5 font-body font-bold text-sm shadow-small"
             >
               <Save className="h-4 w-4 mr-1.5" />
@@ -617,7 +671,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)}>
+        <form onSubmit={form.handleSubmit(handleSubmit, (errs) => { console.error("Form validation errors:", errs); })}>
           {/* ── Page container (matches www max-w-7xl) ────────────────────── */}
           <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 flex flex-col">
 
@@ -653,17 +707,19 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         {activeImg ? (
                           <img src={resolveImg(activeImg)} alt="Hero" className="w-full h-full object-cover" />
                         ) : (
-                          <label htmlFor="cover-upload" className="flex flex-col items-center justify-center h-full cursor-pointer hover:bg-light-grey/80 transition-colors">
+                          <button type="button" onClick={() => setPickerState({ field: "cover" })}
+                            className="flex flex-col items-center justify-center h-full w-full cursor-pointer hover:bg-light-grey/80 transition-colors">
                             <ImageIcon className="h-10 w-10 text-dark-gray/40 mb-2" />
                             <span className="font-body text-b4-desktop text-dark-gray">Click to upload hero image</span>
-                          </label>
+                          </button>
                         )}
                         {uploadedCover && (
                           <div className="absolute inset-0 bg-black/0 group-hover/hero:bg-black/30 transition-colors flex items-center justify-center">
                             <div className="opacity-0 group-hover/hero:opacity-100 transition-opacity flex gap-2">
-                              <label htmlFor="cover-upload" className="flex items-center gap-2 bg-white text-midnight rounded-full px-4 py-2 text-sm font-body font-bold cursor-pointer shadow-small hover:shadow-medium">
-                                <Upload className="h-4 w-4" /> Change Hero
-                              </label>
+                              <button type="button" onClick={() => setPickerState({ field: "cover", initialUrl: resolveImg(uploadedCover) || undefined })}
+                                className="flex size-10 items-center justify-center bg-white text-midnight rounded-full shadow-small hover:shadow-medium hover:text-crimson-red transition-colors cursor-pointer">
+                                <Camera className="h-5 w-5" />
+                              </button>
                               <button type="button" onClick={() => { if (uploadedCover?.startsWith("blob:")) revokeBlobUrl(uploadedCover); setUploadedCover(null); setCoverBlob(null); setActiveGalleryIndex(0); }}
                                 className="flex items-center gap-1 bg-crimson-red text-white rounded-full px-3 py-2 text-sm font-body cursor-pointer shadow-small">
                                 <X className="h-4 w-4" />
@@ -683,7 +739,6 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                             </button>
                           </>
                         )}
-                        <input type="file" id="cover-upload" accept="image/*" onChange={handleCoverUpload} className="hidden" />
                       </div>
                       <div className="pl-1 py-1 mt-4 flex gap-2 overflow-x-auto scrollbar-hide">
                         {galleryImages.map((img, idx) => (
@@ -692,17 +747,23 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                               className={`block aspect-[4/3] w-full rounded-[16px] overflow-hidden transition-opacity ${idx === activeGalleryIndex ? "opacity-100 ring-2 ring-crimson-red" : "opacity-60 hover:opacity-80"}`}>
                               <img src={resolveImg(img)} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
                             </button>
+                            {/* Hover overlay: centered camera icon + corner delete */}
+                            <div className="absolute inset-0 rounded-[16px] opacity-0 group-hover/thumb:opacity-100 transition-opacity pointer-events-none bg-black/30" />
+                            <button type="button"
+                              onClick={() => setPickerState({ field: `gallery-edit-${idx}`, initialUrl: resolveImg(img) || undefined })}
+                              className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity rounded-[16px]">
+                              <Camera className="h-4 w-4 text-white drop-shadow" />
+                            </button>
                             <button type="button" onClick={() => { rmGallery(idx); if (activeGalleryIndex >= galleryImages.length - 1) setActiveGalleryIndex(Math.max(0, galleryImages.length - 2)); }}
-                              className="absolute top-0.5 right-0.5 opacity-0 group-hover/thumb:opacity-100 bg-crimson-red text-white rounded-full w-4 h-4 flex items-center justify-center">
+                              className="absolute top-0.5 right-0.5 opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-crimson-red text-white rounded-full w-4 h-4 flex items-center justify-center">
                               <X className="h-2.5 w-2.5" />
                             </button>
                           </div>
                         ))}
-                        <label htmlFor="gallery-upload"
+                        <button type="button" onClick={() => setPickerState({ field: "gallery-add", multiple: true })}
                           className="flex-shrink-0 w-[calc((100%-2.5rem)/6)] aspect-[4/3] rounded-[16px] border-2 border-dashed border-dark-gray/20 flex items-center justify-center cursor-pointer hover:border-crimson-red/40 hover:bg-crimson-red/5 transition-colors">
                           <Plus className="h-5 w-5 text-dark-gray/40" />
-                        </label>
-                        <input type="file" id="gallery-upload" accept="image/*" multiple onChange={handleGalleryUpload} className="hidden" />
+                        </button>
                       </div>
                     </>
                   );
@@ -844,22 +905,27 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         const hl = highlights?.[i];
                         return (
                           <div key={field.id} className="group/hl flex-shrink-0 w-[calc(50%-12px)] snap-start flex flex-col gap-4">
-                            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[24px] bg-light-grey">
+                            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[24px] bg-light-grey group/hlimg">
                               {hl?.image ? (
                                 <>
                                   <img src={resolveImg(hl.image)} alt="" className="w-full h-full object-cover" />
-                                  <div className="absolute inset-0 bg-black/0 group-hover/hl:bg-black/20 transition-colors" />
+                                  <div className="absolute inset-0 bg-black/0 group-hover/hlimg:bg-black/20 transition-colors" />
+                                  <button type="button"
+                                    onClick={() => setPickerState({ field: `highlight-${i}`, initialUrl: resolveImg(hl.image) || undefined })}
+                                    className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/hlimg:opacity-100 transition-opacity">
+                                    <Camera className="h-5 w-5 text-white drop-shadow" />
+                                  </button>
                                   <button type="button" onClick={() => sv(`details.highlights.${i}`, { ...hl, image: undefined })}
-                                    className="absolute top-2 right-2 opacity-0 group-hover/hl:opacity-100 bg-crimson-red text-white rounded-full w-6 h-6 flex items-center justify-center">
+                                    className="absolute top-2 right-2 opacity-0 group-hover/hlimg:opacity-100 transition-opacity bg-crimson-red text-white rounded-full w-6 h-6 flex items-center justify-center">
                                     <X className="h-3 w-3" />
                                   </button>
                                 </>
                               ) : (
-                                <label className="flex flex-col items-center justify-center h-full cursor-pointer hover:bg-light-grey/70">
+                                <button type="button" onClick={() => setPickerState({ field: `highlight-${i}` })}
+                                  className="flex flex-col items-center justify-center h-full w-full cursor-pointer hover:bg-light-grey/70">
                                   <ImageIcon className="h-8 w-8 text-dark-gray/30 mb-1" />
                                   <span className="text-xs text-dark-gray/40">Add image</span>
-                                  <input type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (!f) return; if (!validateImageFile(f).valid) return; sv(`details.highlights.${i}`, { ...hl, image: createBlobUrl(f) }); }} />
-                                </label>
+                                </button>
                               )}
                             </div>
                             <div className="space-y-1">
@@ -914,8 +980,18 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                               <div className={`pb-5 grid grid-cols-1 gap-x-6 gap-y-4 ${day?.image ? "md:grid-cols-[1fr_348px]" : ""}`}>
                                 <InlineTextarea value={day?.description ?? ""} onChange={(v) => sv(`details.itinerary.${i}.description`, v)} placeholder="Describe this day…" className="font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
                                 {day?.image && (
-                                  <div className="relative aspect-[16/10] overflow-hidden rounded-[16px] bg-light-grey md:row-span-2">
+                                  <div className="relative aspect-[16/10] overflow-hidden rounded-[16px] bg-light-grey md:row-span-2 group/dayimg">
                                     <img src={resolveImg(day.image)} alt={`Day ${i + 1}`} className="w-full h-full object-cover" />
+                                    <div className="absolute inset-0 rounded-[16px] opacity-0 group-hover/dayimg:opacity-100 transition-opacity pointer-events-none bg-black/30" />
+                                    <button type="button"
+                                      onClick={() => setPickerState({ field: `itinerary-${i}`, initialUrl: resolveImg(day?.image) || undefined })}
+                                      className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/dayimg:opacity-100 transition-opacity">
+                                      <Camera className="h-5 w-5 text-white drop-shadow" />
+                                    </button>
+                                    <button type="button" onClick={() => sv(`details.itinerary.${i}.image`, "")}
+                                      className="absolute top-2 right-2 opacity-0 group-hover/dayimg:opacity-100 transition-opacity bg-crimson-red text-white rounded-full w-6 h-6 flex items-center justify-center">
+                                      <X className="h-3 w-3" />
+                                    </button>
                                   </div>
                                 )}
                                 <div className="border-t border-light-grey/60 pt-3">
@@ -981,8 +1057,16 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                                     <Plus className="h-4 w-4" /> Add detail
                                   </button>
                                   <div className="mt-3">
-                                    <p className="font-sans text-b4-desktop font-bold text-midnight">Day Image URL</p>
-                                    <InlineInput value={day?.image ?? ""} onChange={(v) => sv(`details.itinerary.${i}.image`, v)} placeholder="https://…" className="font-body text-b4-desktop text-dark-gray/50" />
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <p className="font-sans text-b4-desktop font-bold text-midnight">Day Image</p>
+                                      <button type="button"
+                                        onClick={() => setPickerState({ field: `itinerary-${i}`, initialUrl: resolveImg(day?.image) || undefined })}
+                                        className="flex items-center gap-1 text-xs text-crimson-red hover:text-light-red">
+                                        <Camera className="h-3 w-3" />
+                                        {day?.image ? "Change" : "Pick from library"}
+                                      </button>
+                                    </div>
+                                    <InlineInput value={day?.image ?? ""} onChange={(v) => sv(`details.itinerary.${i}.image`, v)} placeholder="https://… or pick above" className="font-body text-b4-desktop text-dark-gray/50" />
                                   </div>
                                 </div>
                               </div>
@@ -1019,8 +1103,27 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         const ac = accoms?.[i];
                         return (
                           <div key={field.id} className="group/ac flex-shrink-0 w-[calc(50%-12px)] snap-start flex flex-col gap-4">
-                            <div className="aspect-[4/3] overflow-hidden rounded-[24px] bg-light-grey">
-                              {ac?.image ? <img src={resolveImg(ac.image)} alt="" className="w-full h-full object-cover" /> : <div className="flex items-center justify-center h-full"><ImageIcon className="h-8 w-8 text-dark-gray/30" /></div>}
+                            <div className="relative aspect-[4/3] overflow-hidden rounded-[24px] bg-light-grey group/acimg">
+                              {ac?.image
+                                ? <img src={resolveImg(ac.image)} alt="" className="w-full h-full object-cover" />
+                                : <button type="button" onClick={() => setPickerState({ field: `accommodation-${i}` })}
+                                    className="flex flex-col items-center justify-center h-full w-full cursor-pointer hover:bg-light-grey/70">
+                                    <ImageIcon className="h-8 w-8 text-dark-gray/30 mb-1" />
+                                    <span className="text-xs text-dark-gray/40">Add image</span>
+                                  </button>}
+                              {ac?.image && (
+                                <>
+                                  <button type="button"
+                                    onClick={() => setPickerState({ field: `accommodation-${i}`, initialUrl: resolveImg(ac.image) || undefined })}
+                                    className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/acimg:opacity-100 transition-opacity">
+                                    <Camera className="h-5 w-5 text-white drop-shadow" />
+                                  </button>
+                                  <button type="button" onClick={() => sv(`details.accommodations.${i}.image`, "")}
+                                    className="absolute top-2 right-2 opacity-0 group-hover/acimg:opacity-100 transition-opacity bg-crimson-red text-white rounded-full w-6 h-6 flex items-center justify-center">
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </>
+                              )}
                             </div>
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
@@ -1030,7 +1133,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                               <InlineInput value={ac?.nights ?? ""} onChange={(v) => sv(`details.accommodations.${i}.nights`, v)} placeholder="e.g. 2 nights in hotel" className="font-body text-sm text-dark-gray" />
                               <div className="flex items-center gap-1.5">
                                 <ExternalLink className="h-3 w-3 text-dark-gray/40 shrink-0" />
-                                <InlineInput value={ac?.image ?? ""} onChange={(v) => sv(`details.accommodations.${i}.image`, v)} placeholder="Image URL" className="font-body text-xs text-dark-gray/40 flex-1" />
+                                <InlineInput value={ac?.image ?? ""} onChange={(v) => sv(`details.accommodations.${i}.image`, v)} placeholder="Image URL (or use camera above)" className="font-body text-xs text-dark-gray/40 flex-1" />
                               </div>
                             </div>
                           </div>
@@ -1414,6 +1517,38 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
           </div>
         </form>
       </Form>
+
+      {/* ── Image Picker Modal ─────────────────────────────────────────── */}
+      {pickerState && (
+        <ImagePickerModal
+          open
+          onClose={() => setPickerState(null)}
+          onConfirm={handlePickerConfirm}
+          storageFolder={slug ? `images/tours/${slug}` : "images/tours"}
+          aspectRatio={
+            pickerState.field === "cover"
+              ? 16 / 9
+              : pickerState.field.startsWith("itinerary-")
+              ? 16 / 10
+              : 4 / 3
+          }
+          multiple={pickerState.multiple ?? false}
+          initialImageUrl={pickerState.initialUrl}
+          title={
+            pickerState.field === "cover"
+              ? "Select Hero Image"
+              : pickerState.field === "gallery-add"
+              ? "Add Gallery Images"
+              : pickerState.field.startsWith("gallery-edit-")
+              ? "Edit Gallery Image"
+              : pickerState.field.startsWith("highlight-")
+              ? "Select Highlight Image"
+              : pickerState.field.startsWith("accommodation-")
+              ? "Select Accommodation Image"
+              : "Select Day Image"
+          }
+        />
+      )}
     </div>
   );
 }

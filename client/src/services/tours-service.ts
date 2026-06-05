@@ -35,6 +35,7 @@ interface TourFormDataWithStringDates {
   duration: string;
   cardHeaderTitle: string;
   cardSubHeader: string;
+  locationOther?: string;
   travelDates: {
     startDate: string;
     endDate: string;

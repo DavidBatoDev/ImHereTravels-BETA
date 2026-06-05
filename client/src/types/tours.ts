@@ -219,6 +219,8 @@ export interface TourFormDataWithStringDates {
   description: string;
   location: string;
   duration: string; // Duration as a string like "11 days"
+  cardHeaderTitle: string;
+  cardSubHeader: string;
   travelDates: {
     startDate: string;
     endDate: string;
