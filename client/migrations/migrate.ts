@@ -164,6 +164,22 @@ import {
   runMigration as runMigration049,
   rollbackMigration as rollbackMigration049,
 } from "./049-backfill-gallery-and-tags";
+import {
+  runMigration as runMigration050,
+  rollbackMigration as rollbackMigration050,
+} from "./050-backfill-destinations";
+import {
+  runMigration as runMigration051,
+  rollbackMigration as rollbackMigration051,
+} from "./051-backfill-keyfacts";
+import {
+  runMigration as runMigration052,
+  rollbackMigration as rollbackMigration052,
+} from "./052-backfill-inclusions";
+import {
+  runMigration as runMigration053,
+  rollbackMigration as rollbackMigration053,
+} from "./053-backfill-itinerary-details";
 import migration034 from "./034-initialize-columns-metadata";
 
 // ============================================================================
@@ -1416,6 +1432,138 @@ async function main() {
     case "rollback049":
       console.log("↩️ Rolling back migration: 049-backfill-gallery-and-tags");
       await rollbackMigration049();
+      break;
+
+    case "050":
+      console.log("📊 Running migration: 050-backfill-destinations");
+      const result050 = await runMigration050(dryRun);
+      console.log(`\n🎯 ${result050.message}`);
+      if (result050.details) {
+        console.log(
+          `📊 Details: ${result050.details.updated} updated, ${result050.details.skipped} skipped, ${result050.details.notMapped} not in map, ${result050.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run050":
+      console.log("🔍 Running migration in DRY RUN mode: 050-backfill-destinations");
+      const dryRunResult050 = await runMigration050(true);
+      console.log(`\n🎯 ${dryRunResult050.message}`);
+      if (dryRunResult050.details) {
+        console.log(
+          `📊 Details: ${dryRunResult050.details.updated} would be updated, ${dryRunResult050.details.notMapped} not in map`,
+        );
+      }
+      break;
+
+    case "rollback050":
+      console.log("↩️ Rolling back migration: 050-backfill-destinations");
+      const rollbackResult050 = await rollbackMigration050();
+      console.log(`\n🎯 ${rollbackResult050.message}`);
+      if (rollbackResult050.details) {
+        console.log(
+          `📊 Details: ${rollbackResult050.details.removed} removed, ${rollbackResult050.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "051":
+      console.log("📊 Running migration: 051-backfill-keyfacts");
+      const result051 = await runMigration051(dryRun);
+      console.log(`\n🎯 ${result051.message}`);
+      if (result051.details) {
+        console.log(
+          `📊 Details: ${result051.details.updated} updated, ${result051.details.notMapped} not in map, ${result051.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run051":
+      console.log("🔍 Running migration in DRY RUN mode: 051-backfill-keyfacts");
+      const dryRunResult051 = await runMigration051(true);
+      console.log(`\n🎯 ${dryRunResult051.message}`);
+      if (dryRunResult051.details) {
+        console.log(
+          `📊 Details: ${dryRunResult051.details.updated} would be updated, ${dryRunResult051.details.notMapped} not in map`,
+        );
+      }
+      break;
+
+    case "rollback051":
+      console.log("↩️ Rolling back migration: 051-backfill-keyfacts");
+      const rollbackResult051 = await rollbackMigration051();
+      console.log(`\n🎯 ${rollbackResult051.message}`);
+      if (rollbackResult051.details) {
+        console.log(
+          `📊 Details: ${rollbackResult051.details.removed} removed, ${rollbackResult051.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "052":
+      console.log("📊 Running migration: 052-backfill-inclusions");
+      const result052 = await runMigration052(dryRun);
+      console.log(`\n🎯 ${result052.message}`);
+      if (result052.details) {
+        console.log(
+          `📊 Details: ${result052.details.updated} updated, ${result052.details.notMapped} not in map, ${result052.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run052":
+      console.log("🔍 Running migration in DRY RUN mode: 052-backfill-inclusions");
+      const dryRunResult052 = await runMigration052(true);
+      console.log(`\n🎯 ${dryRunResult052.message}`);
+      if (dryRunResult052.details) {
+        console.log(
+          `📊 Details: ${dryRunResult052.details.updated} would be updated, ${dryRunResult052.details.notMapped} not in map`,
+        );
+      }
+      break;
+
+    case "rollback052":
+      console.log("↩️ Rolling back migration: 052-backfill-inclusions");
+      const rollbackResult052 = await rollbackMigration052();
+      console.log(`\n🎯 ${rollbackResult052.message}`);
+      if (rollbackResult052.details) {
+        console.log(
+          `📊 Details: ${rollbackResult052.details.removed} removed, ${rollbackResult052.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "053":
+      console.log("📊 Running migration: 053-backfill-itinerary-details");
+      const result053 = await runMigration053(dryRun);
+      console.log(`\n🎯 ${result053.message}`);
+      if (result053.details) {
+        console.log(
+          `📊 Details: ${result053.details.updated} updated, ${result053.details.skipped} skipped, ${result053.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run053":
+      console.log("🔍 Running migration in DRY RUN mode: 053-backfill-itinerary-details");
+      const dryRunResult053 = await runMigration053(true);
+      console.log(`\n🎯 ${dryRunResult053.message}`);
+      if (dryRunResult053.details) {
+        console.log(
+          `📊 Details: ${dryRunResult053.details.updated} would be updated, ${dryRunResult053.details.skipped} skipped`,
+        );
+      }
+      break;
+
+    case "rollback053":
+      console.log("↩️ Rolling back migration: 053-backfill-itinerary-details");
+      const rollbackResult053 = await rollbackMigration053();
+      console.log(`\n🎯 ${rollbackResult053.message}`);
+      if (rollbackResult053.details) {
+        console.log(
+          `📊 Details: ${rollbackResult053.details.removed} rolled back, ${rollbackResult053.details.errors} errors`,
+        );
+      }
       break;
 
     case "help":

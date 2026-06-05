@@ -12,6 +12,7 @@ export interface TourPackage {
   tourCode: string; // Tour code (e.g., SIA, PHS, PSS)
   description: string;
   location: string;
+  destinations?: string[]; // Place/city names, e.g. ["Cebu", "Moalboal", "Siargao"]
   duration: string; // Duration in format "X days"
   travelDates: TravelDate[]; // Available travel dates
   pricing: TourPricing;
@@ -95,6 +96,7 @@ export interface TourDetails {
   requirements: string[];
   // WWW presentation sections (all optional; added additively)
   route?: string; // e.g. "Punakha → Paro" — key-fact + booking routeLabel
+  keyFacts?: Array<{ icon: string; label: string; values: string[] }>; // Editable key facts; Tour Dates always derived
   tags?: Array<{ label: string; icon: string }>; // Header location/theme tags; falls back to location + destinations
   inclusions?: TourInclusion[]; // "What's Included" section
   accommodations?: TourAccommodation[]; // "Where We Stay" section
@@ -141,9 +143,10 @@ export interface TourItinerary {
   description: string;
   // Optional per-day presentation fields
   image?: string;
-  accommodation?: string; // → "Accommodation" detail row
-  activities?: string; // → "Activity" detail row
-  meals?: string; // → "Meals" detail row
+  accommodation?: string; // kept — backward compat fallback
+  activities?: string;    // kept — backward compat fallback
+  meals?: string;         // kept — backward compat fallback
+  details?: Array<{ icon: string; label: string; value: string }>;
 }
 
 export interface TourMedia {
