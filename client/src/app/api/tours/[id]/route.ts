@@ -11,6 +11,16 @@ import { verifyRequestUserId } from "@/lib/firebase-admin-auth";
 
 const TOURS_COLLECTION = "tourPackages";
 
+/** Convert a Firestore Timestamp (any serialization) to an ISO date string. */
+function timestampToIso(v: any): string {
+  if (!v) return "";
+  if (typeof v === "string") return v; // already an ISO string
+  if (typeof v.toDate === "function") return v.toDate().toISOString().split("T")[0];
+  if (typeof v.seconds === "number") return new Date(v.seconds * 1000).toISOString().split("T")[0];
+  if (typeof v._seconds === "number") return new Date(v._seconds * 1000).toISOString().split("T")[0];
+  return "";
+}
+
 /**
  * Convert string dates to Firestore Timestamps for travelDates
  */
@@ -71,7 +81,17 @@ export async function GET(
       );
     }
 
-    const tour = { id: docSnap.id, ...docSnap.data() };
+    const data = docSnap.data()!;
+    // Convert Firestore Timestamps in travelDates to ISO date strings so the
+    // client always receives plain strings regardless of SDK serialization format.
+    if (Array.isArray(data.travelDates)) {
+      data.travelDates = data.travelDates.map((td: any) => ({
+        ...td,
+        startDate: timestampToIso(td.startDate),
+        endDate: timestampToIso(td.endDate),
+      }));
+    }
+    const tour = { id: docSnap.id, ...data };
     return NextResponse.json({ success: true, tour });
   } catch (error) {
     console.error("Error fetching tour:", error);
