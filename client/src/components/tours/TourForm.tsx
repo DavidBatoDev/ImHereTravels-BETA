@@ -642,8 +642,8 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
 
                 {/* Gallery — outside main card, same as www */}
                 {(() => {
-                  const allImages = ([uploadedCover, ...uploadedGallery] as (string | null)[]).filter(Boolean) as string[];
-                  const activeImg = allImages[activeGalleryIndex] ?? null;
+                  const galleryImages = uploadedGallery.filter(Boolean) as string[];
+                  const activeImg = galleryImages[activeGalleryIndex] ?? uploadedCover;
                   return (
                     <>
                       <div className="relative aspect-[4/3] md:aspect-video w-full overflow-hidden rounded-lg bg-light-grey group/hero">
@@ -655,7 +655,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                             <span className="font-body text-b4-desktop text-dark-gray">Click to upload hero image</span>
                           </label>
                         )}
-                        {activeImg === uploadedCover && uploadedCover && (
+                        {uploadedCover && (
                           <div className="absolute inset-0 bg-black/0 group-hover/hero:bg-black/30 transition-colors flex items-center justify-center">
                             <div className="opacity-0 group-hover/hero:opacity-100 transition-opacity flex gap-2">
                               <label htmlFor="cover-upload" className="flex items-center gap-2 bg-white text-midnight rounded-full px-4 py-2 text-sm font-body font-bold cursor-pointer shadow-small hover:shadow-medium">
@@ -668,13 +668,13 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                             </div>
                           </div>
                         )}
-                        {allImages.length > 1 && (
+                        {galleryImages.length > 0 && (
                           <>
-                            <button type="button" onClick={() => setActiveGalleryIndex(idx => (idx - 1 + allImages.length) % allImages.length)}
+                            <button type="button" onClick={() => setActiveGalleryIndex(idx => (idx - 1 + galleryImages.length) % galleryImages.length)}
                               className="absolute left-3 top-1/2 -translate-y-1/2 size-10 rounded-full bg-white/90 shadow-small flex items-center justify-center hover:bg-white transition-colors">
                               <ChevronLeft className="h-5 w-5 text-midnight" />
                             </button>
-                            <button type="button" onClick={() => setActiveGalleryIndex(idx => (idx + 1) % allImages.length)}
+                            <button type="button" onClick={() => setActiveGalleryIndex(idx => (idx + 1) % galleryImages.length)}
                               className="absolute right-3 top-1/2 -translate-y-1/2 size-10 rounded-full bg-white/90 shadow-small flex items-center justify-center hover:bg-white transition-colors">
                               <ChevronRight className="h-5 w-5 text-midnight" />
                             </button>
@@ -682,23 +682,21 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         )}
                         <input type="file" id="cover-upload" accept="image/*" onChange={handleCoverUpload} className="hidden" />
                       </div>
-                      <div className="mt-4 flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                        {allImages.map((img, idx) => (
-                          <div key={idx} className="relative group/thumb flex-shrink-0">
+                      <div className="mt-4 flex gap-2 overflow-x-auto scrollbar-hide">
+                        {galleryImages.map((img, idx) => (
+                          <div key={idx} className="relative group/thumb flex-shrink-0 w-[calc((100%-2.5rem)/6)]">
                             <button type="button" onClick={() => setActiveGalleryIndex(idx)}
-                              className={`block aspect-[4/3] w-20 rounded-md overflow-hidden transition-opacity ${idx === activeGalleryIndex ? "opacity-100 ring-2 ring-crimson-red" : "opacity-60 hover:opacity-80"}`}>
+                              className={`block aspect-[4/3] w-full rounded-md overflow-hidden transition-opacity ${idx === activeGalleryIndex ? "opacity-100 ring-2 ring-crimson-red" : "opacity-60 hover:opacity-80"}`}>
                               <img src={resolveImg(img)} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
                             </button>
-                            {img !== uploadedCover && (
-                              <button type="button" onClick={() => { const gi = uploadedGallery.indexOf(img); if (gi >= 0) rmGallery(gi); if (activeGalleryIndex >= allImages.length - 1) setActiveGalleryIndex(Math.max(0, allImages.length - 2)); }}
-                                className="absolute top-0.5 right-0.5 opacity-0 group-hover/thumb:opacity-100 bg-crimson-red text-white rounded-full w-4 h-4 flex items-center justify-center">
-                                <X className="h-2.5 w-2.5" />
-                              </button>
-                            )}
+                            <button type="button" onClick={() => { rmGallery(idx); if (activeGalleryIndex >= galleryImages.length - 1) setActiveGalleryIndex(Math.max(0, galleryImages.length - 2)); }}
+                              className="absolute top-0.5 right-0.5 opacity-0 group-hover/thumb:opacity-100 bg-crimson-red text-white rounded-full w-4 h-4 flex items-center justify-center">
+                              <X className="h-2.5 w-2.5" />
+                            </button>
                           </div>
                         ))}
                         <label htmlFor="gallery-upload"
-                          className="flex-shrink-0 aspect-[4/3] w-20 rounded-md border-2 border-dashed border-dark-gray/20 flex items-center justify-center cursor-pointer hover:border-crimson-red/40 hover:bg-crimson-red/5 transition-colors">
+                          className="flex-shrink-0 w-[calc((100%-2.5rem)/6)] aspect-[4/3] rounded-md border-2 border-dashed border-dark-gray/20 flex items-center justify-center cursor-pointer hover:border-crimson-red/40 hover:bg-crimson-red/5 transition-colors">
                           <Plus className="h-5 w-5 text-dark-gray/40" />
                         </label>
                         <input type="file" id="gallery-upload" accept="image/*" multiple onChange={handleGalleryUpload} className="hidden" />
@@ -888,8 +886,9 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                           <li key={field.id} className="group/day">
                             <div className="flex items-center gap-3 py-4">
                               <span className="size-7 shrink-0 bg-crimson-red text-white rounded-full flex items-center justify-center font-sans font-bold text-b4-desktop">{i + 1}</span>
-                              <div className="flex-1 min-w-0">
-                                <InlineInput value={day?.title ?? ""} onChange={(v) => sv(`details.itinerary.${i}.title`, v)} placeholder={`Day ${i + 1}`} className="font-sans text-h6-mobile md:text-h6-desktop text-midnight" />
+                              <div className="flex-1 min-w-0 flex items-baseline gap-1.5">
+                                <span className="font-sans text-h6-mobile md:text-h6-desktop font-bold text-midnight shrink-0">Day {i + 1}</span>
+                                <InlineInput value={day?.title ?? ""} onChange={(v) => sv(`details.itinerary.${i}.title`, v)} placeholder="Day title…" className="font-sans text-h6-mobile md:text-h6-desktop text-crimson-red" />
                               </div>
                               <button type="button" onClick={() => setExpandedDays((p) => { const n = new Set(p); if (isOpen) { n.delete(i); } else { n.add(i); } return n; })}
                                 className={`size-5 shrink-0 text-midnight transition-transform ${isOpen ? "rotate-180" : ""}`}>
@@ -1157,8 +1156,8 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                 <div className="overflow-hidden rounded-lg bg-white shadow-medium">
                   {/* Duration + route */}
                   <div className="px-6 pb-5 pt-6 md:px-7 md:pt-7">
-                    <InlineInput value={cardHeaderTitle} onChange={(v) => sv("cardHeaderTitle", v)} placeholder={durationLabel || "11 Day Tour"} className="font-sans text-h5-mobile md:text-h5-desktop font-bold text-midnight w-full" />
-                    <InlineInput value={cardSubHeader} onChange={(v) => sv("cardSubHeader", v)} placeholder={route || "Destination"} className="mt-1 font-body text-b2-mobile md:text-b1 text-dark-gray w-full" />
+                    <InlineTextarea value={cardHeaderTitle} onChange={(v) => sv("cardHeaderTitle", v)} placeholder={durationLabel || "11 Day Tour"} className="font-sans text-h5-mobile md:text-h5-desktop font-bold text-midnight w-full" />
+                    <InlineTextarea value={cardSubHeader} onChange={(v) => sv("cardSubHeader", v)} placeholder={route || "Destination"} className="mt-1 font-body text-b2-mobile md:text-b1 text-dark-gray w-full" />
                   </div>
 
                   {/* Price */}
