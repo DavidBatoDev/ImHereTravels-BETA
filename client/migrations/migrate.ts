@@ -196,6 +196,14 @@ import {
   runMigration as runMigration057,
   rollbackMigration as rollbackMigration057,
 } from "./057-prepend-domain-to-things-to-know-hrefs";
+import {
+  runMigration as runMigration058,
+  rollbackMigration as rollbackMigration058,
+} from "./058-remove-legacy-location-route";
+import {
+  runMigration as runMigration059,
+  rollbackMigration as rollbackMigration059,
+} from "./059-restore-keyfacts";
 import migration034 from "./034-initialize-columns-metadata";
 
 // ============================================================================
@@ -1710,6 +1718,72 @@ async function main() {
       if (rollbackResult057.details) {
         console.log(
           `📊 Details: ${rollbackResult057.details.removed} removed, ${rollbackResult057.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "058":
+      console.log("📊 Running migration: 058-remove-legacy-location-route");
+      const result058 = await runMigration058(dryRun);
+      console.log(`\n🎯 ${result058.message}`);
+      if (result058.details) {
+        console.log(
+          `📊 Details: ${result058.details.updated} updated, ${result058.details.skipped} skipped, ${result058.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run058":
+      console.log("🔍 Running migration in DRY RUN mode: 058-remove-legacy-location-route");
+      const dryRunResult058 = await runMigration058(true);
+      console.log(`\n🎯 ${dryRunResult058.message}`);
+      if (dryRunResult058.details) {
+        console.log(
+          `📊 Details: ${dryRunResult058.details.updated} would be updated, ${dryRunResult058.details.skipped} skipped`,
+        );
+      }
+      break;
+
+    case "rollback058":
+      console.log("↩️ Rolling back migration: 058-remove-legacy-location-route");
+      const rollbackResult058 = await rollbackMigration058();
+      console.log(`\n🎯 ${rollbackResult058.message}`);
+      if (rollbackResult058.details) {
+        console.log(
+          `📊 Details: ${rollbackResult058.details.removed} removed, ${rollbackResult058.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "059":
+      console.log("📊 Running migration: 059-restore-keyfacts");
+      const result059 = await runMigration059(dryRun);
+      console.log(`\n🎯 ${result059.message}`);
+      if (result059.details) {
+        console.log(
+          `📊 Details: ${result059.details.updated} updated, ${result059.details.notMapped} not mapped, ${result059.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run059":
+      console.log("🔍 Running migration in DRY RUN mode: 059-restore-keyfacts");
+      const dryRunResult059 = await runMigration059(true);
+      console.log(`\n🎯 ${dryRunResult059.message}`);
+      if (dryRunResult059.details) {
+        console.log(
+          `📊 Details: ${dryRunResult059.details.updated} would be updated, ${dryRunResult059.details.notMapped} not mapped`,
+        );
+      }
+      break;
+
+    case "rollback059":
+      console.log("↩️ Rolling back migration: 059-restore-keyfacts");
+      const rollbackResult059 = await rollbackMigration059();
+      console.log(`\n🎯 ${rollbackResult059.message}`);
+      if (rollbackResult059.details) {
+        console.log(
+          `📊 Details: ${rollbackResult059.details.removed} removed, ${rollbackResult059.details.errors} errors`,
         );
       }
       break;
