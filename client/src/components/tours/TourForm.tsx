@@ -168,6 +168,10 @@ function AutoSizeInput({
 }: { value: string; onChange: (v: string) => void; placeholder?: string; className?: string; compact?: boolean }) {
   const [local, setLocal] = useState(value);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current !== document.activeElement) setLocal(value);
+  }, [value]);
   const pad = compact ? "" : "px-1";
   return (
     <span className="relative inline-flex min-w-[2ch]">
@@ -176,6 +180,7 @@ function AutoSizeInput({
         {local || placeholder || " "}
       </span>
       <input
+        ref={ref}
         type="text"
         value={local}
         onChange={(e) => {
@@ -201,8 +206,14 @@ function InlineInput({
 }: { value: string; onChange: (v: string) => void; placeholder?: string; className?: string }) {
   const [local, setLocal] = useState(value);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const ref = useRef<HTMLInputElement>(null);
+  // Keep in sync when the same field is edited elsewhere, unless focused here.
+  useEffect(() => {
+    if (ref.current !== document.activeElement) setLocal(value);
+  }, [value]);
   return (
     <input
+      ref={ref}
       type="text"
       value={local}
       onChange={(e) => {
@@ -230,6 +241,10 @@ function InlineTextarea({
   useEffect(() => {
     if (ref.current) { ref.current.style.height = "auto"; ref.current.style.height = ref.current.scrollHeight + "px"; }
   }, [local]);
+  // Keep in sync when the same field is edited elsewhere, unless focused here.
+  useEffect(() => {
+    if (ref.current !== document.activeElement) setLocal(value);
+  }, [value]);
   return (
     <textarea
       ref={ref}
