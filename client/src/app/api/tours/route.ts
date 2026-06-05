@@ -20,8 +20,12 @@ const TOURS_COLLECTION = "tourPackages";
  * Convert string dates to Firestore Timestamps for travelDates
  */
 function convertTravelDatesToTimestamps(travelDates: any[]): any[] {
-  return travelDates.map((td) => {
+  return travelDates
+    // Drop incomplete rows so a blank date can never crash Timestamp.fromDate.
+    .filter((td) => td?.startDate && td?.endDate)
+    .map((td) => {
     const converted: any = {
+      ...td,
       startDate: Timestamp.fromDate(new Date(td.startDate)),
       endDate: Timestamp.fromDate(new Date(td.endDate)),
       isAvailable: td.isAvailable,
@@ -81,7 +85,7 @@ export async function POST(request: NextRequest) {
 
     // Convert travelDates from string dates to Timestamps
     const convertedTravelDates = convertTravelDatesToTimestamps(
-      tourData.travelDates,
+      tourData.travelDates ?? [],
     );
 
     // Snapshot travel-date pricing for the initial history entry

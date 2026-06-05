@@ -15,7 +15,7 @@ import {
   Route, MapPin, Calendar, Clock, Hotel, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
   Copy, AlertCircle, Globe, Settings, ExternalLink, Plane,
   CheckCircle2, Utensils, Bus, Compass, HeartHandshake, Info,
-  HelpCircle, Download, Camera, Luggage, ShieldCheck, Sun, Users,
+  HelpCircle, Download, Camera, Luggage, ShieldCheck, Sun, Users, Pencil,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -37,6 +37,7 @@ import { updateTourMedia, cleanupRemovedGalleryImages } from "@/services/tours-s
 import TourDatePicker from "./TourDatePicker";
 import ImagePickerModal from "@/components/shared/ImagePickerModal";
 import TourSettingsPanel from "./TourSettingsPanel";
+import TravelDatesModal from "./TravelDatesModal";
 
 // ─── Zod helpers ──────────────────────────────────────────────────────────────
 
@@ -97,8 +98,10 @@ const schema = z.object({
     currency: z.enum(["USD", "EUR", "GBP"]),
   }),
   travelDates: z.array(z.object({
-    startDate: z.string().min(1),
-    endDate: z.string().min(1),
+    // Allow blank rows; incomplete dates are dropped server-side rather than
+    // blocking the save. A tour with no valid dates renders "To be announced".
+    startDate: z.string(),
+    endDate: z.string(),
     tourDays: optNum,
     isAvailable: z.boolean(),
     hasCustomPricing: z.boolean().optional(),
@@ -108,7 +111,7 @@ const schema = z.object({
     hasCustomOriginal: z.boolean().optional(),
     hasCustomDiscounted: z.boolean().optional(),
     hasCustomDeposit: z.boolean().optional(),
-  })).min(1),
+  })),
   details: z.object({
     highlights: z.array(z.object({
       text: z.string(),
@@ -368,6 +371,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const [galleryBlobs, setGalleryBlobs] = useState<File[]>([]);
   const [originalGallery, setOriginalGallery] = useState<string[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
+  const [datesModalOpen, setDatesModalOpen] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set([0]));
   const [expandedFaqs, setExpandedFaqs] = useState<Set<number>>(new Set());
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
@@ -448,6 +452,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const ttks = w("details.thingsToKnow") as any[] | undefined;
   const tips = w("details.tips") as any[] | undefined;
   const kfData = w("details.keyFacts") as Array<{ icon: string; label: string; values: string[] }> | undefined;
+  const travelDates = w("travelDates") as any[] | undefined; // Tour Dates key-fact display
   const mapData = w("details.map") as any;   // conditional render of map section
   const status = w("status") as string;      // conditional section rendering
 
@@ -462,6 +467,20 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const durationLabel = useMemo(() => duration
     ? duration.replace(/\b(\d+)\s+days?\b/gi, "$1 Day Tour")
     : "", [duration]);
+
+  // Derived "Tour Dates" key fact — available date ranges formatted like www.
+  // Computed inline (not memoised): react-hook-form mutates the travelDates
+  // array in place, so a [travelDates]-keyed memo would go stale on edits.
+  // `toDateValue` handles ISO strings, Timestamps, and Date objects alike.
+  const dateRangeFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const tourDateValues = (travelDates ?? [])
+    .filter((d) => d?.isAvailable !== false)
+    .map((d) => {
+      const ds = toDateValue(d?.startDate);
+      const de = toDateValue(d?.endDate);
+      return ds && de ? `${dateRangeFmt.format(ds)} – ${dateRangeFmt.format(de)}` : null;
+    })
+    .filter(Boolean) as string[];
 
   // Auto-slug
   useEffect(() => { if (name && !tour) sv("slug", generateSlug(name)); }, [name]);
@@ -837,8 +856,37 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   {/* Key Facts */}
                   <section className="mt-8 md:mt-10 w-full">
                     <ul className="flex flex-col gap-6">
+                      {/* Tour Dates — derived from travelDates; edited via modal */}
+                      <li className="flex items-start gap-4 group/td">
+                        <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-light-grey">
+                          <Calendar className="size-5 text-midnight" strokeWidth={2.75} />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-sans text-b2-mobile md:text-b2-desktop !font-bold text-midnight">Tour Dates</p>
+                            <button type="button" onClick={() => setDatesModalOpen(true)}
+                              className="flex items-center gap-1 text-xs text-crimson-red hover:text-light-red">
+                              <Pencil className="h-3 w-3" /> Edit dates
+                            </button>
+                          </div>
+                          <ul className="mt-1 space-y-0.5">
+                            {tourDateValues.length === 0 ? (
+                              <li className="flex items-center gap-2 font-body text-b2-mobile md:text-b2-desktop text-dark-gray">
+                                <span className="inline-block size-1.5 shrink-0 rounded-full bg-crimson-red" aria-hidden />
+                                To be announced
+                              </li>
+                            ) : tourDateValues.map((v, idx) => (
+                              <li key={idx} className="flex items-center gap-2 font-body text-b2-mobile md:text-b2-desktop text-dark-gray">
+                                <span className="inline-block size-1.5 shrink-0 rounded-full bg-crimson-red" aria-hidden />
+                                {v}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </li>
                       {(kfFields as any[]).map((field, i) => {
                         const kf = kfData?.[i];
+                        if (kf?.label === "Tour Dates") return null; // derived above, never edit as text
                         const KfIcon = ICON_COMPONENTS[kf?.icon ?? "days"] ?? Calendar;
                         return (
                           <li key={field.id} className="flex items-start gap-4 group/kf">
@@ -1308,49 +1356,20 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
 
                   {/* Price */}
                   <div className="border-t border-light-grey px-6 py-4">
-                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                      <span className="font-body text-b4-desktop text-dark-gray">From</span>
-                      <span className="font-body text-b4-desktop text-dark-gray">{sym}</span>
-                      <span className="font-display text-h3-mobile text-midnight leading-none">
-                        {pricing?.discounted || pricing?.original
-                          ? Number(pricing?.discounted || pricing?.original).toLocaleString()
-                          : "—"}
-                      </span>
-                    </div>
-                    {/* Inline price editing */}
-                    <div className="mt-3 grid grid-cols-2 gap-2">
-                      <div>
-                        <p className="text-xs text-dark-gray mb-0.5">Price</p>
-                        <div className="flex items-center gap-1 border border-border rounded-md px-2 py-1">
-                          <span className="text-xs text-dark-gray">{sym}</span>
-                          <InlineInput value={pricing?.original ?? ""} onChange={(v) => sv("pricing.original", v)} placeholder="2499" className="text-sm text-midnight font-body" />
-                        </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <span className="font-body text-b4-desktop text-dark-gray">From</span>
+                        <span className="font-body text-b4-desktop text-dark-gray">{sym}</span>
+                        <span className="font-display text-h3-mobile text-midnight leading-none">
+                          {pricing?.discounted || pricing?.original
+                            ? Number(pricing?.discounted || pricing?.original).toLocaleString()
+                            : "—"}
+                        </span>
                       </div>
-                      <div>
-                        <p className="text-xs text-dark-gray mb-0.5">Discounted</p>
-                        <div className="flex items-center gap-1 border border-border rounded-md px-2 py-1">
-                          <span className="text-xs text-dark-gray">{sym}</span>
-                          <InlineInput value={pricing?.discounted ?? ""} onChange={(v) => sv("pricing.discounted", v)} placeholder="—" className="text-sm text-midnight font-body" />
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-xs text-dark-gray mb-0.5">Deposit</p>
-                        <div className="flex items-center gap-1 border border-border rounded-md px-2 py-1">
-                          <span className="text-xs text-dark-gray">{sym}</span>
-                          <InlineInput value={pricing?.deposit ?? ""} onChange={(v) => sv("pricing.deposit", v)} placeholder="300" className="text-sm text-midnight font-body" />
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-xs text-dark-gray mb-0.5">Currency</p>
-                        <Select value={pricing?.currency ?? "GBP"} onValueChange={(v) => sv("pricing.currency", v)}>
-                          <SelectTrigger className="h-8 text-xs border-border"><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="GBP">GBP £</SelectItem>
-                            <SelectItem value="USD">USD $</SelectItem>
-                            <SelectItem value="EUR">EUR €</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
+                      <button type="button" onClick={() => setPanelOpen(true)}
+                        className="flex shrink-0 items-center gap-1 text-xs text-crimson-red hover:text-light-red">
+                        <Pencil className="h-3 w-3" /> Edit Pricing
+                      </button>
                     </div>
                   </div>
 
@@ -1408,6 +1427,20 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
           onClose={() => setPanelOpen(false)}
           form={form}
           tour={tour ?? null}
+          coverImageUrl={resolveImg(uploadedCover) || undefined}
+          onEditCover={() => setPickerState({ field: "cover", initialUrl: resolveImg(uploadedCover) || undefined })}
+          onRemoveCover={() => {
+            if (uploadedCover?.startsWith("blob:")) revokeBlobUrl(uploadedCover);
+            setUploadedCover(null);
+            setCoverBlob(null);
+            setActiveGalleryIndex(0);
+          }}
+        />
+
+        <TravelDatesModal
+          open={datesModalOpen}
+          onClose={() => setDatesModalOpen(false)}
+          form={form}
         />
       </Form>
 

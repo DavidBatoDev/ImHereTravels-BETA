@@ -25,7 +25,10 @@ function timestampToIso(v: any): string {
  * Convert string dates to Firestore Timestamps for travelDates
  */
 function convertTravelDatesToTimestamps(travelDates: any[]): any[] {
-  return travelDates.map((td) => {
+  return travelDates
+    // Drop incomplete rows so a blank date can never crash Timestamp.fromDate.
+    .filter((td) => td?.startDate && td?.endDate)
+    .map((td) => {
     // Spread the incoming date first so any extra fields carried through (e.g.
     // legacy currentBookings/maxCapacity) are preserved, then override the
     // date strings with real Firestore Timestamps.
