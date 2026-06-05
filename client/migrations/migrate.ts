@@ -188,6 +188,14 @@ import {
   runMigration as runMigration055,
   rollbackMigration as rollbackMigration055,
 } from "./055-backfill-card-sub-header";
+import {
+  runMigration as runMigration056,
+  rollbackMigration as rollbackMigration056,
+} from "./056-backfill-things-to-know-and-tips";
+import {
+  runMigration as runMigration057,
+  rollbackMigration as rollbackMigration057,
+} from "./057-prepend-domain-to-things-to-know-hrefs";
 import migration034 from "./034-initialize-columns-metadata";
 
 // ============================================================================
@@ -1636,6 +1644,72 @@ async function main() {
       if (rollbackResult055.details) {
         console.log(
           `📊 Details: ${rollbackResult055.details.removed} removed, ${rollbackResult055.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "056":
+      console.log("📊 Running migration: 056-backfill-things-to-know-and-tips");
+      const result056 = await runMigration056(dryRun);
+      console.log(`\n🎯 ${result056.message}`);
+      if (result056.details) {
+        console.log(
+          `📊 Details: ${result056.details.updated} updated, ${result056.details.skipped} skipped, ${result056.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run056":
+      console.log("🔍 Running migration in DRY RUN mode: 056-backfill-things-to-know-and-tips");
+      const dryRunResult056 = await runMigration056(true);
+      console.log(`\n🎯 ${dryRunResult056.message}`);
+      if (dryRunResult056.details) {
+        console.log(
+          `📊 Details: ${dryRunResult056.details.updated} would be updated, ${dryRunResult056.details.skipped} skipped`,
+        );
+      }
+      break;
+
+    case "rollback056":
+      console.log("↩️ Rolling back migration: 056-backfill-things-to-know-and-tips");
+      const rollbackResult056 = await rollbackMigration056();
+      console.log(`\n🎯 ${rollbackResult056.message}`);
+      if (rollbackResult056.details) {
+        console.log(
+          `📊 Details: ${rollbackResult056.details.removed} removed, ${rollbackResult056.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "057":
+      console.log("📊 Running migration: 057-prepend-domain-to-things-to-know-hrefs");
+      const result057 = await runMigration057(dryRun);
+      console.log(`\n🎯 ${result057.message}`);
+      if (result057.details) {
+        console.log(
+          `📊 Details: ${result057.details.updated} updated, ${result057.details.skipped} skipped, ${result057.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run057":
+      console.log("🔍 Running migration in DRY RUN mode: 057-prepend-domain-to-things-to-know-hrefs");
+      const dryRunResult057 = await runMigration057(true);
+      console.log(`\n🎯 ${dryRunResult057.message}`);
+      if (dryRunResult057.details) {
+        console.log(
+          `📊 Details: ${dryRunResult057.details.updated} would be updated, ${dryRunResult057.details.skipped} skipped`,
+        );
+      }
+      break;
+
+    case "rollback057":
+      console.log("↩️ Rolling back migration: 057-prepend-domain-to-things-to-know-hrefs");
+      const rollbackResult057 = await rollbackMigration057();
+      console.log(`\n🎯 ${rollbackResult057.message}`);
+      if (rollbackResult057.details) {
+        console.log(
+          `📊 Details: ${rollbackResult057.details.removed} removed, ${rollbackResult057.details.errors} errors`,
         );
       }
       break;
