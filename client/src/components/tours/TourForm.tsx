@@ -118,6 +118,7 @@ const schema = z.object({
       accommodation: z.string().optional(),
       activities: z.string().optional(),
       meals: z.string().optional(),
+      details: z.array(z.object({ icon: z.string(), label: z.string(), value: z.string() })).optional(),
     })),
     requirements: z.array(z.string()),
     route: z.string().optional().or(z.literal("")),
@@ -133,7 +134,7 @@ const schema = z.object({
 
 // ─── Icon map (matches www's Icon.tsx) ───────────────────────────────────────
 
-const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string }>> = {
+const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number | string }>> = {
   days: Calendar, route: Route, people: Users, transport: Bus, airport: Plane,
   accommodation: Hotel, activities: Compass, meals: Utensils, team: HeartHandshake,
   plus: CheckCircle2, location: MapPin, info: Info, faq: HelpCircle, download: Download,
@@ -371,9 +372,9 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
         hasCustomOriginal: false, hasCustomDiscounted: false, hasCustomDeposit: false }],
       details: {
         highlights: [{ text: "", image: undefined, subtitle: undefined }],
-        itinerary: [{ day: 1, title: "", description: "", image: undefined, accommodation: undefined, activities: undefined, meals: undefined }],
+        itinerary: [{ day: 1, title: "", description: "", image: undefined, accommodation: undefined, activities: undefined, meals: undefined, details: [] }],
         requirements: [""],
-        route: "", tags: [], inclusions: [], accommodations: [], faqs: [],
+        route: "", keyFacts: [], tags: [], inclusions: [], accommodations: [], faqs: [],
         thingsToKnow: [], tips: [], map: { image: "", embedUrl: "" },
       },
     },
@@ -394,6 +395,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const { fields: tipFields, append: addTip, remove: rmTip } = useFieldArray({ control: form.control, name: "details.tips" });
   const { fields: reqFields, append: addReq, remove: rmReq } = useFieldArray({ control: form.control, name: "details.requirements" as any });
   const { fields: dateFields, append: addDate, remove: rmDate } = useFieldArray({ control: form.control, name: "travelDates" });
+  const { fields: kfFields, append: addKf, remove: rmKf } = useFieldArray({ control: form.control, name: "details.keyFacts" as any });
 
   // Watched values — only fields used for conditional rendering, computed values, or structural display
   const name = w("name") as string;          // toolbar display + slug auto-gen
@@ -408,6 +410,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const ttks = w("details.thingsToKnow") as any[] | undefined;
   const tips = w("details.tips") as any[] | undefined;
   const route = w("details.route") as string; // booking card sidebar display
+  const kfData = w("details.keyFacts") as Array<{ icon: string; label: string; values: string[] }> | undefined;
   const mapData = w("details.map") as any;   // conditional render of map section
   const status = w("status") as string;      // conditional section rendering
 
@@ -449,7 +452,8 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
 
       const itinerary = (tour.details?.itinerary?.filter(Boolean) ?? [{ day: 1, title: "", description: "" }]).map((d: any) => ({
         day: d.day, title: d.title ?? "", description: d.description ?? "",
-        image: d.image, accommodation: d.accommodation, activities: d.activities, meals: d.meals }));
+        image: d.image, accommodation: d.accommodation, activities: d.activities, meals: d.meals,
+        details: d.details ?? [] }));
 
       const d = tour.details as any;
       form.reset({
@@ -471,7 +475,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
         details: {
           highlights, itinerary,
           requirements: tour.details?.requirements?.filter(Boolean) ?? [""],
-          route: d?.route ?? "", tags: d?.tags ?? [], inclusions: d?.inclusions ?? [],
+          route: d?.route ?? "", keyFacts: d?.keyFacts ?? [], tags: d?.tags ?? [], inclusions: d?.inclusions ?? [],
           accommodations: d?.accommodations ?? [], faqs: d?.faqs ?? [],
           thingsToKnow: d?.thingsToKnow ?? [], tips: d?.tips ?? [],
           map: d?.map ?? { image: "", embedUrl: "" },
@@ -751,20 +755,38 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   {/* Key Facts */}
                   <section className="mt-8 md:mt-10 w-full">
                     <ul className="flex flex-col gap-6">
-                      <li className="flex items-start gap-4">
-                        <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-light-grey"><Clock className="h-5 w-5 text-midnight" /></span>
-                        <div><p className="font-sans text-b2-mobile md:text-b2-desktop font-bold text-midnight">{durationLabel || "—"}</p></div>
-                      </li>
-                      <li className="flex items-start gap-4">
-                        <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-light-grey"><Route className="h-5 w-5 text-midnight" /></span>
-                        <div className="flex-1">
-                          <EditZone>
-                            <InlineInput value={route ?? ""} onChange={(v) => sv("details.route", v)} placeholder="e.g. Buenos Aires → Patagonia → Iguazu"
-                              className="font-sans text-b2-mobile md:text-b2-desktop font-bold text-midnight" />
-                          </EditZone>
-                        </div>
-                      </li>
+                      {(kfFields as any[]).map((field, i) => {
+                        const kf = kfData?.[i];
+                        const KfIcon = ICON_COMPONENTS[kf?.icon ?? "days"] ?? Calendar;
+                        return (
+                          <li key={field.id} className="flex items-start gap-4 group/kf">
+                            <Select value={kf?.icon ?? "days"} onValueChange={(v) => sv(`details.keyFacts.${i}.icon`, v)}>
+                              <SelectTrigger className="flex size-12 shrink-0 items-center justify-center rounded-full bg-light-grey border-0 p-0 [&>svg:last-child]:hidden hover:ring-2 hover:ring-crimson-red/20 transition-shadow">
+                                <KfIcon className="size-5 text-midnight" strokeWidth={2.75} />
+                              </SelectTrigger>
+                              <SelectContent>{ALL_ICONS.map((k) => { const IC = ICON_COMPONENTS[k]; return <SelectItem key={k} value={k}><span className="flex items-center gap-2"><IC className="h-4 w-4" />{k}</span></SelectItem>; })}</SelectContent>
+                            </Select>
+                            <div className="flex-1 min-w-0">
+                              <InlineInput value={kf?.label ?? ""} onChange={(v) => sv(`details.keyFacts.${i}.label`, v)}
+                                placeholder="Label" className="font-sans text-b2-mobile md:text-b2-desktop !font-bold text-midnight" />
+                              <InlineTextarea
+                                value={(kf?.values ?? []).join("\n")}
+                                onChange={(v) => sv(`details.keyFacts.${i}.values`, v.split("\n").filter(Boolean))}
+                                placeholder="Value (one per line)"
+                                className="mt-1 font-body text-b2-mobile md:text-b2-desktop text-dark-gray" />
+                            </div>
+                            <button type="button" onClick={() => rmKf(i)}
+                              className="opacity-0 group-hover/kf:opacity-100 transition-opacity text-crimson-red mt-1 shrink-0">
+                              <X className="h-4 w-4" />
+                            </button>
+                          </li>
+                        );
+                      })}
                     </ul>
+                    <button type="button" onClick={() => (addKf as any)({ icon: "days", label: "", values: [""] })}
+                      className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
+                      <Plus className="h-4 w-4" /> Add key fact
+                    </button>
                   </section>
 
                   {/* What's Included */}
@@ -879,17 +901,69 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                                     <img src={resolveImg(day.image)} alt={`Day ${i + 1}`} className="w-full h-full object-cover" />
                                   </div>
                                 )}
-                                <div className="grid grid-cols-1 gap-y-2 sm:grid-cols-2 gap-x-6 border-t border-light-grey/60 pt-3">
-                                  {(["Accommodation", "Activities", "Meals"] as const).map((label) => {
-                                    const key = label.toLowerCase() as "accommodation" | "activities" | "meals";
-                                    return (
-                                      <div key={key}>
-                                        <p className="font-sans text-b4-desktop font-bold text-midnight">{label}</p>
-                                        <InlineInput value={day?.[key] ?? ""} onChange={(v) => sv(`details.itinerary.${i}.${key}`, v)} placeholder="—" className="font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
-                                      </div>
-                                    );
-                                  })}
-                                  <div>
+                                <div className="border-t border-light-grey/60 pt-3">
+                                  <ul className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+                                    {(day?.details ?? []).map((det: any, di: number) => {
+                                      const DetIcon = ICON_COMPONENTS[det?.icon ?? "activities"] ?? Compass;
+                                      return (
+                                        <li key={di} className="flex items-start gap-3 group/det">
+                                          <Select value={det?.icon ?? "activities"} onValueChange={(v) => {
+                                            const arr = [...(gv(`details.itinerary.${i}.details`) ?? [])];
+                                            arr[di] = { ...arr[di], icon: v };
+                                            sv(`details.itinerary.${i}.details`, arr);
+                                          }}>
+                                            <SelectTrigger className="shrink-0 mt-0.5 border-0 bg-transparent shadow-none p-0 w-auto h-auto text-midnight [&>svg:last-child]:hidden hover:text-crimson-red transition-colors">
+                                              <DetIcon className="size-4" />
+                                            </SelectTrigger>
+                                            <SelectContent>{ALL_ICONS.map((k) => { const IC = ICON_COMPONENTS[k]; return <SelectItem key={k} value={k}><span className="flex items-center gap-2"><IC className="h-4 w-4" />{k}</span></SelectItem>; })}</SelectContent>
+                                          </Select>
+                                          <div className="flex-1 min-w-0">
+                                            <InlineInput
+                                              value={det?.label ?? ""}
+                                              onChange={(v) => {
+                                                const arr = [...(gv(`details.itinerary.${i}.details`) ?? [])];
+                                                arr[di] = { ...arr[di], label: v };
+                                                sv(`details.itinerary.${i}.details`, arr);
+                                              }}
+                                              placeholder="Label"
+                                              className="font-sans text-b4-mobile !font-bold text-midnight w-full"
+                                            />
+                                            <InlineBulletTextarea
+                                              value={det?.value ?? ""}
+                                              onChange={(v) => {
+                                                const arr = [...(gv(`details.itinerary.${i}.details`) ?? [])];
+                                                arr[di] = { ...arr[di], value: v };
+                                                sv(`details.itinerary.${i}.details`, arr);
+                                              }}
+                                              placeholder="Detail (use - for bullets)"
+                                              className="mt-0.5 font-body text-b4-mobile text-dark-gray"
+                                            />
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const arr = (gv(`details.itinerary.${i}.details`) ?? []).filter((_: unknown, j: number) => j !== di);
+                                              sv(`details.itinerary.${i}.details`, arr);
+                                            }}
+                                            className="opacity-0 group-hover/det:opacity-100 transition-opacity text-crimson-red mt-0.5 shrink-0"
+                                          >
+                                            <X className="h-3.5 w-3.5" />
+                                          </button>
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const arr = [...(gv(`details.itinerary.${i}.details`) ?? []), { icon: "activities", label: "", value: "" }];
+                                      sv(`details.itinerary.${i}.details`, arr);
+                                    }}
+                                    className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red"
+                                  >
+                                    <Plus className="h-4 w-4" /> Add detail
+                                  </button>
+                                  <div className="mt-3">
                                     <p className="font-sans text-b4-desktop font-bold text-midnight">Day Image URL</p>
                                     <InlineInput value={day?.image ?? ""} onChange={(v) => sv(`details.itinerary.${i}.image`, v)} placeholder="https://…" className="font-body text-b4-desktop text-dark-gray/50" />
                                   </div>
@@ -900,7 +974,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         );
                       })}
                     </ol>
-                    <button type="button" onClick={() => { addIter({ day: iterFields.length + 1, title: "", description: "", image: undefined, accommodation: undefined, activities: undefined, meals: undefined }); setExpandedDays((p) => { const n = new Set(p); n.add(iterFields.length); return n; }); }}
+                    <button type="button" onClick={() => { addIter({ day: iterFields.length + 1, title: "", description: "", image: undefined, accommodation: undefined, activities: undefined, meals: undefined, details: [] }); setExpandedDays((p) => { const n = new Set(p); n.add(iterFields.length); return n; }); }}
                       className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
                       <Plus className="h-4 w-4" /> Add Day {iterFields.length + 1}
                     </button>
