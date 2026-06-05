@@ -26,7 +26,11 @@ function timestampToIso(v: any): string {
  */
 function convertTravelDatesToTimestamps(travelDates: any[]): any[] {
   return travelDates.map((td) => {
+    // Spread the incoming date first so any extra fields carried through (e.g.
+    // legacy currentBookings/maxCapacity) are preserved, then override the
+    // date strings with real Firestore Timestamps.
     const converted: any = {
+      ...td,
       startDate: Timestamp.fromDate(new Date(td.startDate)),
       endDate: Timestamp.fromDate(new Date(td.endDate)),
       isAvailable: td.isAvailable,
@@ -152,6 +156,18 @@ export async function PATCH(
     // Protect server-managed pricing fields from being overwritten
     delete updateData.pricingHistory;
     delete updateData.currentVersion;
+
+    // Merge `details` instead of replacing it. Firestore's updateDoc replaces a
+    // nested object wholesale, so sending a `details` object that's missing any
+    // stored sub-field (e.g. a field not present in the form's schema) would
+    // silently delete it. Shallow-merging the incoming details over the stored
+    // details guarantees unknown/unsent sub-fields are always preserved.
+    if (updates.details) {
+      updateData.details = {
+        ...(currentData.details ?? {}),
+        ...updates.details,
+      };
+    }
 
     // Convert travelDates if they're being updated
     if (updates.travelDates) {
