@@ -125,6 +125,8 @@ export default function DashboardSidebar({
   const DESKTOP_SIDEBAR_SCROLL_KEY = "dashboardSidebarScroll:desktop";
 
   const pathname = usePathname();
+  const isNavActive = (href: string) =>
+    pathname === href || pathname.startsWith(`${href}/`);
   const { userProfile, signOut, isLoading } = useAuthStore();
   const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [pendingRevolutCount, setPendingRevolutCount] = useState(0);
@@ -273,7 +275,7 @@ export default function DashboardSidebar({
                   );
                 }
 
-                const isActive = pathname === item.href;
+                const isActive = isNavActive(item.href!);
                 // Mobile sidebar is always expanded
                 return (
                   <Link
@@ -456,7 +458,7 @@ export default function DashboardSidebar({
                   );
                 }
 
-                const isActive = pathname === item.href;
+                const isActive = isNavActive(item.href!);
                 const navItem = (
                   <Link
                     key={`desktop-nav-${index}-${item.name}`}
