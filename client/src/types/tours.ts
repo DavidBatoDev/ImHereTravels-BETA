@@ -14,6 +14,8 @@ export interface TourPackage {
   location: string;
   destinations?: string[]; // Place/city names, e.g. ["Cebu", "Moalboal", "Siargao"]
   duration: string; // Duration in format "X days"
+  cardHeaderTitle: string; // Label on the booking card (e.g. "11 Day Tour")
+  cardSubHeader: string; // Subtitle on the booking card (e.g. "Argentina")
   travelDates: TravelDate[]; // Available travel dates
   pricing: TourPricing;
   details: TourDetails;

@@ -180,6 +180,14 @@ import {
   runMigration as runMigration053,
   rollbackMigration as rollbackMigration053,
 } from "./053-backfill-itinerary-details";
+import {
+  runMigration as runMigration054,
+  rollbackMigration as rollbackMigration054,
+} from "./054-backfill-card-header-title";
+import {
+  runMigration as runMigration055,
+  rollbackMigration as rollbackMigration055,
+} from "./055-backfill-card-sub-header";
 import migration034 from "./034-initialize-columns-metadata";
 
 // ============================================================================
@@ -1562,6 +1570,72 @@ async function main() {
       if (rollbackResult053.details) {
         console.log(
           `📊 Details: ${rollbackResult053.details.removed} rolled back, ${rollbackResult053.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "054":
+      console.log("📊 Running migration: 054-backfill-card-header-title");
+      const result054 = await runMigration054(dryRun);
+      console.log(`\n🎯 ${result054.message}`);
+      if (result054.details) {
+        console.log(
+          `📊 Details: ${result054.details.updated} updated, ${result054.details.skipped} skipped, ${result054.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run054":
+      console.log("🔍 Running migration in DRY RUN mode: 054-backfill-card-header-title");
+      const dryRunResult054 = await runMigration054(true);
+      console.log(`\n🎯 ${dryRunResult054.message}`);
+      if (dryRunResult054.details) {
+        console.log(
+          `📊 Details: ${dryRunResult054.details.updated} would be updated, ${dryRunResult054.details.skipped} skipped`,
+        );
+      }
+      break;
+
+    case "rollback054":
+      console.log("↩️ Rolling back migration: 054-backfill-card-header-title");
+      const rollbackResult054 = await rollbackMigration054();
+      console.log(`\n🎯 ${rollbackResult054.message}`);
+      if (rollbackResult054.details) {
+        console.log(
+          `📊 Details: ${rollbackResult054.details.removed} removed, ${rollbackResult054.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "055":
+      console.log("📊 Running migration: 055-backfill-card-sub-header");
+      const result055 = await runMigration055(dryRun);
+      console.log(`\n🎯 ${result055.message}`);
+      if (result055.details) {
+        console.log(
+          `📊 Details: ${result055.details.updated} updated, ${result055.details.skipped} skipped, ${result055.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run055":
+      console.log("🔍 Running migration in DRY RUN mode: 055-backfill-card-sub-header");
+      const dryRunResult055 = await runMigration055(true);
+      console.log(`\n🎯 ${dryRunResult055.message}`);
+      if (dryRunResult055.details) {
+        console.log(
+          `📊 Details: ${dryRunResult055.details.updated} would be updated, ${dryRunResult055.details.skipped} skipped`,
+        );
+      }
+      break;
+
+    case "rollback055":
+      console.log("↩️ Rolling back migration: 055-backfill-card-sub-header");
+      const rollbackResult055 = await rollbackMigration055();
+      console.log(`\n🎯 ${rollbackResult055.message}`);
+      if (rollbackResult055.details) {
+        console.log(
+          `📊 Details: ${rollbackResult055.details.removed} removed, ${rollbackResult055.details.errors} errors`,
         );
       }
       break;

@@ -76,6 +76,8 @@ const schema = z.object({
   location: z.string().min(1),
   locationOther: z.string().optional().or(z.literal("") as any),
   duration: z.string().min(1),
+  cardHeaderTitle: z.string().min(1),
+  cardSubHeader: z.string().min(1),
   status: z.enum(["active", "draft", "archived"]),
   comingSoon: z.boolean().default(false),
   bookingSlug: z.string().optional().or(z.literal("")),
@@ -362,7 +364,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
     resolver: zodResolver(schema),
     defaultValues: {
       name: "", slug: "", url: "", tourCode: "", description: "",
-      location: "", locationOther: "", duration: "1 days", status: "draft",
+      location: "", locationOther: "", duration: "1 days", cardHeaderTitle: "11 Day Tour", cardSubHeader: "Destination", status: "draft",
       comingSoon: false, bookingSlug: "", seo: { title: "", description: "" },
       stripePaymentLink: "", depositNote: "", footnote: "",
       brochureLink: "", preDeparturePack: "",
@@ -400,6 +402,8 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   // Watched values — only fields used for conditional rendering, computed values, or structural display
   const name = w("name") as string;          // toolbar display + slug auto-gen
   const duration = w("duration") as string;  // durationLabel computed value
+  const cardHeaderTitle = w("cardHeaderTitle") as string;
+  const cardSubHeader = w("cardSubHeader") as string;
   const pricing = w("pricing");              // booking card live preview
   const tags = w("details.tags") as Array<{ label: string; icon: string }> | undefined;
   const inclusions = w("details.inclusions") as any[] | undefined;
@@ -461,7 +465,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
         tourCode: tour.tourCode || "", description: tour.description || "",
         location: PRESET_LOCATIONS.includes(tour.location ?? "") ? tour.location : tour.location ? "Other" : "",
         locationOther: PRESET_LOCATIONS.includes(tour.location ?? "") ? "" : (tour.location ?? ""),
-        duration: tour.duration || "1 days", status: tour.status || "draft",
+        duration: tour.duration || "1 days", cardHeaderTitle: (tour as any).cardHeaderTitle ?? "", cardSubHeader: (tour as any).cardSubHeader ?? "", status: tour.status || "draft",
         comingSoon: (tour as any).comingSoon ?? false, bookingSlug: (tour as any).bookingSlug ?? "",
         seo: (tour as any).seo ?? { title: "", description: "" },
         stripePaymentLink: tour.stripePaymentLink ?? "", depositNote: (tour as any).depositNote ?? "",
@@ -1153,8 +1157,8 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                 <div className="overflow-hidden rounded-lg bg-white shadow-medium">
                   {/* Duration + route */}
                   <div className="px-6 pb-5 pt-6 md:px-7 md:pt-7">
-                    <p className="font-sans text-h5-mobile md:text-h5-desktop font-bold text-midnight">{durationLabel || "—"}</p>
-                    <p className="mt-1 font-body text-b2-mobile md:text-b1 text-dark-gray">{route || "—"}</p>
+                    <InlineInput value={cardHeaderTitle} onChange={(v) => sv("cardHeaderTitle", v)} placeholder={durationLabel || "11 Day Tour"} className="font-sans text-h5-mobile md:text-h5-desktop font-bold text-midnight w-full" />
+                    <InlineInput value={cardSubHeader} onChange={(v) => sv("cardSubHeader", v)} placeholder={route || "Destination"} className="mt-1 font-body text-b2-mobile md:text-b1 text-dark-gray w-full" />
                   </div>
 
                   {/* Price */}
@@ -1210,14 +1214,12 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                     <ul className="space-y-3">
                       <li className="flex items-center gap-3">
                         <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-light-grey"><Calendar className="h-4 w-4 text-midnight" /></span>
-                        <span className="font-body text-b4-desktop text-midnight">{durationLabel || "—"}</span>
+                        <span className="font-body text-b4-desktop text-midnight">{cardHeaderTitle || durationLabel || "—"}</span>
                       </li>
-                      {route && (
-                        <li className="flex items-center gap-3">
-                          <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-light-grey"><Route className="h-4 w-4 text-midnight" /></span>
-                          <span className="font-body text-b4-desktop text-midnight">{route}</span>
-                        </li>
-                      )}
+                      <li className="flex items-center gap-3">
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-light-grey"><Route className="h-4 w-4 text-midnight" /></span>
+                        <span className="font-body text-b4-desktop text-midnight">{cardSubHeader || route || "—"}</span>
+                      </li>
                     </ul>
                   </div>
 
