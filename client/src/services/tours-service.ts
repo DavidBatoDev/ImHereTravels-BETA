@@ -31,11 +31,9 @@ interface TourFormDataWithStringDates {
   url?: string;
   tourCode: string;
   description: string;
-  location: string;
   duration: string;
   cardHeaderTitle: string;
   cardSubHeader: string;
-  locationOther?: string;
   travelDates: {
     startDate: string;
     endDate: string;
@@ -113,7 +111,6 @@ export async function getTours(
 
     // Add filters to query params
     if (filters?.status) params.append("status", filters.status);
-    if (filters?.location) params.append("location", filters.location);
     if (filters?.priceRange?.min)
       params.append("priceMin", filters.priceRange.min.toString());
     if (filters?.priceRange?.max)
@@ -223,7 +220,7 @@ export async function getAllTourPackages(): Promise<void> {
     console.log("\n📈 TOUR PACKAGES SUMMARY:");
     tours.forEach((tour, index) => {
       console.log(`${index + 1}. ${tour.name} (${tour.tourCode})`);
-      console.log(`   Location: ${tour.location}`);
+      console.log(`   Destinations: ${tour.destinations?.join(", ") ?? "—"}`);
       console.log(`   Duration: ${tour.duration} days`);
       console.log(`   Status: ${tour.status}`);
       console.log(
@@ -480,10 +477,6 @@ export function validateTourData(data: TourFormDataWithStringDates): string[] {
 
   if (!data.description || data.description.trim().length < 10) {
     errors.push("Description must be at least 10 characters long");
-  }
-
-  if (!data.location || data.location.trim().length < 2) {
-    errors.push("Location is required");
   }
 
   if (!data.duration || data.duration.trim().length === 0) {

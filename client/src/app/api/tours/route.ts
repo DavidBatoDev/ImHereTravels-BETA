@@ -156,7 +156,6 @@ export async function GET(request: NextRequest) {
 
     // Parse query parameters
     const status = searchParams.get("status");
-    const location = searchParams.get("location");
     const priceMin = searchParams.get("priceMin");
     const priceMax = searchParams.get("priceMax");
     const search = searchParams.get("search");
@@ -169,7 +168,6 @@ export async function GET(request: NextRequest) {
 
     console.log("GET /api/tours called with params:", {
       status,
-      location,
       priceMin,
       priceMax,
       search,
@@ -185,10 +183,6 @@ export async function GET(request: NextRequest) {
     // Apply filters
     if (status) {
       q = query(q, where("status", "==", status));
-    }
-
-    if (location) {
-      q = query(q, where("location", "==", location));
     }
 
     if (priceMin) {
@@ -222,7 +216,9 @@ export async function GET(request: NextRequest) {
         (tour) =>
           tour.name?.toLowerCase().includes(searchTerm) ||
           tour.description?.toLowerCase().includes(searchTerm) ||
-          tour.location?.toLowerCase().includes(searchTerm),
+          tour.destinations?.some((d: string) =>
+            d.toLowerCase().includes(searchTerm),
+          ),
       );
     }
 

@@ -36,6 +36,7 @@ import { generateSlug } from "@/utils";
 import { updateTourMedia, cleanupRemovedGalleryImages } from "@/services/tours-service";
 import TourDatePicker from "./TourDatePicker";
 import ImagePickerModal from "@/components/shared/ImagePickerModal";
+import TourSettingsPanel from "./TourSettingsPanel";
 
 // ─── Zod helpers ──────────────────────────────────────────────────────────────
 
@@ -76,8 +77,6 @@ const schema = z.object({
   url: z.string().url().optional().or(z.literal("")),
   tourCode: z.string().min(1),
   description: z.string().min(1),
-  location: z.string().min(1),
-  locationOther: z.string().optional().or(z.literal("") as any),
   duration: z.string().min(1),
   cardHeaderTitle: z.string(),
   cardSubHeader: z.string(),
@@ -85,6 +84,7 @@ const schema = z.object({
   comingSoon: z.boolean().default(false),
   bookingSlug: z.string().optional().or(z.literal("")),
   seo: z.object({ title: z.string().optional(), description: z.string().optional() }).optional(),
+  destinations: z.array(z.string()).optional(),
   stripePaymentLink: z.string().url().optional().or(z.literal("")),
   depositNote: z.string().optional().or(z.literal("")),
   footnote: z.string().optional().or(z.literal("")),
@@ -126,7 +126,7 @@ const schema = z.object({
       details: z.array(z.object({ icon: z.string(), label: z.string(), value: z.string() })).optional(),
     })),
     requirements: z.array(z.string()),
-    route: z.string().optional().or(z.literal("")),
+    keyFacts: z.array(z.object({ icon: z.string(), label: z.string(), values: z.array(z.string()) })).optional(),
     tags: z.array(z.object({ label: z.string(), icon: z.string() })).optional(),
     inclusions: z.array(z.object({ icon: z.string().optional(), label: z.string(), value: z.union([z.string(), z.array(z.string())]) })).optional(),
     accommodations: z.array(z.object({ image: z.string(), name: z.string(), nights: z.string() })).optional(),
@@ -155,10 +155,6 @@ const TAG_PALETTE = [
 ];
 
 const CURRENCY_SYM: Record<string, string> = { USD: "$", EUR: "€", GBP: "£" };
-const PRESET_LOCATIONS = [
-  "Philippines","Maldives","Sri Lanka","Argentina","Brazil","Vietnam",
-  "India","Tanzania","New Zealand","Ecuador","Galapagos","Amazon","Andes","Coast","Other",
-];
 const ALL_ICONS = Object.keys(ICON_COMPONENTS);
 
 
@@ -356,7 +352,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const [coverBlob, setCoverBlob] = useState<File | null>(null);
   const [galleryBlobs, setGalleryBlobs] = useState<File[]>([]);
   const [originalGallery, setOriginalGallery] = useState<string[]>([]);
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set([0]));
   const [expandedFaqs, setExpandedFaqs] = useState<Set<number>>(new Set());
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
@@ -385,8 +381,9 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
     resolver: zodResolver(schema),
     defaultValues: {
       name: "", slug: "", url: "", tourCode: "", description: "",
-      location: "", locationOther: "", duration: "1 days", cardHeaderTitle: "11 Day Tour", cardSubHeader: "Destination", status: "draft",
+      duration: "1 days", cardHeaderTitle: "11 Day Tour", cardSubHeader: "Destination", status: "draft",
       comingSoon: false, bookingSlug: "", seo: { title: "", description: "" },
+      destinations: [],
       stripePaymentLink: "", depositNote: "", footnote: "",
       brochureLink: "", preDeparturePack: "",
       pricing: { original: undefined, discounted: undefined, deposit: undefined, currency: "GBP" },
@@ -397,7 +394,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
         highlights: [{ text: "", image: undefined, subtitle: undefined }],
         itinerary: [{ day: 1, title: "", description: "", image: undefined, accommodation: undefined, activities: undefined, meals: undefined, details: [] }],
         requirements: [""],
-        route: "", keyFacts: [], tags: [], inclusions: [], accommodations: [], faqs: [],
+        keyFacts: [], tags: [], inclusions: [], accommodations: [], faqs: [],
         thingsToKnow: [], tips: [], map: { image: "", embedUrl: "" },
       },
     },
@@ -435,7 +432,6 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const faqs = w("details.faqs") as any[] | undefined;
   const ttks = w("details.thingsToKnow") as any[] | undefined;
   const tips = w("details.tips") as any[] | undefined;
-  const route = w("details.route") as string; // booking card sidebar display
   const kfData = w("details.keyFacts") as Array<{ icon: string; label: string; values: string[] }> | undefined;
   const mapData = w("details.map") as any;   // conditional render of map section
   const status = w("status") as string;      // conditional section rendering
@@ -485,14 +481,13 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
       form.reset({
         name: tour.name || "", slug: tour.slug || "", url: tour.url ?? "",
         tourCode: tour.tourCode || "", description: tour.description || "",
-        location: PRESET_LOCATIONS.includes(tour.location ?? "") ? tour.location : tour.location ? "Other" : "",
-        locationOther: PRESET_LOCATIONS.includes(tour.location ?? "") ? "" : (tour.location ?? ""),
         duration: tour.duration || "1 days",
         cardHeaderTitle: (tour as any).cardHeaderTitle ?? (tour.duration ? tour.duration.replace(/\b(\d+)\s+days?\b/gi, "$1 Day Tour") : ""),
-        cardSubHeader: (tour as any).cardSubHeader ?? tour.location ?? "",
+        cardSubHeader: (tour as any).cardSubHeader ?? (tour as any).destinations?.[0] ?? "",
         status: tour.status || "draft",
         comingSoon: (tour as any).comingSoon ?? false, bookingSlug: (tour as any).bookingSlug ?? "",
         seo: (tour as any).seo ?? { title: "", description: "" },
+        destinations: (tour as any).destinations ?? [],
         stripePaymentLink: tour.stripePaymentLink ?? "", depositNote: (tour as any).depositNote ?? "",
         footnote: (tour as any).footnote ?? "", brochureLink: tour.brochureLink ?? "",
         preDeparturePack: tour.preDeparturePack ?? "",
@@ -504,7 +499,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
         details: {
           highlights, itinerary,
           requirements: tour.details?.requirements?.filter(Boolean) ?? [""],
-          route: d?.route ?? "", keyFacts: d?.keyFacts ?? [], tags: d?.tags ?? [], inclusions: d?.inclusions ?? [],
+          keyFacts: d?.keyFacts ?? [], tags: d?.tags ?? [], inclusions: d?.inclusions ?? [],
           accommodations: d?.accommodations ?? [], faqs: d?.faqs ?? [],
           thingsToKnow: d?.thingsToKnow ?? [], tips: d?.tips ?? [],
           map: d?.map ?? { image: "", embedUrl: "" },
@@ -656,6 +651,15 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
               />
               <span>Coming Soon</span>
             </div>
+
+            <button
+              type="button"
+              onClick={() => setPanelOpen(p => !p)}
+              className={`flex items-center gap-1.5 h-9 px-4 rounded-full border font-body text-sm transition-colors ${panelOpen ? "border-crimson-red bg-crimson-red/5 text-crimson-red" : "border-border text-midnight hover:bg-light-grey"}`}
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </button>
 
             <Button
               type="button"
@@ -977,23 +981,31 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                               <button type="button" onClick={() => rmIter(i)} disabled={iterFields.length === 1} className="text-crimson-red opacity-0 group-hover/day:opacity-100 disabled:opacity-0 transition-opacity"><X className="h-4 w-4" /></button>
                             </div>
                             {isOpen && (
-                              <div className={`pb-5 grid grid-cols-1 gap-x-6 gap-y-4 ${day?.image ? "md:grid-cols-[1fr_348px]" : ""}`}>
+                              <div className="pb-5 grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-[1fr_348px]">
                                 <InlineTextarea value={day?.description ?? ""} onChange={(v) => sv(`details.itinerary.${i}.description`, v)} placeholder="Describe this day…" className="font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
-                                {day?.image && (
-                                  <div className="relative aspect-[16/10] overflow-hidden rounded-[16px] bg-light-grey md:row-span-2 group/dayimg">
-                                    <img src={resolveImg(day.image)} alt={`Day ${i + 1}`} className="w-full h-full object-cover" />
-                                    <div className="absolute inset-0 rounded-[16px] opacity-0 group-hover/dayimg:opacity-100 transition-opacity pointer-events-none bg-black/30" />
-                                    <button type="button"
-                                      onClick={() => setPickerState({ field: `itinerary-${i}`, initialUrl: resolveImg(day?.image) || undefined })}
-                                      className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/dayimg:opacity-100 transition-opacity">
-                                      <Camera className="h-5 w-5 text-white drop-shadow" />
+                                <div className="relative aspect-[16/10] overflow-hidden rounded-[16px] bg-light-grey md:row-span-2 group/dayimg">
+                                  {day?.image ? (
+                                    <>
+                                      <img src={resolveImg(day.image)} alt={`Day ${i + 1}`} className="w-full h-full object-cover" />
+                                      <div className="absolute inset-0 rounded-[16px] opacity-0 group-hover/dayimg:opacity-100 transition-opacity pointer-events-none bg-black/30" />
+                                      <button type="button"
+                                        onClick={() => setPickerState({ field: `itinerary-${i}`, initialUrl: resolveImg(day?.image) || undefined })}
+                                        className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/dayimg:opacity-100 transition-opacity">
+                                        <Camera className="h-5 w-5 text-white drop-shadow" />
+                                      </button>
+                                      <button type="button" onClick={() => sv(`details.itinerary.${i}.image`, "")}
+                                        className="absolute top-2 right-2 opacity-0 group-hover/dayimg:opacity-100 transition-opacity bg-crimson-red text-white rounded-full w-6 h-6 flex items-center justify-center">
+                                        <X className="h-3 w-3" />
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button type="button" onClick={() => setPickerState({ field: `itinerary-${i}` })}
+                                      className="flex flex-col items-center justify-center h-full w-full cursor-pointer hover:bg-light-grey/70">
+                                      <ImageIcon className="h-8 w-8 text-dark-gray/30 mb-1" />
+                                      <span className="text-xs text-dark-gray/40">Add image</span>
                                     </button>
-                                    <button type="button" onClick={() => sv(`details.itinerary.${i}.image`, "")}
-                                      className="absolute top-2 right-2 opacity-0 group-hover/dayimg:opacity-100 transition-opacity bg-crimson-red text-white rounded-full w-6 h-6 flex items-center justify-center">
-                                      <X className="h-3 w-3" />
-                                    </button>
-                                  </div>
-                                )}
+                                  )}
+                                </div>
                                 <div className="border-t border-light-grey/60 pt-3">
                                   <ul className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
                                     {(day?.details ?? []).map((det: any, di: number) => {
@@ -1056,18 +1068,6 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                                   >
                                     <Plus className="h-4 w-4" /> Add detail
                                   </button>
-                                  <div className="mt-3">
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <p className="font-sans text-b4-desktop font-bold text-midnight">Day Image</p>
-                                      <button type="button"
-                                        onClick={() => setPickerState({ field: `itinerary-${i}`, initialUrl: resolveImg(day?.image) || undefined })}
-                                        className="flex items-center gap-1 text-xs text-crimson-red hover:text-light-red">
-                                        <Camera className="h-3 w-3" />
-                                        {day?.image ? "Change" : "Pick from library"}
-                                      </button>
-                                    </div>
-                                    <InlineInput value={day?.image ?? ""} onChange={(v) => sv(`details.itinerary.${i}.image`, v)} placeholder="https://… or pick above" className="font-body text-b4-desktop text-dark-gray/50" />
-                                  </div>
                                 </div>
                               </div>
                             )}
@@ -1288,7 +1288,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   {/* Duration + route */}
                   <div className="px-6 pb-5 pt-6 md:px-7 md:pt-7">
                     <InlineTextarea value={cardHeaderTitle} onChange={(v) => sv("cardHeaderTitle", v)} placeholder={durationLabel || "11 Day Tour"} className="font-sans text-h5-mobile md:text-h5-desktop font-bold text-midnight w-full" />
-                    <InlineTextarea value={cardSubHeader} onChange={(v) => sv("cardSubHeader", v)} placeholder={route || "Destination"} className="mt-1 font-body text-b2-mobile md:text-b1 text-dark-gray w-full" />
+                    <InlineTextarea value={cardSubHeader} onChange={(v) => sv("cardSubHeader", v)} placeholder="Destination" className="mt-1 font-body text-b2-mobile md:text-b1 text-dark-gray w-full" />
                   </div>
 
                   {/* Price */}
@@ -1348,7 +1348,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                       </li>
                       <li className="flex items-center gap-3">
                         <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-light-grey"><Route className="h-4 w-4 text-midnight" /></span>
-                        <span className="font-body text-b4-desktop text-midnight">{cardSubHeader || route || "—"}</span>
+                        <span className="font-body text-b4-desktop text-midnight">{cardSubHeader || "—"}</span>
                       </li>
                     </ul>
                   </div>
@@ -1386,136 +1386,14 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
 
             </div>{/* end two-column */}
           </div>{/* end page container */}
-
-          {/* ── Settings panel ──────────────────────────────────────────────── */}
-          <div className="max-w-7xl mx-auto px-4 md:px-8 pb-16 mt-8">
-            <button type="button" onClick={() => setSettingsOpen((p) => !p)}
-              className="flex items-center gap-2 font-sans font-bold text-midnight mb-4">
-              <Settings className="h-5 w-5 text-crimson-red" />
-              Tour Settings
-              {settingsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-            </button>
-
-            {settingsOpen && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                {/* Travel Dates */}
-                <div className="md:col-span-2 overflow-hidden rounded-[24px] bg-white shadow-medium px-6 py-5">
-                  <h4 className="font-sans font-bold text-midnight mb-4 flex items-center gap-2"><Calendar className="h-4 w-4 text-crimson-red" /> Travel Dates</h4>
-                  <div className="space-y-4">
-                    {(dateFields as any[]).map((field, i) => (
-                      <div key={field.id} className={`rounded-[16px] border-2 p-4 ${w(`travelDates.${i}.isAvailable`) ? "border-crimson-red/30 bg-crimson-red/5" : "border-border bg-light-grey/30"}`}>
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="font-sans font-bold text-midnight text-sm flex items-center gap-2">
-                            <span className="w-6 h-6 bg-crimson-red text-white rounded-full flex items-center justify-center text-xs font-bold">{i + 1}</span>
-                            Tour Date {i + 1}
-                          </span>
-                          <div className="flex items-center gap-2">
-                            <FormField control={form.control} name={`travelDates.${i}.isAvailable`} render={({ field: f }) => (
-                              <FormItem><FormControl><div className="flex items-center gap-1.5 px-2 py-1 bg-white/60 rounded border border-border">
-                                <span className="text-xs">{f.value ? "Active" : "Inactive"}</span>
-                                <Switch checked={f.value} onCheckedChange={f.onChange} className="scale-75 data-[state=checked]:bg-spring-green" />
-                              </div></FormControl></FormItem>
-                            )} />
-                            <button type="button" onClick={() => rmDate(i)} disabled={dateFields.length === 1} className="text-crimson-red disabled:opacity-30"><X className="h-4 w-4" /></button>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                          <FormField control={form.control} name={`travelDates.${i}.startDate`} render={({ field: f }) => (
-                            <FormItem className="col-span-2"><FormControl>
-                              <TourDatePicker value={f.value || ""} onChange={(iso) => { f.onChange(iso); const days = gv(`travelDates.${i}.tourDays`); if (iso && days) { const end = new Date(iso); end.setDate(end.getDate() + Number(days) - 1); sv(`travelDates.${i}.endDate`, end.toISOString().split("T")[0]); } }} label="Start Date" minYear={2000} maxYear={2050} />
-                            </FormControl><FormMessage /></FormItem>
-                          )} />
-                          <FormField control={form.control} name={`travelDates.${i}.tourDays`} render={({ field: f }) => (
-                            <FormItem><FormControl>
-                              <input type="text" inputMode="numeric" placeholder="Days" value={f.value ?? ""} onChange={(e) => { f.onChange(e.target.value === "" ? undefined : parseInt(e.target.value)); const s = gv(`travelDates.${i}.startDate`); if (s && e.target.value) { const end = new Date(s); end.setDate(end.getDate() + parseInt(e.target.value) - 1); sv(`travelDates.${i}.endDate`, end.toISOString().split("T")[0]); } }} className="w-full border border-border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red/40" />
-                            </FormControl><FormMessage /></FormItem>
-                          )} />
-                          <div className="flex items-center justify-center rounded-md bg-light-grey/60 px-3 py-2 text-sm text-dark-gray">
-                            {w(`travelDates.${i}.endDate`) ? new Date(w(`travelDates.${i}.endDate`) + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "2-digit", year: "numeric" }) : "End date"}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    <button type="button" onClick={() => addDate({ startDate: "", endDate: "", isAvailable: true, hasCustomPricing: false, customOriginal: undefined, customDiscounted: undefined, customDeposit: undefined, hasCustomOriginal: false, hasCustomDiscounted: false, hasCustomDeposit: false })}
-                      className="flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
-                      <Plus className="h-4 w-4" /> Add Tour Date
-                    </button>
-                  </div>
-                </div>
-
-                {/* Requirements */}
-                <div className="overflow-hidden rounded-[24px] bg-white shadow-medium px-6 py-5">
-                  <h4 className="font-sans font-bold text-midnight mb-4 flex items-center gap-2"><AlertCircle className="h-4 w-4 text-vivid-orange" /> Requirements</h4>
-                  <div className="space-y-2">
-                    {(reqFields as any[]).map((field, i) => (
-                      <div key={field.id} className="flex items-center gap-2">
-                        <AlertCircle className="h-4 w-4 text-vivid-orange flex-shrink-0" />
-                        <input type="text" value={w(`details.requirements.${i}`) ?? ""} onChange={(e) => sv(`details.requirements.${i}`, e.target.value)} placeholder={`Requirement ${i + 1}`}
-                          className="flex-1 border border-border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red/40" />
-                        <button type="button" onClick={() => rmReq(i)} disabled={reqFields.length === 1} className="text-crimson-red disabled:opacity-30"><X className="h-4 w-4" /></button>
-                      </div>
-                    ))}
-                    <button type="button" onClick={() => (addReq as any)("")}
-                      className="flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red mt-1">
-                      <Plus className="h-4 w-4" /> Add requirement
-                    </button>
-                  </div>
-                </div>
-
-                {/* SEO & Publishing */}
-                <div className="overflow-hidden rounded-[24px] bg-white shadow-medium px-6 py-5">
-                  <h4 className="font-sans font-bold text-midnight mb-4 flex items-center gap-2"><Globe className="h-4 w-4 text-royal-purple" /> SEO & Publishing</h4>
-                  <div className="space-y-3">
-                    {[["Tour Code", "tourCode"], ["URL Slug", "slug"], ["Direct URL", "url"], ["SEO Title", "seo.title"], ["SEO Description", "seo.description"], ["Booking Slug Override", "bookingSlug"]].map(([label, key]) => (
-                      <div key={key}>
-                        <label className="text-xs font-body text-dark-gray mb-0.5 block">{label}</label>
-                        <input type="text" value={w(key as any) ?? ""} onChange={(e) => sv(key, e.target.value)} placeholder={label}
-                          className="w-full border border-border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red/40" />
-                      </div>
-                    ))}
-                    <div className="flex items-center justify-between pt-1">
-                      <span className="text-xs font-body text-dark-gray">Coming Soon gate</span>
-                      <Switch checked={w("comingSoon") ?? false} onCheckedChange={(v) => sv("comingSoon", v)} className="data-[state=checked]:bg-vivid-orange" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* External Links */}
-                <div className="overflow-hidden rounded-[24px] bg-white shadow-medium px-6 py-5">
-                  <h4 className="font-sans font-bold text-midnight mb-4 flex items-center gap-2"><ExternalLink className="h-4 w-4 text-spring-green" /> External Links</h4>
-                  <div className="space-y-3">
-                    {[["Brochure Link", "brochureLink"], ["Pre-Departure Pack", "preDeparturePack"]].map(([label, key]) => (
-                      <div key={key}>
-                        <label className="text-xs font-body text-dark-gray mb-0.5 block">{label}</label>
-                        <input type="url" value={w(key as any) ?? ""} onChange={(e) => sv(key, e.target.value)} placeholder="https://…"
-                          className="w-full border border-border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red/40" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Map settings */}
-                <div className="overflow-hidden rounded-[24px] bg-white shadow-medium px-6 py-5">
-                  <h4 className="font-sans font-bold text-midnight mb-4 flex items-center gap-2"><MapPin className="h-4 w-4 text-crimson-red" /> Map</h4>
-                  <div className="space-y-3">
-                    <div>
-                      <label className="text-xs font-body text-dark-gray mb-0.5 block">Map Image URL</label>
-                      <input type="url" value={w("details.map.image") ?? ""} onChange={(e) => sv("details.map.image", e.target.value)} placeholder="https://…"
-                        className="w-full border border-border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red/40" />
-                    </div>
-                    <div>
-                      <label className="text-xs font-body text-dark-gray mb-0.5 block">Google Maps Embed URL</label>
-                      <input type="url" value={w("details.map.embedUrl") ?? ""} onChange={(e) => sv("details.map.embedUrl", e.target.value)} placeholder="https://www.google.com/maps/embed?…"
-                        className="w-full border border-border rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-crimson-red/40" />
-                    </div>
-                  </div>
-                </div>
-
-              </div>
-            )}
-          </div>
         </form>
+
+        <TourSettingsPanel
+          open={panelOpen}
+          onClose={() => setPanelOpen(false)}
+          form={form}
+          tour={tour ?? null}
+        />
       </Form>
 
       {/* ── Image Picker Modal ─────────────────────────────────────────── */}

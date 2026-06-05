@@ -101,7 +101,7 @@ export default function ToursList() {
       keys: [
         { name: "name", weight: 0.5 },
         { name: "description", weight: 0.3 },
-        { name: "location", weight: 0.2 },
+        { name: "destinations", weight: 0.2 },
         { name: "tourCode", weight: 0.7 },
       ],
       threshold: 0.4, // 0 = exact match, 1 = match anything
@@ -750,7 +750,7 @@ export default function ToursList() {
                     </CardTitle>
                     <div className="flex items-center text-sm text-muted-foreground mb-2">
                       <MapPin className="h-4 w-4 mr-1 text-royal-purple" />
-                      {tour.location}
+                      {tour.destinations?.[0] ?? "—"}
                     </div>
                   </div>
                   <div className="flex gap-2">

@@ -11,7 +11,6 @@ export interface TourPackage {
   url?: string; // Direct URL to tour page
   tourCode: string; // Tour code (e.g., SIA, PHS, PSS)
   description: string;
-  location: string;
   destinations?: string[]; // Place/city names, e.g. ["Cebu", "Moalboal", "Siargao"]
   duration: string; // Duration in format "X days"
   cardHeaderTitle: string; // Label on the booking card (e.g. "11 Day Tour")
@@ -97,7 +96,6 @@ export interface TourDetails {
   itinerary: TourItinerary[];
   requirements: string[];
   // WWW presentation sections (all optional; added additively)
-  route?: string; // e.g. "Punakha → Paro" — key-fact + booking routeLabel
   keyFacts?: Array<{ icon: string; label: string; values: string[] }>; // Editable key facts; Tour Dates always derived
   tags?: Array<{ label: string; icon: string }>; // Header location/theme tags; falls back to location + destinations
   inclusions?: TourInclusion[]; // "What's Included" section
@@ -185,7 +183,6 @@ export interface TourPackageFormData {
   url?: string;
   tourCode: string;
   description: string;
-  location: string;
   duration: string; // Duration in format "X days"
   travelDates: TravelDate[];
   pricing: {
@@ -217,7 +214,6 @@ export interface TourFormDataWithStringDates {
   url?: string;
   tourCode: string;
   description: string;
-  location: string;
   duration: string; // Duration as a string like "11 days"
   cardHeaderTitle: string;
   cardSubHeader: string;
@@ -251,6 +247,7 @@ export interface TourFormDataWithStringDates {
     gallery?: string[];
   };
   status: "active" | "draft" | "archived";
+  destinations?: string[];
   brochureLink?: string;
   stripePaymentLink?: string;
   preDeparturePack?: string;
@@ -279,30 +276,12 @@ export type TourCode =
   | "TXP" // Tanzania Exploration
   | "NZE"; // New Zealand Expedition
 
-export type TourLocation =
-  | "Ecuador"
-  | "Galapagos"
-  | "Amazon"
-  | "Andes"
-  | "Coast"
-  | "Philippines"
-  | "Maldives"
-  | "Sri Lanka"
-  | "Argentina"
-  | "Brazil"
-  | "Vietnam"
-  | "India"
-  | "Tanzania"
-  | "New Zealand"
-  | "Other";
-
 // ============================================================================
 // FILTER AND SEARCH TYPES
 // ============================================================================
 
 export interface TourFilters {
   status?: TourStatus;
-  location?: TourLocation;
   duration?: TourDuration;
   priceRange?: {
     min: number;
