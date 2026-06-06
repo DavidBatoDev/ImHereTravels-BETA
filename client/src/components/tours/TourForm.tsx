@@ -813,7 +813,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
 
                   {/* Tour Header: duration | name — wraps naturally like www */}
                   {(() => {
-                    const hClass = "font-sans text-[2rem] md:text-[2.5rem] font-bold leading-tight tracking-tight text-midnight";
+                    const hClass = "font-hk-grotesk text-[2rem] md:text-[2.5rem] font-bold leading-[1.2] md:tracking-[-0.02em] text-midnight";
                     return (
                       <EditZone label="Header">
                         <div className="flex items-start gap-x-1">
@@ -864,7 +864,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         </span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="font-sans text-b2-mobile md:text-b2-desktop !font-bold text-midnight">Tour Dates</p>
+                            <p className="font-hk-grotesk text-b2-mobile md:text-b2-desktop !font-bold text-midnight">Tour Dates</p>
                             <button type="button" onClick={() => setDatesModalOpen(true)}
                               className="flex items-center gap-1 text-xs text-crimson-red hover:text-light-red">
                               <Pencil className="h-3 w-3" /> Edit dates
@@ -899,7 +899,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                             </Select>
                             <div className="flex-1 min-w-0">
                               <InlineInput value={kf?.label ?? ""} onChange={(v) => sv(`details.keyFacts.${i}.label`, v)}
-                                placeholder="Label" className="font-sans text-b2-mobile md:text-b2-desktop !font-bold text-midnight" />
+                                placeholder="Label" className="font-hk-grotesk text-b2-mobile md:text-b2-desktop !font-bold text-midnight" />
                               <InlineTextarea
                                 value={(kf?.values ?? []).join("\n")}
                                 onChange={(v) => sv(`details.keyFacts.${i}.values`, v.split("\n").filter(Boolean))}
@@ -922,7 +922,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
 
                   {/* What's Included */}
                   <section className="mt-10 md:mt-14 w-full">
-                    <h2 className="font-sans text-h3-mobile md:text-h3-desktop text-midnight">What's Included</h2>
+                    <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">What's Included</h2>
                     <ul className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
                       {(inclFields as any[]).map((field, i) => {
                         const incl = inclusions?.[i];
@@ -937,7 +937,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                               <SelectContent>{ALL_ICONS.map((k) => { const IC = ICON_COMPONENTS[k]; return <SelectItem key={k} value={k}><span className="flex items-center gap-2"><IC className="h-4 w-4" />{k}</span></SelectItem>; })}</SelectContent>
                             </Select>
                             <div className="flex-1 min-w-0">
-                              <InlineInput value={incl?.label ?? ""} onChange={(v) => sv(`details.inclusions.${i}.label`, v)} placeholder="Label" className="font-sans text-b2-desktop font-bold text-midnight" />
+                              <InlineInput value={incl?.label ?? ""} onChange={(v) => sv(`details.inclusions.${i}.label`, v)} placeholder="Label" className="font-hk-grotesk text-b2-desktop font-bold text-midnight" />
                               <InlineBulletTextarea value={rawValue} onChange={(v) => sv(`details.inclusions.${i}.value`, v)} placeholder="Detail (use - for bullets)" className="mt-1 font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
                             </div>
                             <button type="button" onClick={() => rmIncl(i)} className="opacity-0 group-hover/incl:opacity-100 transition-opacity text-crimson-red mt-1 shrink-0"><X className="h-4 w-4" /></button>
@@ -954,7 +954,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   {/* Trip Highlights */}
                   <section className="mt-10 md:mt-14 w-full">
                     <div className="flex items-center justify-between gap-4">
-                      <h2 className="font-sans text-h3-mobile md:text-h3-desktop text-midnight">Trip Highlights</h2>
+                      <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Trip Highlights</h2>
                       <div className="flex shrink-0 gap-2">
                         <button type="button"
                           onClick={() => hlScrollRef.current?.scrollBy({ left: -(hlScrollRef.current.offsetWidth / 2 + 12), behavior: "smooth" })}
@@ -998,7 +998,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                             </div>
                             <div className="space-y-1">
                               <div className="flex items-start gap-2">
-                                <InlineTextarea value={hl?.text ?? ""} onChange={(v) => sv(`details.highlights.${i}`, { ...hl, text: v })} placeholder="Highlight text" className="font-sans text-h6-mobile md:text-h6-desktop font-bold text-midnight flex-1" />
+                                <InlineTextarea value={hl?.text ?? ""} onChange={(v) => sv(`details.highlights.${i}`, { ...hl, text: v })} placeholder="Highlight text" className="font-hk-grotesk text-h6-mobile md:text-h6-desktop font-bold text-midnight flex-1" />
                                 <button type="button" onClick={() => rmHl(i)} className="text-crimson-red flex-shrink-0 mt-0.5"><X className="h-4 w-4" /></button>
                               </div>
                               <InlineInput value={hl?.subtitle ?? ""} onChange={(v) => sv(`details.highlights.${i}`, { ...hl, subtitle: v })} placeholder="Subtitle (optional)" className="font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
@@ -1016,7 +1016,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   {/* Map */}
                   {(mapData?.image || mapData?.embedUrl) && (
                     <section className="mt-10 md:mt-14 w-full">
-                      <h2 className="font-sans text-h3-mobile md:text-h3-desktop text-midnight">Map</h2>
+                      <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Map</h2>
                       <div className="mt-8 relative aspect-video w-full overflow-hidden rounded-[24px] bg-light-grey">
                         {mapData.embedUrl ? <iframe src={mapData.embedUrl} className="w-full h-full" /> : mapData.image ? <img src={resolveImg(mapData.image)} alt="Map" className="w-full h-full object-cover" /> : null}
                       </div>
@@ -1025,7 +1025,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
 
                   {/* Itinerary */}
                   <section className="mt-10 md:mt-14 w-full">
-                    <h2 className="font-sans text-h3-mobile md:text-h3-desktop text-midnight">Itinerary</h2>
+                    <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Itinerary</h2>
                     <ol className="mt-8 divide-y divide-light-grey border-t border-light-grey">
                       {(iterFields as any[]).map((field, i) => {
                         const day = itinerary?.[i];
@@ -1033,10 +1033,10 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         return (
                           <li key={field.id} className="group/day">
                             <div className="flex items-center gap-3 py-4">
-                              <span className="size-7 shrink-0 bg-crimson-red text-white rounded-full flex items-center justify-center font-sans font-bold text-b4-desktop">{i + 1}</span>
+                              <span className="size-7 shrink-0 bg-crimson-red text-white rounded-full flex items-center justify-center font-hk-grotesk font-bold text-b4-desktop">{i + 1}</span>
                               <div className="flex-1 min-w-0 flex items-baseline gap-1.5">
-                                <span className="font-sans text-h6-mobile md:text-h6-desktop font-bold text-midnight shrink-0">Day {i + 1}</span>
-                                <InlineInput value={day?.title ?? ""} onChange={(v) => sv(`details.itinerary.${i}.title`, v)} placeholder="Day title…" className="font-sans text-h6-mobile md:text-h6-desktop text-crimson-red" />
+                                <span className="font-hk-grotesk text-h6-mobile md:text-h6-desktop font-bold text-midnight shrink-0">Day {i + 1}</span>
+                                <InlineInput value={day?.title ?? ""} onChange={(v) => sv(`details.itinerary.${i}.title`, v)} placeholder="Day title…" className="font-hk-grotesk text-h6-mobile md:text-h6-desktop text-crimson-red" />
                               </div>
                               <button type="button" onClick={() => setExpandedDays((p) => { const n = new Set(p); if (isOpen) { n.delete(i); } else { n.add(i); } return n; })}
                                 className={`size-5 shrink-0 text-midnight transition-transform ${isOpen ? "rotate-180" : ""}`}>
@@ -1095,7 +1095,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                                                 sv(`details.itinerary.${i}.details`, arr);
                                               }}
                                               placeholder="Label"
-                                              className="font-sans text-b4-mobile !font-bold text-midnight w-full"
+                                              className="font-hk-grotesk text-b4-mobile !font-bold text-midnight w-full"
                                             />
                                             <InlineBulletTextarea
                                               value={det?.value ?? ""}
@@ -1148,7 +1148,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   {/* Where We Stay */}
                   <section className="mt-10 md:mt-14 w-full">
                     <div className="flex items-center justify-between gap-4">
-                      <h2 className="font-sans text-h3-mobile md:text-h3-desktop text-midnight">Where We Stay</h2>
+                      <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Where We Stay</h2>
                       <div className="flex shrink-0 gap-2">
                         <button type="button"
                           onClick={() => accomScrollRef.current?.scrollBy({ left: -(accomScrollRef.current.offsetWidth / 2 + 12), behavior: "smooth" })}
@@ -1191,7 +1191,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                             </div>
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
-                                <InlineInput value={ac?.name ?? ""} onChange={(v) => sv(`details.accommodations.${i}.name`, v)} placeholder="Hotel name" className="font-sans text-xl font-bold text-midnight flex-1" />
+                                <InlineInput value={ac?.name ?? ""} onChange={(v) => sv(`details.accommodations.${i}.name`, v)} placeholder="Hotel name" className="font-hk-grotesk text-xl font-bold text-midnight flex-1" />
                                 <button type="button" onClick={() => rmAccom(i)} className="text-crimson-red shrink-0"><X className="h-4 w-4" /></button>
                               </div>
                               <InlineInput value={ac?.nights ?? ""} onChange={(v) => sv(`details.accommodations.${i}.nights`, v)} placeholder="e.g. 2 nights in hotel" className="font-body text-sm text-dark-gray" />
@@ -1213,7 +1213,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   {/* FAQs */}
                   <section className="mt-10 md:mt-14 w-full">
                     <div className="flex items-center justify-between">
-                      <h2 className="font-sans text-h3-mobile md:text-h3-desktop text-midnight">FAQs</h2>
+                      <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">FAQs</h2>
                       {faqFields.length > 0 && (
                         <button type="button"
                           onClick={() => setExpandedFaqs(expandedFaqs.size === faqFields.length ? new Set() : new Set((faqFields as any[]).map((_, i) => i)))}
@@ -1231,7 +1231,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                             <div key={field.id} className="border-b border-[#d7d6db] group/faq">
                               <div className="flex w-full items-center justify-between gap-4 py-3">
                                 <InlineInput value={faq?.question ?? ""} onChange={(v) => sv(`details.faqs.${i}.question`, v)}
-                                  placeholder="Question" className="font-sans text-h6-mobile md:text-h6-desktop text-midnight flex-1" />
+                                  placeholder="Question" className="font-hk-grotesk text-h6-mobile md:text-h6-desktop text-midnight flex-1" />
                                 <div className="flex items-center gap-2 shrink-0">
                                   <button type="button" onClick={() => setExpandedFaqs((prev) => { const next = new Set(prev); if (next.has(i)) { next.delete(i); } else { next.add(i); } return next; })}
                                     className={`transition-transform ${isOpen ? "rotate-180" : ""}`}>
@@ -1259,7 +1259,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
 
                   {/* Things to Know */}
                   <section className="mt-10 md:mt-14 w-full">
-                    <h2 className="font-sans text-h3-mobile md:text-h3-desktop text-midnight">Things to Know</h2>
+                    <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Things to Know</h2>
                     {ttkFields.length > 0 ? (
                       <>
                         <ul className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -1275,7 +1275,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                                   </Select>
                                   <button type="button" onClick={() => rmTtk(i)} className="text-crimson-red opacity-0 group-hover/ttk:opacity-100 transition-opacity"><X className="h-4 w-4" /></button>
                                 </div>
-                                <InlineInput value={ttk?.title ?? ""} onChange={(v) => sv(`details.thingsToKnow.${i}.title`, v)} placeholder="Title" className="font-sans text-h5-mobile md:text-h5-desktop text-midnight" />
+                                <InlineInput value={ttk?.title ?? ""} onChange={(v) => sv(`details.thingsToKnow.${i}.title`, v)} placeholder="Title" className="font-hk-grotesk text-h5-mobile md:text-h5-desktop text-midnight" />
                                 <InlineTextarea value={ttk?.description ?? ""} onChange={(v) => sv(`details.thingsToKnow.${i}.description`, v)} placeholder="Description…" className="font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
                                 <div className="mt-auto space-y-1">
                                   <div className="flex items-center gap-1">
@@ -1306,7 +1306,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
 
                   {/* Tips */}
                   <section className="mt-10 md:mt-14 w-full">
-                    <h2 className="font-sans text-h3-mobile md:text-h3-desktop text-midnight">Tips</h2>
+                    <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Tips</h2>
                     {tipFields.length > 0 ? (
                       <>
                         <ul className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -1321,7 +1321,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                                 </Select>
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-start gap-2">
-                                    <InlineInput value={tip?.title ?? ""} onChange={(v) => sv(`details.tips.${i}.title`, v)} placeholder="Title" className="font-sans text-b2-desktop font-bold text-midnight flex-1" />
+                                    <InlineInput value={tip?.title ?? ""} onChange={(v) => sv(`details.tips.${i}.title`, v)} placeholder="Title" className="font-hk-grotesk text-b2-desktop font-bold text-midnight flex-1" />
                                     <button type="button" onClick={() => rmTip(i)} className="text-crimson-red opacity-0 group-hover/tip:opacity-100 transition-opacity"><X className="h-4 w-4" /></button>
                                   </div>
                                   <InlineTextarea value={tip?.description ?? ""} onChange={(v) => sv(`details.tips.${i}.description`, v)} placeholder="Tip description…" className="mt-1 font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
@@ -1351,7 +1351,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                 <div className="overflow-hidden rounded-[24px] bg-white shadow-medium">
                   {/* Duration + route */}
                   <div className="px-6 pb-5 pt-6 md:px-7 md:pt-7">
-                    <InlineTextarea value={cardHeaderTitle} onChange={(v) => sv("cardHeaderTitle", v)} placeholder={durationLabel || "11 Day Tour"} className="font-sans text-h5-mobile md:text-h5-desktop font-bold text-midnight w-full" />
+                    <InlineTextarea value={cardHeaderTitle} onChange={(v) => sv("cardHeaderTitle", v)} placeholder={durationLabel || "11 Day Tour"} className="font-hk-grotesk text-h5-mobile md:text-h5-desktop font-bold text-midnight w-full" />
                     <InlineTextarea value={cardSubHeader} onChange={(v) => sv("cardSubHeader", v)} placeholder="Destination" className="mt-1 font-body text-b2-mobile md:text-b1 text-dark-gray w-full" />
                   </div>
 
