@@ -208,6 +208,10 @@ import {
   runMigration as runMigration060,
   rollbackMigration as rollbackMigration060,
 } from "./060-seed-resident-hosts";
+import {
+  runMigration as runMigration061,
+  rollbackMigration as rollbackMigration061,
+} from "./061-flag-hosted-tours";
 import migration034 from "./034-initialize-columns-metadata";
 
 // ============================================================================
@@ -1821,6 +1825,39 @@ async function main() {
       if (rollbackResult060.details) {
         console.log(
           `📊 Details: ${rollbackResult060.details.deleted} deleted, ${rollbackResult060.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "061":
+      console.log("📊 Running migration: 061-flag-hosted-tours");
+      const result061 = await runMigration061(dryRun);
+      console.log(`\n🎯 ${result061.message}`);
+      if (result061.details) {
+        console.log(
+          `📊 Details: ${result061.details.updated} updated, ${result061.details.notFound} not found, ${result061.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run061":
+      console.log("🔍 Running migration in DRY RUN mode: 061-flag-hosted-tours");
+      const dryRunResult061 = await runMigration061(true);
+      console.log(`\n🎯 ${dryRunResult061.message}`);
+      if (dryRunResult061.details) {
+        console.log(
+          `📊 Details: ${dryRunResult061.details.updated} would be updated, ${dryRunResult061.details.notFound} not found`,
+        );
+      }
+      break;
+
+    case "rollback061":
+      console.log("↩️ Rolling back migration: 061-flag-hosted-tours");
+      const rollbackResult061 = await rollbackMigration061();
+      console.log(`\n🎯 ${rollbackResult061.message}`);
+      if (rollbackResult061.details) {
+        console.log(
+          `📊 Details: ${rollbackResult061.details.removed} removed, ${rollbackResult061.details.errors} errors`,
         );
       }
       break;
