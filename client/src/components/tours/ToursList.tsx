@@ -740,6 +740,14 @@ export default function ToursList() {
                     {tour.status.charAt(0).toUpperCase() + tour.status.slice(1)}
                   </Badge>
                 </div>
+                {/* Hosted Badge Overlay */}
+                {tour.isHosted && (
+                  <div className="absolute top-3 left-3">
+                    <Badge className="bg-crimson-red/90 text-white border border-crimson-red">
+                      Hosted
+                    </Badge>
+                  </div>
+                )}
               </div>
 
               <CardHeader className="pb-3">

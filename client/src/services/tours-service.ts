@@ -59,6 +59,7 @@ interface TourFormDataWithStringDates {
     gallery?: string[];
   };
   status: "active" | "draft" | "archived";
+  isHosted?: boolean;
   brochureLink?: string;
   stripePaymentLink?: string;
   preDeparturePack?: string;

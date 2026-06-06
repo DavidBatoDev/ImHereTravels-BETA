@@ -191,6 +191,17 @@ export default function TourSettingsPanel({ open, onClose, form, tour, coverImag
                   />
                 </div>
               </div>
+              <div className="mt-3 flex items-center justify-between rounded-lg border border-light-grey px-3 py-2">
+                <div>
+                  <span className="block text-sm font-body text-midnight">Hosted Tour</span>
+                  <span className="block text-xs text-dark-gray">Shows under “Hosted Tours” instead of the main Tours list.</span>
+                </div>
+                <Switch
+                  checked={w("isHosted") ?? false}
+                  onCheckedChange={v => sv("isHosted", v)}
+                  className="data-[state=checked]:bg-crimson-red"
+                />
+              </div>
             </section>
 
             {/* ── Default Pricing ── */}

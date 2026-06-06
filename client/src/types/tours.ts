@@ -31,6 +31,7 @@ export interface TourPackage {
   // WWW PRESENTATION FIELDS
   seo?: { title?: string; description?: string }; // SEO overrides; falls back to name/description
   comingSoon?: boolean; // Gate full content on www
+  isHosted?: boolean; // Marks this tour as a hosted tour (independent of resident-host attachment)
   bookingSlug?: string; // Override slug used in booking/reservation URLs
   depositNote?: string; // Full deposit notice text on booking card; falls back to auto-generated
   footnote?: string; // Booking card footnote; falls back to "Additional fees may apply"
@@ -201,6 +202,7 @@ export interface TourPackageFormData {
     gallery?: string[];
   };
   status: "active" | "draft" | "archived";
+  isHosted?: boolean;
   brochureLink?: string;
   stripePaymentLink?: string;
   preDeparturePack?: string;
@@ -247,6 +249,7 @@ export interface TourFormDataWithStringDates {
     gallery?: string[];
   };
   status: "active" | "draft" | "archived";
+  isHosted?: boolean;
   destinations?: string[];
   brochureLink?: string;
   stripePaymentLink?: string;
