@@ -252,6 +252,9 @@ export default function ImagePickerModal({
     setCropSrc("");
     setCropItem(null);
     setSelected([]);
+    // The modal opened straight into crop mode (an existing image was passed),
+    // so the folder was never loaded — fetch it now that we're browsing.
+    loadContents(browsePath);
   }
 
   if (!open) return null;

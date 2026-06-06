@@ -2,6 +2,7 @@ import {
   ref,
   uploadBytes,
   getDownloadURL,
+  getMetadata,
   deleteObject,
   listAll,
   StorageReference,
@@ -310,22 +311,35 @@ export class FirebaseStorageService {
    */
   async deleteFile(id: string): Promise<boolean> {
     try {
-      // Get file document first
-      const docRef = doc(db, this.COLLECTION_NAME, id);
-      const docSnap = await getDoc(docRef);
+      // `id` may be a Firestore doc id (gallery-tracked file) or a raw Storage
+      // fullPath (Storage-listed item that has no metadata doc).
+      let storagePath = id;
+      let docIdToDelete: string | null = null;
 
-      if (!docSnap.exists()) {
-        throw new Error("File not found");
+      const byId = await getDoc(doc(db, this.COLLECTION_NAME, id));
+      if (byId.exists()) {
+        storagePath = (byId.data() as FirebaseFileObject).storagePath;
+        docIdToDelete = byId.id;
+      } else {
+        // Clean up a metadata doc that points at this path, if one exists.
+        const q = query(
+          collection(db, this.COLLECTION_NAME),
+          where("storagePath", "==", id)
+        );
+        const snap = await getDocs(q);
+        if (!snap.empty) docIdToDelete = snap.docs[0].id;
       }
 
-      const fileData = docSnap.data() as FirebaseFileObject;
+      // Delete the Storage object (tolerate an already-missing object).
+      try {
+        await deleteObject(ref(storage, storagePath));
+      } catch (err: any) {
+        if (err?.code !== "storage/object-not-found") throw err;
+      }
 
-      // Delete from Firebase Storage
-      const storageRef = ref(storage, fileData.storagePath);
-      await deleteObject(storageRef);
-
-      // Delete from Firestore
-      await deleteDoc(docRef);
+      if (docIdToDelete) {
+        await deleteDoc(doc(db, this.COLLECTION_NAME, docIdToDelete));
+      }
 
       return true;
     } catch (error) {
@@ -632,42 +646,147 @@ export class FirebaseStorageService {
 
   // ─── Folder methods ──────────────────────────────────────────────────────────
 
-  /** Return files whose `folder` field matches the given path (with legacy fallback). */
+  /**
+   * Return the actual image files directly inside `folder` by enumerating Cloud
+   * Storage (`listAll`), so files uploaded outside the gallery (e.g. by the tour
+   * form straight to `images/tours/...`) are visible too. Each item is enriched
+   * with its `file_objects` Firestore doc when one exists (for display name /
+   * tags / uploadedBy); otherwise it falls back to the Storage object metadata.
+   */
   async getFilesByFolder(folder: string): Promise<ImageItem[]> {
-    const snap = await getDocs(collection(db, this.COLLECTION_NAME));
-    const ROOT = this.STORAGE_PATH; // "images"
-    const files: ImageItem[] = [];
-    snap.forEach((d) => {
-      const data = d.data() as FirebaseFileObject & { folder?: string };
-      if (data.contentType?.startsWith("video/")) return;
-      const fileFolder = data.folder ?? ROOT;
-      if (fileFolder !== folder) return;
-      files.push(this.convertFirebaseObjectToImageItem(data));
-    });
-    return files;
+    const path = folder || this.STORAGE_PATH;
+
+    // One-shot enrichment map keyed by storagePath.
+    const enrichment = new Map<string, FirebaseFileObject>();
+    try {
+      const snap = await getDocs(collection(db, this.COLLECTION_NAME));
+      snap.forEach((d) => {
+        const data = d.data() as FirebaseFileObject;
+        if (data?.storagePath) enrichment.set(data.storagePath, { ...data, id: d.id });
+      });
+    } catch (err) {
+      console.warn("File metadata enrichment unavailable:", err);
+    }
+
+    const result = await listAll(ref(storage, path));
+    const items = await Promise.all(
+      result.items.map(async (itemRef): Promise<{ item: ImageItem; createdMs: number } | null> => {
+        // Skip hidden / folder-placeholder objects (e.g. ".keep").
+        if (itemRef.name.startsWith(".")) return null;
+        try {
+          const [url, meta] = await Promise.all([
+            getDownloadURL(itemRef),
+            getMetadata(itemRef),
+          ]);
+          const contentType = meta.contentType ?? "application/octet-stream";
+          if (contentType.startsWith("video/")) return null;
+
+          const docData = enrichment.get(itemRef.fullPath);
+          const docUploadedAt = docData
+            ? this.convertTimestamp(docData.uploadedAt)
+            : null;
+          // Sort key: prefer the Firestore upload time, else the Storage object's
+          // creation time. Used to show newest uploads first.
+          const createdMs =
+            docUploadedAt?.getTime() ??
+            (meta.timeCreated ? Date.parse(meta.timeCreated) : 0);
+
+          const item: ImageItem = {
+            id: itemRef.fullPath,
+            name: docData?.name ?? itemRef.name,
+            url,
+            size: this.formatFileSize(meta.size ?? 0),
+            type: contentType,
+            uploadedAt:
+              docUploadedAt?.toISOString().split("T")[0] ??
+              (meta.timeCreated
+                ? meta.timeCreated.split("T")[0]
+                : new Date().toISOString().split("T")[0]),
+            tags: docData?.tags ?? [],
+            metadata: docData?.metadata ?? {
+              description: "",
+              location: "",
+              category: "uncategorized",
+            },
+            firebaseStoragePath: itemRef.fullPath,
+            firestoreId: docData?.id,
+            downloadURL: url,
+            contentType,
+            lastModified: meta.updated ? new Date(meta.updated) : new Date(),
+            uploadedBy: docData?.uploadedBy,
+            folder: path,
+          };
+          return { item, createdMs };
+        } catch (err) {
+          console.warn("Skipping unreadable storage item:", itemRef.fullPath, err);
+          return null;
+        }
+      }),
+    );
+
+    // Newest uploads first.
+    return items
+      .filter((x): x is { item: ImageItem; createdMs: number } => x !== null)
+      .sort((a, b) => b.createdMs - a.createdMs)
+      .map((x) => x.item);
   }
 
-  /** Return direct child folders of the given parent path, sorted by name. */
+  /**
+   * Return direct child folders of `parentPath`, sorted by name. Combines real
+   * Cloud Storage subfolders (`listAll().prefixes` — surfaces folders created
+   * outside the gallery, e.g. `images/tours`) with app-created folders tracked
+   * in the `storage_folders` Firestore collection (which may have no objects yet
+   * since Storage has no truly empty folders). Deduped by path.
+   */
   async getFolders(parentPath: string): Promise<StorageFolder[]> {
-    // No orderBy — sort client-side to avoid requiring a composite index while it builds.
-    // The index is defined in firestore.indexes.json; once deployed, orderBy can be added back.
-    const q = query(
-      collection(db, "storage_folders"),
-      where("parentPath", "==", parentPath)
+    const path = parentPath || this.STORAGE_PATH;
+    const byPath = new Map<string, StorageFolder>();
+
+    // Real Storage subfolders.
+    try {
+      const result = await listAll(ref(storage, path));
+      for (const prefix of result.prefixes) {
+        byPath.set(prefix.fullPath, {
+          id: prefix.fullPath,
+          name: prefix.name,
+          path: prefix.fullPath,
+          parentPath: path,
+          createdAt: new Date().toISOString(),
+        });
+      }
+    } catch (err) {
+      console.warn("Storage folder listing unavailable:", err);
+    }
+
+    // App-created folders tracked in Firestore (union; keeps still-empty ones).
+    try {
+      const q = query(
+        collection(db, "storage_folders"),
+        where("parentPath", "==", path)
+      );
+      const snap = await getDocs(q);
+      snap.docs.forEach((d) => {
+        const data = d.data();
+        if (!byPath.has(data.path)) {
+          byPath.set(data.path, {
+            id: d.id,
+            name: data.name,
+            path: data.path,
+            parentPath: data.parentPath,
+            createdAt:
+              data.createdAt?.toDate?.()?.toISOString?.() ??
+              new Date().toISOString(),
+            createdBy: data.createdBy,
+          });
+        }
+      });
+    } catch (err) {
+      console.warn("Firestore folder listing unavailable:", err);
+    }
+
+    return Array.from(byPath.values()).sort((a, b) =>
+      a.name.localeCompare(b.name)
     );
-    const snap = await getDocs(q);
-    const folders = snap.docs.map((d) => {
-      const data = d.data();
-      return {
-        id: d.id,
-        name: data.name,
-        path: data.path,
-        parentPath: data.parentPath,
-        createdAt: data.createdAt?.toDate?.()?.toISOString?.() ?? new Date().toISOString(),
-        createdBy: data.createdBy,
-      } as StorageFolder;
-    });
-    return folders.sort((a, b) => a.name.localeCompare(b.name));
   }
 
   /** Create a new folder document in Firestore. */
