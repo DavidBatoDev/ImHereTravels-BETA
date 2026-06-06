@@ -26,6 +26,7 @@ import {
   ChevronRight,
   Banknote,
   ScrollText,
+  Users,
 } from "lucide-react";
 import { useAuthStore } from "@/store/auth-store";
 import {
@@ -69,6 +70,12 @@ const navigation = [
     href: "/tours",
     icon: MapPin,
     description: "Travel destinations",
+  },
+  {
+    name: "Resident Hosts",
+    href: "/resident-hosts",
+    icon: Users,
+    description: "Hosts & hosted tours",
   },
   {
     name: "Payment Types",
