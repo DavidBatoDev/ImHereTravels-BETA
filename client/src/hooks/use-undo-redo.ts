@@ -35,6 +35,8 @@ export interface UndoRedoControls<T> {
   rebase: (snapshot?: T) => void;
   canUndo: boolean;
   canRedo: boolean;
+  /** Live check: does the current state differ from the baseline (unsaved)? */
+  isDirty: () => boolean;
 }
 
 function defaultIsEqual<T>(a: T, b: T): boolean {
@@ -155,7 +157,12 @@ export function useUndoRedo<T>({
     [cancelPending, syncFlags]
   );
 
+  const isDirty = useCallback(() => {
+    if (baseline.current === null) return false;
+    return !isEqualRef.current(getSnapshotRef.current(), baseline.current);
+  }, []);
+
   useEffect(() => () => cancelPending(), [cancelPending]);
 
-  return { record, undo, redo, reset, rebase, canUndo, canRedo };
+  return { record, undo, redo, reset, rebase, canUndo, canRedo, isDirty };
 }

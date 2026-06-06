@@ -49,6 +49,8 @@ import ImagePickerModal from "@/components/shared/ImagePickerModal";
 import TourSettingsPanel from "./TourSettingsPanel";
 import TravelDatesModal from "./TravelDatesModal";
 import ResetChangesModal from "@/components/shared/ResetChangesModal";
+import ConfirmLeaveModal from "@/components/shared/ConfirmLeaveModal";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 
 // ─── Zod helpers ──────────────────────────────────────────────────────────────
 
@@ -660,6 +662,10 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
     },
   });
 
+  // Warn before navigating away with unsaved edits (links, browser back,
+  // refresh/close, and the in-form "Back to Tours" button).
+  const leaveGuard = useUnsavedChangesGuard({ isDirty: history.isDirty, onLeave: onClose });
+
   // Record on any RHF change (text, reorder, add/remove, image setValue).
   useEffect(() => {
     const sub = form.watch(() => history.record());
@@ -772,7 +778,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
         <div className="max-w-7xl mx-auto px-4 md:px-8 h-14 flex items-center justify-between gap-4">
           <button
             type="button"
-            onClick={onClose}
+            onClick={() => leaveGuard.requestNav(onClose)}
             className="flex items-center gap-2 font-body text-b4-desktop text-dark-gray hover:text-midnight transition-colors"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -1715,6 +1721,13 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
         open={resetOpen}
         onClose={() => setResetOpen(false)}
         onConfirm={handleResetConfirm}
+      />
+
+      {/* ── Leave-with-unsaved-changes confirmation ────────────────────── */}
+      <ConfirmLeaveModal
+        open={leaveGuard.isPending}
+        onClose={leaveGuard.cancel}
+        onConfirm={leaveGuard.confirm}
       />
     </div>
   );

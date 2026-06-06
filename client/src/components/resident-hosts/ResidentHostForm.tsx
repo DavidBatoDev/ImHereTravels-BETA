@@ -34,6 +34,8 @@ import ImagePickerModal from "@/components/shared/ImagePickerModal";
 import ResidentHostSettingsPanel, { HostPickerField } from "./ResidentHostSettingsPanel";
 import GallerySlidesEditor from "./GallerySlidesEditor";
 import ResetChangesModal from "@/components/shared/ResetChangesModal";
+import ConfirmLeaveModal from "@/components/shared/ConfirmLeaveModal";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -342,6 +344,10 @@ export default function ResidentHostForm({ onClose, onSubmit, host, isLoading = 
     },
   });
 
+  // Warn before navigating away with unsaved edits (links, browser back,
+  // refresh/close, and the in-form "Back to Resident Hosts" button).
+  const leaveGuard = useUnsavedChangesGuard({ isDirty: history.isDirty, onLeave: onClose });
+
   // Record on any RHF change (text, add/remove, image setValue, gallery edits).
   useEffect(() => {
     const sub = form.watch(() => history.record());
@@ -415,7 +421,7 @@ export default function ResidentHostForm({ onClose, onSubmit, host, isLoading = 
       {/* Toolbar */}
       <div className="sticky top-16 z-30 bg-white border-b border-light-grey shadow-xsmall">
         <div className="max-w-7xl mx-auto px-4 md:px-8 h-14 flex items-center justify-between gap-4">
-          <button type="button" onClick={onClose}
+          <button type="button" onClick={() => leaveGuard.requestNav(onClose)}
             className="flex items-center gap-2 font-body text-sm text-dark-gray hover:text-midnight transition-colors">
             <ArrowLeft className="h-4 w-4" />
             Back to Resident Hosts
@@ -883,6 +889,13 @@ export default function ResidentHostForm({ onClose, onSubmit, host, isLoading = 
         open={resetOpen}
         onClose={() => setResetOpen(false)}
         onConfirm={handleResetConfirm}
+      />
+
+      {/* Leave-with-unsaved-changes confirmation */}
+      <ConfirmLeaveModal
+        open={leaveGuard.isPending}
+        onClose={leaveGuard.cancel}
+        onConfirm={leaveGuard.confirm}
       />
     </div>
   );
