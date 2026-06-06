@@ -220,6 +220,18 @@ import {
   runMigration as runMigration063,
   rollbackMigration as rollbackMigration063,
 } from "./063-backfill-reservation-booking-link";
+import {
+  runMigration as runMigration064,
+  rollbackMigration as rollbackMigration064,
+} from "./064-maldives-itinerary-from-www";
+import {
+  runMigration as runMigration065,
+  rollbackMigration as rollbackMigration065,
+} from "./065-tanzania-itinerary-from-www";
+import {
+  runMigration as runMigration066,
+  rollbackMigration as rollbackMigration066,
+} from "./066-vietnam-itinerary-from-www";
 import migration034 from "./034-initialize-columns-metadata";
 
 // ============================================================================
@@ -1930,6 +1942,105 @@ async function main() {
       if (rollbackResult063.details) {
         console.log(
           `📊 Details: ${rollbackResult063.details.restored} restored, ${rollbackResult063.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "064":
+      console.log("📊 Running migration: 064-maldives-itinerary-from-www");
+      const result064 = await runMigration064(dryRun);
+      console.log(`\n🎯 ${result064.message}`);
+      if (result064.details) {
+        console.log(
+          `📊 Details: ${result064.details.updated} updated, ${result064.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run064":
+      console.log("🔍 Running migration in DRY RUN mode: 064-maldives-itinerary-from-www");
+      const dryRunResult064 = await runMigration064(true);
+      console.log(`\n🎯 ${dryRunResult064.message}`);
+      if (dryRunResult064.details) {
+        console.log(
+          `📊 Details: ${dryRunResult064.details.prevDays} → ${dryRunResult064.details.newDays} days (1 tour)`,
+        );
+      }
+      break;
+
+    case "rollback064":
+      console.log("↩️ Rolling back migration: 064-maldives-itinerary-from-www");
+      const rollbackResult064 = await rollbackMigration064();
+      console.log(`\n🎯 ${rollbackResult064.message}`);
+      if (rollbackResult064.details) {
+        console.log(
+          `📊 Details: ${rollbackResult064.details.restored} restored, ${rollbackResult064.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "065":
+      console.log("📊 Running migration: 065-tanzania-itinerary-from-www");
+      const result065 = await runMigration065(dryRun);
+      console.log(`\n🎯 ${result065.message}`);
+      if (result065.details) {
+        console.log(
+          `📊 Details: ${result065.details.updated} updated, ${result065.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run065":
+      console.log("🔍 Running migration in DRY RUN mode: 065-tanzania-itinerary-from-www");
+      const dryRunResult065 = await runMigration065(true);
+      console.log(`\n🎯 ${dryRunResult065.message}`);
+      if (dryRunResult065.details) {
+        console.log(
+          `📊 Details: ${dryRunResult065.details.prevDays} → ${dryRunResult065.details.newDays} days (1 tour)`,
+        );
+      }
+      break;
+
+    case "rollback065":
+      console.log("↩️ Rolling back migration: 065-tanzania-itinerary-from-www");
+      const rollbackResult065 = await rollbackMigration065();
+      console.log(`\n🎯 ${rollbackResult065.message}`);
+      if (rollbackResult065.details) {
+        console.log(
+          `📊 Details: ${rollbackResult065.details.restored} restored, ${rollbackResult065.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "066":
+      console.log("📊 Running migration: 066-vietnam-itinerary-from-www");
+      const result066 = await runMigration066(dryRun);
+      console.log(`\n🎯 ${result066.message}`);
+      if (result066.details) {
+        console.log(
+          `📊 Details: ${result066.details.updated} updated, ${result066.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run066":
+      console.log("🔍 Running migration in DRY RUN mode: 066-vietnam-itinerary-from-www");
+      const dryRunResult066 = await runMigration066(true);
+      console.log(`\n🎯 ${dryRunResult066.message}`);
+      if (dryRunResult066.details) {
+        console.log(
+          `📊 Details: ${dryRunResult066.details.prevDays} → ${dryRunResult066.details.newDays} days (1 tour)`,
+        );
+      }
+      break;
+
+    case "rollback066":
+      console.log("↩️ Rolling back migration: 066-vietnam-itinerary-from-www");
+      const rollbackResult066 = await rollbackMigration066();
+      console.log(`\n🎯 ${rollbackResult066.message}`);
+      if (rollbackResult066.details) {
+        console.log(
+          `📊 Details: ${rollbackResult066.details.restored} restored, ${rollbackResult066.details.errors} errors`,
         );
       }
       break;
