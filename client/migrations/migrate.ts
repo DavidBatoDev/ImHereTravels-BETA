@@ -216,6 +216,10 @@ import {
   runMigration as runMigration062,
   rollbackMigration as rollbackMigration062,
 } from "./062-roxana-sunset-from-normal";
+import {
+  runMigration as runMigration063,
+  rollbackMigration as rollbackMigration063,
+} from "./063-backfill-reservation-booking-link";
 import migration034 from "./034-initialize-columns-metadata";
 
 // ============================================================================
@@ -1893,6 +1897,39 @@ async function main() {
       if (rollbackResult062.details) {
         console.log(
           `📊 Details: ${rollbackResult062.details.restored} restored, ${rollbackResult062.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "063":
+      console.log("📊 Running migration: 063-backfill-reservation-booking-link");
+      const result063 = await runMigration063(dryRun);
+      console.log(`\n🎯 ${result063.message}`);
+      if (result063.details) {
+        console.log(
+          `📊 Details: ${result063.details.updated} updated, ${result063.details.skippedHasLink} already had a link, ${result063.details.skippedNoSlug} no slug, ${result063.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run063":
+      console.log("🔍 Running migration in DRY RUN mode: 063-backfill-reservation-booking-link");
+      const dryRunResult063 = await runMigration063(true);
+      console.log(`\n🎯 ${dryRunResult063.message}`);
+      if (dryRunResult063.details) {
+        console.log(
+          `📊 Details: ${dryRunResult063.details.updated} would be updated, ${dryRunResult063.details.skippedHasLink} already had a link, ${dryRunResult063.details.skippedNoSlug} no slug`,
+        );
+      }
+      break;
+
+    case "rollback063":
+      console.log("↩️ Rolling back migration: 063-backfill-reservation-booking-link");
+      const rollbackResult063 = await rollbackMigration063();
+      console.log(`\n🎯 ${rollbackResult063.message}`);
+      if (rollbackResult063.details) {
+        console.log(
+          `📊 Details: ${rollbackResult063.details.restored} restored, ${rollbackResult063.details.errors} errors`,
         );
       }
       break;
