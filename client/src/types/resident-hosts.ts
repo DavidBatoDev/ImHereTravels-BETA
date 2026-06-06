@@ -48,7 +48,8 @@ export interface ResidentHost {
 export interface HostTrip {
   name: string;
   dates: string; // e.g. "March 19, 2027" or "TBA"
-  tourSlug?: string; // If set, the card links to /tours/[tourSlug]
+  tourId?: string; // tourPackages doc ID the card links to (resolved to a live slug on www)
+  tourSlug?: string; // Denormalized slug fallback (kept in sync when a tour is picked)
   image?: string;
   imageAlt?: string;
   duration?: string; // e.g. "13 Days and 12 Nights"
