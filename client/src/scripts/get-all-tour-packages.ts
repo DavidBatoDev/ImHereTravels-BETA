@@ -91,7 +91,7 @@ async function getAllTourPackages(): Promise<void> {
     console.log("\n📈 TOUR PACKAGES SUMMARY:");
     tours.forEach((tour, index) => {
       console.log(`${index + 1}. ${tour.name} (${tour.tourCode})`);
-      console.log(`   Location: ${tour.location}`);
+      console.log(`   Destinations: ${tour.destinations?.join(", ") ?? "—"}`);
       console.log(`   Duration: ${tour.duration} days`);
       console.log(`   Status: ${tour.status}`);
       console.log(
@@ -128,7 +128,7 @@ async function getAllTourPackages(): Promise<void> {
         url: tours.filter((t) => t.url).length,
         tourCode: tours.filter((t) => t.tourCode).length,
         description: tours.filter((t) => t.description).length,
-        location: tours.filter((t) => t.location).length,
+        destinations: tours.filter((t) => t.destinations?.length).length,
         duration: tours.filter((t) => t.duration).length,
         status: tours.filter((t) => t.status).length,
       },

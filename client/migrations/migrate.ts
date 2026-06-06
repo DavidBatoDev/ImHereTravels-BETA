@@ -156,6 +156,70 @@ import {
   runMigration as runMigration047,
   rollbackMigration as rollbackMigration047,
 } from "./047-update-japan-adventure-skiing";
+import {
+  runMigration as runMigration048,
+  rollbackMigration as rollbackMigration048,
+} from "./048-enrich-tour-presentation";
+import {
+  runMigration as runMigration049,
+  rollbackMigration as rollbackMigration049,
+} from "./049-backfill-gallery-and-tags";
+import {
+  runMigration as runMigration050,
+  rollbackMigration as rollbackMigration050,
+} from "./050-backfill-destinations";
+import {
+  runMigration as runMigration051,
+  rollbackMigration as rollbackMigration051,
+} from "./051-backfill-keyfacts";
+import {
+  runMigration as runMigration052,
+  rollbackMigration as rollbackMigration052,
+} from "./052-backfill-inclusions";
+import {
+  runMigration as runMigration053,
+  rollbackMigration as rollbackMigration053,
+} from "./053-backfill-itinerary-details";
+import {
+  runMigration as runMigration054,
+  rollbackMigration as rollbackMigration054,
+} from "./054-backfill-card-header-title";
+import {
+  runMigration as runMigration055,
+  rollbackMigration as rollbackMigration055,
+} from "./055-backfill-card-sub-header";
+import {
+  runMigration as runMigration056,
+  rollbackMigration as rollbackMigration056,
+} from "./056-backfill-things-to-know-and-tips";
+import {
+  runMigration as runMigration057,
+  rollbackMigration as rollbackMigration057,
+} from "./057-prepend-domain-to-things-to-know-hrefs";
+import {
+  runMigration as runMigration058,
+  rollbackMigration as rollbackMigration058,
+} from "./058-remove-legacy-location-route";
+import {
+  runMigration as runMigration059,
+  rollbackMigration as rollbackMigration059,
+} from "./059-restore-keyfacts";
+import {
+  runMigration as runMigration060,
+  rollbackMigration as rollbackMigration060,
+} from "./060-seed-resident-hosts";
+import {
+  runMigration as runMigration061,
+  rollbackMigration as rollbackMigration061,
+} from "./061-flag-hosted-tours";
+import {
+  runMigration as runMigration062,
+  rollbackMigration as rollbackMigration062,
+} from "./062-roxana-sunset-from-normal";
+import {
+  runMigration as runMigration063,
+  rollbackMigration as rollbackMigration063,
+} from "./063-backfill-reservation-booking-link";
 import migration034 from "./034-initialize-columns-metadata";
 
 // ============================================================================
@@ -244,6 +308,18 @@ async function main() {
       console.log("📊 Running migration: 047-update-japan-adventure-skiing");
       const result047 = await runMigration047(dryRun);
       console.log(`\n🎯 ${result047.message}`);
+      break;
+
+    case "048":
+      console.log("📊 Running migration: 048-enrich-tour-presentation");
+      const result048 = await runMigration048(dryRun);
+      console.log(`\n🎯 ${result048.message}`);
+      break;
+
+    case "049":
+      console.log("📊 Running migration: 049-backfill-gallery-and-tags");
+      const result049 = await runMigration049(dryRun);
+      console.log(`\n🎯 ${result049.message}`);
       break;
 
     case "003":
@@ -1371,6 +1447,527 @@ async function main() {
       const dryRunResult047 = await runMigration047(true);
       console.log(`\n🎯 ${dryRunResult047.message}`);
       break;
+
+    case "dry-run048":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 048-enrich-tour-presentation",
+      );
+      const dryRunResult048 = await runMigration048(true);
+      console.log(`\n🎯 ${dryRunResult048.message}`);
+      break;
+
+    case "dry-run049":
+      console.log(
+        "🔍 Running migration in DRY RUN mode: 049-backfill-gallery-and-tags",
+      );
+      const dryRunResult049 = await runMigration049(true);
+      console.log(`\n🎯 ${dryRunResult049.message}`);
+      break;
+
+    case "rollback048":
+      console.log("↩️ Rolling back migration: 048-enrich-tour-presentation");
+      await rollbackMigration048();
+      break;
+
+    case "rollback049":
+      console.log("↩️ Rolling back migration: 049-backfill-gallery-and-tags");
+      await rollbackMigration049();
+      break;
+
+    case "050":
+      console.log("📊 Running migration: 050-backfill-destinations");
+      const result050 = await runMigration050(dryRun);
+      console.log(`\n🎯 ${result050.message}`);
+      if (result050.details) {
+        console.log(
+          `📊 Details: ${result050.details.updated} updated, ${result050.details.skipped} skipped, ${result050.details.notMapped} not in map, ${result050.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run050":
+      console.log("🔍 Running migration in DRY RUN mode: 050-backfill-destinations");
+      const dryRunResult050 = await runMigration050(true);
+      console.log(`\n🎯 ${dryRunResult050.message}`);
+      if (dryRunResult050.details) {
+        console.log(
+          `📊 Details: ${dryRunResult050.details.updated} would be updated, ${dryRunResult050.details.notMapped} not in map`,
+        );
+      }
+      break;
+
+    case "rollback050":
+      console.log("↩️ Rolling back migration: 050-backfill-destinations");
+      const rollbackResult050 = await rollbackMigration050();
+      console.log(`\n🎯 ${rollbackResult050.message}`);
+      if (rollbackResult050.details) {
+        console.log(
+          `📊 Details: ${rollbackResult050.details.removed} removed, ${rollbackResult050.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "051":
+      console.log("📊 Running migration: 051-backfill-keyfacts");
+      const result051 = await runMigration051(dryRun);
+      console.log(`\n🎯 ${result051.message}`);
+      if (result051.details) {
+        console.log(
+          `📊 Details: ${result051.details.updated} updated, ${result051.details.notMapped} not in map, ${result051.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run051":
+      console.log("🔍 Running migration in DRY RUN mode: 051-backfill-keyfacts");
+      const dryRunResult051 = await runMigration051(true);
+      console.log(`\n🎯 ${dryRunResult051.message}`);
+      if (dryRunResult051.details) {
+        console.log(
+          `📊 Details: ${dryRunResult051.details.updated} would be updated, ${dryRunResult051.details.notMapped} not in map`,
+        );
+      }
+      break;
+
+    case "rollback051":
+      console.log("↩️ Rolling back migration: 051-backfill-keyfacts");
+      const rollbackResult051 = await rollbackMigration051();
+      console.log(`\n🎯 ${rollbackResult051.message}`);
+      if (rollbackResult051.details) {
+        console.log(
+          `📊 Details: ${rollbackResult051.details.removed} removed, ${rollbackResult051.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "052":
+      console.log("📊 Running migration: 052-backfill-inclusions");
+      const result052 = await runMigration052(dryRun);
+      console.log(`\n🎯 ${result052.message}`);
+      if (result052.details) {
+        console.log(
+          `📊 Details: ${result052.details.updated} updated, ${result052.details.notMapped} not in map, ${result052.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run052":
+      console.log("🔍 Running migration in DRY RUN mode: 052-backfill-inclusions");
+      const dryRunResult052 = await runMigration052(true);
+      console.log(`\n🎯 ${dryRunResult052.message}`);
+      if (dryRunResult052.details) {
+        console.log(
+          `📊 Details: ${dryRunResult052.details.updated} would be updated, ${dryRunResult052.details.notMapped} not in map`,
+        );
+      }
+      break;
+
+    case "rollback052":
+      console.log("↩️ Rolling back migration: 052-backfill-inclusions");
+      const rollbackResult052 = await rollbackMigration052();
+      console.log(`\n🎯 ${rollbackResult052.message}`);
+      if (rollbackResult052.details) {
+        console.log(
+          `📊 Details: ${rollbackResult052.details.removed} removed, ${rollbackResult052.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "053":
+      console.log("📊 Running migration: 053-backfill-itinerary-details");
+      const result053 = await runMigration053(dryRun);
+      console.log(`\n🎯 ${result053.message}`);
+      if (result053.details) {
+        console.log(
+          `📊 Details: ${result053.details.updated} updated, ${result053.details.skipped} skipped, ${result053.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run053":
+      console.log("🔍 Running migration in DRY RUN mode: 053-backfill-itinerary-details");
+      const dryRunResult053 = await runMigration053(true);
+      console.log(`\n🎯 ${dryRunResult053.message}`);
+      if (dryRunResult053.details) {
+        console.log(
+          `📊 Details: ${dryRunResult053.details.updated} would be updated, ${dryRunResult053.details.skipped} skipped`,
+        );
+      }
+      break;
+
+    case "rollback053":
+      console.log("↩️ Rolling back migration: 053-backfill-itinerary-details");
+      const rollbackResult053 = await rollbackMigration053();
+      console.log(`\n🎯 ${rollbackResult053.message}`);
+      if (rollbackResult053.details) {
+        console.log(
+          `📊 Details: ${rollbackResult053.details.removed} rolled back, ${rollbackResult053.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "054":
+      console.log("📊 Running migration: 054-backfill-card-header-title");
+      const result054 = await runMigration054(dryRun);
+      console.log(`\n🎯 ${result054.message}`);
+      if (result054.details) {
+        console.log(
+          `📊 Details: ${result054.details.updated} updated, ${result054.details.skipped} skipped, ${result054.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run054":
+      console.log("🔍 Running migration in DRY RUN mode: 054-backfill-card-header-title");
+      const dryRunResult054 = await runMigration054(true);
+      console.log(`\n🎯 ${dryRunResult054.message}`);
+      if (dryRunResult054.details) {
+        console.log(
+          `📊 Details: ${dryRunResult054.details.updated} would be updated, ${dryRunResult054.details.skipped} skipped`,
+        );
+      }
+      break;
+
+    case "rollback054":
+      console.log("↩️ Rolling back migration: 054-backfill-card-header-title");
+      const rollbackResult054 = await rollbackMigration054();
+      console.log(`\n🎯 ${rollbackResult054.message}`);
+      if (rollbackResult054.details) {
+        console.log(
+          `📊 Details: ${rollbackResult054.details.removed} removed, ${rollbackResult054.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "055":
+      console.log("📊 Running migration: 055-backfill-card-sub-header");
+      const result055 = await runMigration055(dryRun);
+      console.log(`\n🎯 ${result055.message}`);
+      if (result055.details) {
+        console.log(
+          `📊 Details: ${result055.details.updated} updated, ${result055.details.skipped} skipped, ${result055.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run055":
+      console.log("🔍 Running migration in DRY RUN mode: 055-backfill-card-sub-header");
+      const dryRunResult055 = await runMigration055(true);
+      console.log(`\n🎯 ${dryRunResult055.message}`);
+      if (dryRunResult055.details) {
+        console.log(
+          `📊 Details: ${dryRunResult055.details.updated} would be updated, ${dryRunResult055.details.skipped} skipped`,
+        );
+      }
+      break;
+
+    case "rollback055":
+      console.log("↩️ Rolling back migration: 055-backfill-card-sub-header");
+      const rollbackResult055 = await rollbackMigration055();
+      console.log(`\n🎯 ${rollbackResult055.message}`);
+      if (rollbackResult055.details) {
+        console.log(
+          `📊 Details: ${rollbackResult055.details.removed} removed, ${rollbackResult055.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "056":
+      console.log("📊 Running migration: 056-backfill-things-to-know-and-tips");
+      const result056 = await runMigration056(dryRun);
+      console.log(`\n🎯 ${result056.message}`);
+      if (result056.details) {
+        console.log(
+          `📊 Details: ${result056.details.updated} updated, ${result056.details.skipped} skipped, ${result056.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run056":
+      console.log("🔍 Running migration in DRY RUN mode: 056-backfill-things-to-know-and-tips");
+      const dryRunResult056 = await runMigration056(true);
+      console.log(`\n🎯 ${dryRunResult056.message}`);
+      if (dryRunResult056.details) {
+        console.log(
+          `📊 Details: ${dryRunResult056.details.updated} would be updated, ${dryRunResult056.details.skipped} skipped`,
+        );
+      }
+      break;
+
+    case "rollback056":
+      console.log("↩️ Rolling back migration: 056-backfill-things-to-know-and-tips");
+      const rollbackResult056 = await rollbackMigration056();
+      console.log(`\n🎯 ${rollbackResult056.message}`);
+      if (rollbackResult056.details) {
+        console.log(
+          `📊 Details: ${rollbackResult056.details.removed} removed, ${rollbackResult056.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "057":
+      console.log("📊 Running migration: 057-prepend-domain-to-things-to-know-hrefs");
+      const result057 = await runMigration057(dryRun);
+      console.log(`\n🎯 ${result057.message}`);
+      if (result057.details) {
+        console.log(
+          `📊 Details: ${result057.details.updated} updated, ${result057.details.skipped} skipped, ${result057.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run057":
+      console.log("🔍 Running migration in DRY RUN mode: 057-prepend-domain-to-things-to-know-hrefs");
+      const dryRunResult057 = await runMigration057(true);
+      console.log(`\n🎯 ${dryRunResult057.message}`);
+      if (dryRunResult057.details) {
+        console.log(
+          `📊 Details: ${dryRunResult057.details.updated} would be updated, ${dryRunResult057.details.skipped} skipped`,
+        );
+      }
+      break;
+
+    case "rollback057":
+      console.log("↩️ Rolling back migration: 057-prepend-domain-to-things-to-know-hrefs");
+      const rollbackResult057 = await rollbackMigration057();
+      console.log(`\n🎯 ${rollbackResult057.message}`);
+      if (rollbackResult057.details) {
+        console.log(
+          `📊 Details: ${rollbackResult057.details.removed} removed, ${rollbackResult057.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "058":
+      console.log("📊 Running migration: 058-remove-legacy-location-route");
+      const result058 = await runMigration058(dryRun);
+      console.log(`\n🎯 ${result058.message}`);
+      if (result058.details) {
+        console.log(
+          `📊 Details: ${result058.details.updated} updated, ${result058.details.skipped} skipped, ${result058.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run058":
+      console.log("🔍 Running migration in DRY RUN mode: 058-remove-legacy-location-route");
+      const dryRunResult058 = await runMigration058(true);
+      console.log(`\n🎯 ${dryRunResult058.message}`);
+      if (dryRunResult058.details) {
+        console.log(
+          `📊 Details: ${dryRunResult058.details.updated} would be updated, ${dryRunResult058.details.skipped} skipped`,
+        );
+      }
+      break;
+
+    case "rollback058":
+      console.log("↩️ Rolling back migration: 058-remove-legacy-location-route");
+      const rollbackResult058 = await rollbackMigration058();
+      console.log(`\n🎯 ${rollbackResult058.message}`);
+      if (rollbackResult058.details) {
+        console.log(
+          `📊 Details: ${rollbackResult058.details.removed} removed, ${rollbackResult058.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "059":
+      console.log("📊 Running migration: 059-restore-keyfacts");
+      const result059 = await runMigration059(dryRun);
+      console.log(`\n🎯 ${result059.message}`);
+      if (result059.details) {
+        console.log(
+          `📊 Details: ${result059.details.updated} updated, ${result059.details.notMapped} not mapped, ${result059.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run059":
+      console.log("🔍 Running migration in DRY RUN mode: 059-restore-keyfacts");
+      const dryRunResult059 = await runMigration059(true);
+      console.log(`\n🎯 ${dryRunResult059.message}`);
+      if (dryRunResult059.details) {
+        console.log(
+          `📊 Details: ${dryRunResult059.details.updated} would be updated, ${dryRunResult059.details.notMapped} not mapped`,
+        );
+      }
+      break;
+
+    case "rollback059":
+      console.log("↩️ Rolling back migration: 059-restore-keyfacts");
+      const rollbackResult059 = await rollbackMigration059();
+      console.log(`\n🎯 ${rollbackResult059.message}`);
+      if (rollbackResult059.details) {
+        console.log(
+          `📊 Details: ${rollbackResult059.details.removed} removed, ${rollbackResult059.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "060":
+      console.log("📊 Running migration: 060-seed-resident-hosts");
+      const result060 = await runMigration060(dryRun);
+      console.log(`\n🎯 ${result060.message}`);
+      if (result060.details) {
+        console.log(
+          `📊 Details: ${result060.details.created} created, ${result060.details.skipped} skipped, ${result060.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run060":
+      console.log("🔍 Running migration in DRY RUN mode: 060-seed-resident-hosts");
+      const dryRunResult060 = await runMigration060(true);
+      console.log(`\n🎯 ${dryRunResult060.message}`);
+      if (dryRunResult060.details) {
+        console.log(
+          `📊 Details: ${dryRunResult060.details.created} would be created, ${dryRunResult060.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "rollback060":
+      console.log("↩️ Rolling back migration: 060-seed-resident-hosts");
+      const rollbackResult060 = await rollbackMigration060();
+      console.log(`\n🎯 ${rollbackResult060.message}`);
+      if (rollbackResult060.details) {
+        console.log(
+          `📊 Details: ${rollbackResult060.details.deleted} deleted, ${rollbackResult060.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "061":
+      console.log("📊 Running migration: 061-flag-hosted-tours");
+      const result061 = await runMigration061(dryRun);
+      console.log(`\n🎯 ${result061.message}`);
+      if (result061.details) {
+        console.log(
+          `📊 Details: ${result061.details.updated} updated, ${result061.details.notFound} not found, ${result061.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run061":
+      console.log("🔍 Running migration in DRY RUN mode: 061-flag-hosted-tours");
+      const dryRunResult061 = await runMigration061(true);
+      console.log(`\n🎯 ${dryRunResult061.message}`);
+      if (dryRunResult061.details) {
+        console.log(
+          `📊 Details: ${dryRunResult061.details.updated} would be updated, ${dryRunResult061.details.notFound} not found`,
+        );
+      }
+      break;
+
+    case "rollback061":
+      console.log("↩️ Rolling back migration: 061-flag-hosted-tours");
+      const rollbackResult061 = await rollbackMigration061();
+      console.log(`\n🎯 ${rollbackResult061.message}`);
+      if (rollbackResult061.details) {
+        console.log(
+          `📊 Details: ${rollbackResult061.details.removed} removed, ${rollbackResult061.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "062":
+      console.log("📊 Running migration: 062-roxana-sunset-from-normal");
+      const result062 = await runMigration062(dryRun);
+      console.log(`\n🎯 ${result062.message}`);
+      if (result062.details) {
+        console.log(
+          `📊 Details: ${result062.details.copied} copied, ${result062.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run062":
+      console.log("🔍 Running migration in DRY RUN mode: 062-roxana-sunset-from-normal");
+      const dryRunResult062 = await runMigration062(true);
+      console.log(`\n🎯 ${dryRunResult062.message}`);
+      if (dryRunResult062.details) {
+        console.log(`📊 Details: ${dryRunResult062.details.copied} would be copied`);
+      }
+      break;
+
+    case "rollback062":
+      console.log("↩️ Rolling back migration: 062-roxana-sunset-from-normal");
+      const rollbackResult062 = await rollbackMigration062();
+      console.log(`\n🎯 ${rollbackResult062.message}`);
+      if (rollbackResult062.details) {
+        console.log(
+          `📊 Details: ${rollbackResult062.details.restored} restored, ${rollbackResult062.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "063":
+      console.log("📊 Running migration: 063-backfill-reservation-booking-link");
+      const result063 = await runMigration063(dryRun);
+      console.log(`\n🎯 ${result063.message}`);
+      if (result063.details) {
+        console.log(
+          `📊 Details: ${result063.details.updated} updated, ${result063.details.skippedHasLink} already had a link, ${result063.details.skippedNoSlug} no slug, ${result063.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run063":
+      console.log("🔍 Running migration in DRY RUN mode: 063-backfill-reservation-booking-link");
+      const dryRunResult063 = await runMigration063(true);
+      console.log(`\n🎯 ${dryRunResult063.message}`);
+      if (dryRunResult063.details) {
+        console.log(
+          `📊 Details: ${dryRunResult063.details.updated} would be updated, ${dryRunResult063.details.skippedHasLink} already had a link, ${dryRunResult063.details.skippedNoSlug} no slug`,
+        );
+      }
+      break;
+
+    case "rollback063":
+      console.log("↩️ Rolling back migration: 063-backfill-reservation-booking-link");
+      const rollbackResult063 = await rollbackMigration063();
+      console.log(`\n🎯 ${rollbackResult063.message}`);
+      if (rollbackResult063.details) {
+        console.log(
+          `📊 Details: ${rollbackResult063.details.restored} restored, ${rollbackResult063.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "revalidate": {
+      const url =
+        process.env.WWW_REVALIDATE_URL ||
+        "https://www.imheretravels.com/api/revalidate";
+      const secret = process.env.REVALIDATE_SECRET;
+      if (!secret) {
+        console.error(
+          "❌ REVALIDATE_SECRET not set in .env.local — cannot revalidate www.",
+        );
+        process.exit(1);
+      }
+      console.log(`🔄 Triggering www revalidation at ${url}`);
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-revalidate-secret": secret,
+          },
+          body: JSON.stringify({ all: true }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          console.log("✅ www revalidation triggered:", data);
+        } else {
+          console.error(`❌ Revalidation failed (${res.status}):`, data);
+          process.exit(1);
+        }
+      } catch (err) {
+        console.error("❌ Failed to reach www revalidation endpoint:", err);
+        process.exit(1);
+      }
+      break;
+    }
 
     case "help":
     case "--help":

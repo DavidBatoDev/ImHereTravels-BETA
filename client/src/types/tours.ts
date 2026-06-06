@@ -11,8 +11,10 @@ export interface TourPackage {
   url?: string; // Direct URL to tour page
   tourCode: string; // Tour code (e.g., SIA, PHS, PSS)
   description: string;
-  location: string;
+  destinations?: string[]; // Place/city names, e.g. ["Cebu", "Moalboal", "Siargao"]
   duration: string; // Duration in format "X days"
+  cardHeaderTitle: string; // Label on the booking card (e.g. "11 Day Tour")
+  cardSubHeader: string; // Subtitle on the booking card (e.g. "Argentina")
   travelDates: TravelDate[]; // Available travel dates
   pricing: TourPricing;
   details: TourDetails;
@@ -26,6 +28,13 @@ export interface TourPackage {
   brochureLink?: string; // Google Drive or other brochure link
   stripePaymentLink?: string; // Stripe payment link
   preDeparturePack?: string; // Pre-departure pack link
+  // WWW PRESENTATION FIELDS
+  seo?: { title?: string; description?: string }; // SEO overrides; falls back to name/description
+  comingSoon?: boolean; // Gate full content on www
+  isHosted?: boolean; // Marks this tour as a hosted tour (independent of resident-host attachment)
+  bookingSlug?: string; // Override slug used in booking/reservation URLs
+  depositNote?: string; // Full deposit notice text on booking card; falls back to auto-generated
+  footnote?: string; // Booking card footnote; falls back to "Additional fees may apply"
 }
 
 // ============================================================================
@@ -37,8 +46,6 @@ export interface TravelDate {
   endDate: Timestamp;
   tourDays?: number; // Number of days for the tour
   isAvailable: boolean;
-  maxCapacity?: number | null;
-  currentBookings?: number | null;
   // Optional per-date custom pricing overrides
   customOriginal?: number | null;
   customDiscounted?: number | null;
@@ -82,18 +89,65 @@ export interface PricingHistoryEntry {
 export interface Highlight {
   text: string;
   image?: string;
+  subtitle?: string; // Drives tripHighlights subtitle on www
 }
 
 export interface TourDetails {
   highlights: (string | Highlight)[];
   itinerary: TourItinerary[];
   requirements: string[];
+  // WWW presentation sections (all optional; added additively)
+  keyFacts?: Array<{ icon: string; label: string; values: string[] }>; // Editable key facts; Tour Dates always derived
+  tags?: Array<{ label: string; icon: string }>; // Header location/theme tags; falls back to location + destinations
+  inclusions?: TourInclusion[]; // "What's Included" section
+  accommodations?: TourAccommodation[]; // "Where We Stay" section
+  faqs?: TourFaq[]; // FAQ section
+  thingsToKnow?: TourThingToKnow[]; // "Things to Know" cards (per-tour override)
+  tips?: TourTip[]; // Tips section (per-tour override)
+  map?: { image?: string; embedUrl?: string }; // Map section
+}
+
+export interface TourInclusion {
+  icon?: string; // TourIcon value (e.g. "meals", "transport", "activities")
+  label: string;
+  value: string | string[];
+}
+
+export interface TourAccommodation {
+  image: string;
+  name: string;
+  nights: string; // e.g. "2 nights in Hotel"
+}
+
+export interface TourFaq {
+  question: string;
+  answer: string;
+}
+
+export interface TourThingToKnow {
+  icon?: string;
+  title: string;
+  description: string;
+  ctaLabel: string;
+  ctaHref: string;
+}
+
+export interface TourTip {
+  icon?: string;
+  title: string;
+  description: string;
 }
 
 export interface TourItinerary {
   day: number;
   title: string;
   description: string;
+  // Optional per-day presentation fields
+  image?: string;
+  accommodation?: string; // kept — backward compat fallback
+  activities?: string;    // kept — backward compat fallback
+  meals?: string;         // kept — backward compat fallback
+  details?: Array<{ icon: string; label: string; value: string }>;
 }
 
 export interface TourMedia {
@@ -130,7 +184,6 @@ export interface TourPackageFormData {
   url?: string;
   tourCode: string;
   description: string;
-  location: string;
   duration: string; // Duration in format "X days"
   travelDates: TravelDate[];
   pricing: {
@@ -149,6 +202,7 @@ export interface TourPackageFormData {
     gallery?: string[];
   };
   status: "active" | "draft" | "archived";
+  isHosted?: boolean;
   brochureLink?: string;
   stripePaymentLink?: string;
   preDeparturePack?: string;
@@ -162,15 +216,14 @@ export interface TourFormDataWithStringDates {
   url?: string;
   tourCode: string;
   description: string;
-  location: string;
   duration: string; // Duration as a string like "11 days"
+  cardHeaderTitle: string;
+  cardSubHeader: string;
   travelDates: {
     startDate: string;
     endDate: string;
     tourDays?: number; // Number of days for the tour
     isAvailable: boolean;
-    maxCapacity?: number | null;
-    currentBookings?: number | null;
     // Optional per-date custom pricing values
     customOriginal?: number | null;
     customDiscounted?: number | null;
@@ -196,6 +249,8 @@ export interface TourFormDataWithStringDates {
     gallery?: string[];
   };
   status: "active" | "draft" | "archived";
+  isHosted?: boolean;
+  destinations?: string[];
   brochureLink?: string;
   stripePaymentLink?: string;
   preDeparturePack?: string;
@@ -224,30 +279,12 @@ export type TourCode =
   | "TXP" // Tanzania Exploration
   | "NZE"; // New Zealand Expedition
 
-export type TourLocation =
-  | "Ecuador"
-  | "Galapagos"
-  | "Amazon"
-  | "Andes"
-  | "Coast"
-  | "Philippines"
-  | "Maldives"
-  | "Sri Lanka"
-  | "Argentina"
-  | "Brazil"
-  | "Vietnam"
-  | "India"
-  | "Tanzania"
-  | "New Zealand"
-  | "Other";
-
 // ============================================================================
 // FILTER AND SEARCH TYPES
 // ============================================================================
 
 export interface TourFilters {
   status?: TourStatus;
-  location?: TourLocation;
   duration?: TourDuration;
   priceRange?: {
     min: number;

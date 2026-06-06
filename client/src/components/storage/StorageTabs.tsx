@@ -1,7 +1,7 @@
 "use client";
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import GalleryTab from "./GalleryTab";
+import FolderBrowser from "./FolderBrowser";
 import VideosTab from "./VideosTab";
 
 export default function StorageTabs() {
@@ -49,7 +49,7 @@ export default function StorageTabs() {
         </TabsList>
 
         <TabsContent value="gallery" className="mt-6">
-          <GalleryTab />
+          <FolderBrowser />
         </TabsContent>
 
         <TabsContent value="videos" className="mt-6">

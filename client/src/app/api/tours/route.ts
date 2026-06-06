@@ -13,6 +13,7 @@ import {
   DocumentSnapshot,
 } from "firebase/firestore";
 import { verifyRequestUserId } from "@/lib/firebase-admin-auth";
+import { revalidateWww } from "@/lib/revalidate-www";
 
 const TOURS_COLLECTION = "tourPackages";
 
@@ -20,13 +21,15 @@ const TOURS_COLLECTION = "tourPackages";
  * Convert string dates to Firestore Timestamps for travelDates
  */
 function convertTravelDatesToTimestamps(travelDates: any[]): any[] {
-  return travelDates.map((td) => {
+  return travelDates
+    // Drop incomplete rows so a blank date can never crash Timestamp.fromDate.
+    .filter((td) => td?.startDate && td?.endDate)
+    .map((td) => {
     const converted: any = {
+      ...td,
       startDate: Timestamp.fromDate(new Date(td.startDate)),
       endDate: Timestamp.fromDate(new Date(td.endDate)),
       isAvailable: td.isAvailable,
-      maxCapacity: td.maxCapacity ?? null,
-      currentBookings: td.currentBookings ?? null,
     };
 
     // Include optional fields if they exist
@@ -83,7 +86,7 @@ export async function POST(request: NextRequest) {
 
     // Convert travelDates from string dates to Timestamps
     const convertedTravelDates = convertTravelDatesToTimestamps(
-      tourData.travelDates,
+      tourData.travelDates ?? [],
     );
 
     // Snapshot travel-date pricing for the initial history entry
@@ -135,6 +138,8 @@ export async function POST(request: NextRequest) {
 
     console.log(`✅ Created tour with ID: ${docRef.id}`);
 
+    await revalidateWww();
+
     return NextResponse.json({ success: true, tourId: docRef.id });
   } catch (error) {
     console.error("Error creating tour:", error);
@@ -158,7 +163,6 @@ export async function GET(request: NextRequest) {
 
     // Parse query parameters
     const status = searchParams.get("status");
-    const location = searchParams.get("location");
     const priceMin = searchParams.get("priceMin");
     const priceMax = searchParams.get("priceMax");
     const search = searchParams.get("search");
@@ -171,7 +175,6 @@ export async function GET(request: NextRequest) {
 
     console.log("GET /api/tours called with params:", {
       status,
-      location,
       priceMin,
       priceMax,
       search,
@@ -187,10 +190,6 @@ export async function GET(request: NextRequest) {
     // Apply filters
     if (status) {
       q = query(q, where("status", "==", status));
-    }
-
-    if (location) {
-      q = query(q, where("location", "==", location));
     }
 
     if (priceMin) {
@@ -224,7 +223,9 @@ export async function GET(request: NextRequest) {
         (tour) =>
           tour.name?.toLowerCase().includes(searchTerm) ||
           tour.description?.toLowerCase().includes(searchTerm) ||
-          tour.location?.toLowerCase().includes(searchTerm),
+          tour.destinations?.some((d: string) =>
+            d.toLowerCase().includes(searchTerm),
+          ),
       );
     }
 

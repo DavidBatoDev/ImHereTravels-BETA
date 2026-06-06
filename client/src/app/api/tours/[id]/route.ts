@@ -8,20 +8,36 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { verifyRequestUserId } from "@/lib/firebase-admin-auth";
+import { revalidateWww } from "@/lib/revalidate-www";
 
 const TOURS_COLLECTION = "tourPackages";
+
+/** Convert a Firestore Timestamp (any serialization) to an ISO date string. */
+function timestampToIso(v: any): string {
+  if (!v) return "";
+  if (typeof v === "string") return v; // already an ISO string
+  if (typeof v.toDate === "function") return v.toDate().toISOString().split("T")[0];
+  if (typeof v.seconds === "number") return new Date(v.seconds * 1000).toISOString().split("T")[0];
+  if (typeof v._seconds === "number") return new Date(v._seconds * 1000).toISOString().split("T")[0];
+  return "";
+}
 
 /**
  * Convert string dates to Firestore Timestamps for travelDates
  */
 function convertTravelDatesToTimestamps(travelDates: any[]): any[] {
-  return travelDates.map((td) => {
+  return travelDates
+    // Drop incomplete rows so a blank date can never crash Timestamp.fromDate.
+    .filter((td) => td?.startDate && td?.endDate)
+    .map((td) => {
+    // Spread the incoming date first so any extra fields carried through (e.g.
+    // legacy currentBookings/maxCapacity) are preserved, then override the
+    // date strings with real Firestore Timestamps.
     const converted: any = {
+      ...td,
       startDate: Timestamp.fromDate(new Date(td.startDate)),
       endDate: Timestamp.fromDate(new Date(td.endDate)),
       isAvailable: td.isAvailable,
-      maxCapacity: td.maxCapacity ?? null,
-      currentBookings: td.currentBookings ?? null,
     };
 
     // Include optional fields if they exist
@@ -73,7 +89,17 @@ export async function GET(
       );
     }
 
-    const tour = { id: docSnap.id, ...docSnap.data() };
+    const data = docSnap.data()!;
+    // Convert Firestore Timestamps in travelDates to ISO date strings so the
+    // client always receives plain strings regardless of SDK serialization format.
+    if (Array.isArray(data.travelDates)) {
+      data.travelDates = data.travelDates.map((td: any) => ({
+        ...td,
+        startDate: timestampToIso(td.startDate),
+        endDate: timestampToIso(td.endDate),
+      }));
+    }
+    const tour = { id: docSnap.id, ...data };
     return NextResponse.json({ success: true, tour });
   } catch (error) {
     console.error("Error fetching tour:", error);
@@ -135,6 +161,18 @@ export async function PATCH(
     delete updateData.pricingHistory;
     delete updateData.currentVersion;
 
+    // Merge `details` instead of replacing it. Firestore's updateDoc replaces a
+    // nested object wholesale, so sending a `details` object that's missing any
+    // stored sub-field (e.g. a field not present in the form's schema) would
+    // silently delete it. Shallow-merging the incoming details over the stored
+    // details guarantees unknown/unsent sub-fields are always preserved.
+    if (updates.details) {
+      updateData.details = {
+        ...(currentData.details ?? {}),
+        ...updates.details,
+      };
+    }
+
     // Convert travelDates if they're being updated
     if (updates.travelDates) {
       updateData.travelDates = convertTravelDatesToTimestamps(
@@ -154,6 +192,8 @@ export async function PATCH(
     await updateDoc(docRef, updateData);
 
     console.log(`✅ Updated tour ${id}`);
+
+    await revalidateWww();
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -192,6 +232,8 @@ export async function DELETE(
     await deleteDoc(docRef);
 
     console.log(`✅ Deleted tour ${id}`);
+
+    await revalidateWww();
 
     return NextResponse.json({ success: true });
   } catch (error) {

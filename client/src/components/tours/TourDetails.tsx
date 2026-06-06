@@ -117,7 +117,7 @@ export default function TourDetails({
                 <div className="flex items-center gap-4 mt-4 text-white/90">
                   <div className="flex items-center gap-2">
                     <MapPin className="w-5 h-5 text-white drop-shadow-sm" />
-                    <span className="font-medium">{tour.location}</span>
+                    <span className="font-medium">{tour.destinations?.[0] ?? "—"}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Hash className="w-5 h-5 text-white drop-shadow-sm" />
@@ -613,17 +613,6 @@ export default function TourDetails({
                                     days
                                   </p>
                                 </div>
-                                {date.maxCapacity && (
-                                  <div className="text-right">
-                                    <p className="text-sm text-muted-foreground">
-                                      Capacity
-                                    </p>
-                                    <p className="font-medium text-foreground">
-                                      {date.currentBookings || 0}/
-                                      {date.maxCapacity}
-                                    </p>
-                                  </div>
-                                )}
                               </div>
                             </div>
                           );

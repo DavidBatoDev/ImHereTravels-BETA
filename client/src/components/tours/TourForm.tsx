@@ -1,239 +1,366 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+/**
+ * TourPageEditor — WYSIWYG inline editor that renders the tour page exactly as
+ * it appears on www (layout, typography, booking card, section order) with all
+ * content fields editable in place, WordPress-style.
+ */
+
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
-  FileText,
-  MapPin,
-  Clock,
-  Banknote,
-  Star,
-  Calendar,
-  Plus,
-  Minus,
-  Save,
-  Image as ImageIcon,
-  FolderOpen,
-  Upload,
-  X,
-  Globe,
-  CreditCard,
-  Package,
-  Plane,
-  CheckCircle,
-  AlertCircle,
-  Hash,
-  Users,
-  Copy,
+  Save, ArrowLeft, Plus, X, Minus, Upload, Image as ImageIcon,
+  Route, MapPin, Calendar, Clock, Hotel, ChevronDown, ChevronUp, ChevronLeft, ChevronRight,
+  Copy, AlertCircle, Globe, Settings, ExternalLink, Plane,
+  CheckCircle2, Utensils, Bus, Compass, HeartHandshake, Info,
+  HelpCircle, Download, Camera, Luggage, ShieldCheck, Sun, Users, Pencil,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
 import { Switch } from "@/components/ui/switch";
-import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
+import { useToast } from "@/hooks/use-toast";
 
+import { TourPackage, TourFormDataWithStringDates } from "@/types/tours";
 import {
-  TourPackage,
-  TourPackageFormData,
-  TourFormDataWithStringDates,
-  TravelDate,
-} from "@/types/tours";
-import TourDatePicker from "./TourDatePicker";
-import {
-  createBlobUrl,
-  revokeBlobUrl,
-  cleanupBlobUrls,
-  uploadAllBlobsToStorage,
-  generateImagePreview,
-  validateImageFile,
+  createBlobUrl, revokeBlobUrl, cleanupBlobUrls,
+  uploadAllBlobsToStorage, validateImageFile,
 } from "@/utils/blob-image";
-import { formatFileSize, generateSlug } from "@/utils";
+import { generateSlug } from "@/utils";
+import { updateTourMedia, cleanupRemovedGalleryImages } from "@/services/tours-service";
 import {
-  updateTourMedia,
-  cleanupRemovedGalleryImages,
-} from "@/services/tours-service";
-import { testSupabaseStorageConnection } from "@/utils/file-upload";
+  SortableList,
+  SortableItem,
+  DragHandle,
+  verticalListSortingStrategy,
+  horizontalListSortingStrategy,
+  rectSortingStrategy,
+} from "./dnd/SortableList";
+import TourDatePicker from "./TourDatePicker";
+import ImagePickerModal from "@/components/shared/ImagePickerModal";
+import TourSettingsPanel from "./TourSettingsPanel";
+import TravelDatesModal from "./TravelDatesModal";
 
-const toOptionalNumber = (value: unknown): number | undefined => {
-  if (value === "" || value === null || value === undefined) {
-    return undefined;
-  }
+// ─── Zod helpers ──────────────────────────────────────────────────────────────
 
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    if (!trimmed || trimmed === "." || trimmed === "-" || trimmed === "+") {
-      return undefined;
-    }
-  }
+const toOptionalNumber = (v: unknown): number | undefined => {
+  if (v === "" || v === null || v === undefined) return undefined;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+};
+const optNum = z.preprocess(toOptionalNumber, z.number().optional());
 
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : undefined;
+// Local paths like "/tours/slug/image.webp" are valid static assets on www but
+// can't load in the admin app. Resolve them against the www base URL.
+const WWW_BASE = "https://www.imheretravels.com";
+const resolveImg = (url: string | null | undefined): string => {
+  if (!url) return "";
+  if (url.startsWith("blob:") || url.startsWith("http")) return url;
+  if (url.startsWith("/")) return `${WWW_BASE}${url}`;
+  return url;
 };
 
-const optionalNumberSchema = z.preprocess(
-  toOptionalNumber,
-  z.number().optional(),
-);
-
-const toDateValue = (value: unknown): Date | null => {
-  if (!value) return null;
-
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? null : value;
-  }
-
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    "toDate" in value &&
-    typeof (value as { toDate?: unknown }).toDate === "function"
-  ) {
-    const date = (value as { toDate: () => Date }).toDate();
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    "seconds" in value &&
-    typeof (value as { seconds?: unknown }).seconds === "number"
-  ) {
-    return new Date((value as { seconds: number }).seconds * 1000);
-  }
-
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    "_seconds" in value &&
-    typeof (value as { _seconds?: unknown })._seconds === "number"
-  ) {
-    return new Date((value as { _seconds: number })._seconds * 1000);
-  }
-
-  if (typeof value === "string" || typeof value === "number") {
-    const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? null : date;
-  }
-
-  return null;
+const toDateValue = (v: unknown): Date | null => {
+  if (!v) return null;
+  if (v instanceof Date) return isNaN(v.getTime()) ? null : v;
+  if (typeof v === "object" && "_seconds" in (v as any)) return new Date((v as any)._seconds * 1000);
+  // firebase-admin serializes Timestamps as {seconds, nanoseconds} (no underscore)
+  if (typeof v === "object" && "seconds" in (v as any) && !("toDate" in (v as any))) return new Date((v as any).seconds * 1000);
+  if (typeof v === "object" && "toDate" in (v as any)) { const d = (v as any).toDate(); return isNaN(d.getTime()) ? null : d; }
+  const d = new Date(v as any);
+  return isNaN(d.getTime()) ? null : d;
 };
+const toIso = (v: unknown) => { const d = toDateValue(v); return d ? d.toISOString().split("T")[0] : ""; };
 
-const toIsoDateString = (value: unknown): string => {
-  const date = toDateValue(value);
-  return date ? date.toISOString().split("T")[0] : "";
-};
+// ─── Schema ───────────────────────────────────────────────────────────────────
 
-// Form validation schema
-const tourFormSchema = z.object({
-  name: z.string().min(3, "Tour name must be at least 3 characters"),
-  slug: z.string().min(3, "Slug must be at least 3 characters"),
-  url: z.string().url("Must be a valid URL").optional().or(z.literal("")),
-  tourCode: z.string().min(2, "Tour code must be at least 2 characters"),
-  description: z.string().min(10, "Description must be at least 10 characters"),
-  location: z.string().min(2, "Location is required"),
-  locationOther: z
-    .string()
-    .optional()
-    .or(z.literal("") as any),
-  duration: z.string().min(1, "Duration is required"),
-  travelDates: z
-    .array(
-      z.object({
-        startDate: z.string().min(1, "Start date is required"),
-        endDate: z.string().min(1, "End date is required"),
-        tourDays: optionalNumberSchema,
-        isAvailable: z.boolean(),
-        maxCapacity: optionalNumberSchema,
-        currentBookings: optionalNumberSchema,
-        hasCustomPricing: z.boolean().optional(),
-        customOriginal: optionalNumberSchema,
-        customDiscounted: optionalNumberSchema,
-        customDeposit: optionalNumberSchema,
-        hasCustomOriginal: z.boolean().optional(),
-        hasCustomDiscounted: z.boolean().optional(),
-        hasCustomDeposit: z.boolean().optional(),
-      }),
-    )
-    .min(1, "At least one travel date is required"),
+const schema = z.object({
+  name: z.string().min(1),
+  slug: z.string().min(1),
+  url: z.string().url().optional().or(z.literal("")),
+  tourCode: z.string().min(1),
+  description: z.string().min(1),
+  duration: z.string().min(1),
+  cardHeaderTitle: z.string(),
+  cardSubHeader: z.string(),
+  status: z.enum(["active", "draft", "archived"]),
+  comingSoon: z.boolean().default(false),
+  isHosted: z.boolean().default(false),
+  bookingSlug: z.string().optional().or(z.literal("")),
+  seo: z.object({ title: z.string().optional(), description: z.string().optional() }).optional(),
+  destinations: z.array(z.string()).optional(),
+  stripePaymentLink: z.string().url().optional().or(z.literal("")),
+  depositNote: z.string().optional().or(z.literal("")),
+  footnote: z.string().optional().or(z.literal("")),
+  brochureLink: z.string().url().optional().or(z.literal("")),
+  preDeparturePack: z.string().url().optional().or(z.literal("")),
   pricing: z.object({
-    original: z.preprocess(
-      toOptionalNumber,
-      z.number().min(1, "Original price must be greater than 0"),
-    ),
-    discounted: optionalNumberSchema,
-    deposit: z.preprocess(
-      toOptionalNumber,
-      z.number().min(1, "Deposit is required"),
-    ),
+    original: z.preprocess(toOptionalNumber, z.number().min(0.01)),
+    discounted: optNum,
+    deposit: z.preprocess(toOptionalNumber, z.number().min(0.01)),
     currency: z.enum(["USD", "EUR", "GBP"]),
   }),
+  travelDates: z.array(z.object({
+    // Allow blank rows; incomplete dates are dropped server-side rather than
+    // blocking the save. A tour with no valid dates renders "To be announced".
+    startDate: z.string(),
+    endDate: z.string(),
+    tourDays: optNum,
+    isAvailable: z.boolean(),
+    hasCustomPricing: z.boolean().optional(),
+    customOriginal: optNum,
+    customDiscounted: optNum,
+    customDeposit: optNum,
+    hasCustomOriginal: z.boolean().optional(),
+    hasCustomDiscounted: z.boolean().optional(),
+    hasCustomDeposit: z.boolean().optional(),
+  })),
   details: z.object({
-    highlights: z.array(
-      z.union([
-        z.string().min(1, "Highlight cannot be empty"),
-        z.object({
-          text: z.string().min(1, "Highlight text cannot be empty"),
-          image: z.string().optional(),
-        }),
-      ]),
-    ),
-    itinerary: z.array(
-      z.object({
-        day: z.number(),
-        title: z.string().min(1, "Day title is required"),
-        description: z.string().min(1, "Day description is required"),
-      }),
-    ),
+    highlights: z.array(z.object({
+      text: z.string(),
+      image: z.string().optional(),
+      subtitle: z.string().optional(),
+    })),
+    itinerary: z.array(z.object({
+      day: z.number(),
+      title: z.string(),
+      description: z.string(),
+      image: z.string().optional(),
+      accommodation: z.string().optional(),
+      activities: z.string().optional(),
+      meals: z.string().optional(),
+      details: z.array(z.object({ icon: z.string(), label: z.string(), value: z.string() })).optional(),
+    })),
     requirements: z.array(z.string()),
+    keyFacts: z.array(z.object({ icon: z.string(), label: z.string(), values: z.array(z.string()) })).optional(),
+    tags: z.array(z.object({ label: z.string(), icon: z.string() })).optional(),
+    inclusions: z.array(z.object({ icon: z.string().optional(), label: z.string(), value: z.union([z.string(), z.array(z.string())]) })).optional(),
+    accommodations: z.array(z.object({ image: z.string(), name: z.string(), nights: z.string() })).optional(),
+    faqs: z.array(z.object({ question: z.string(), answer: z.string() })).optional(),
+    thingsToKnow: z.array(z.object({ icon: z.string().optional(), title: z.string(), description: z.string(), ctaLabel: z.string(), ctaHref: z.string() })).optional(),
+    tips: z.array(z.object({ icon: z.string().optional(), title: z.string(), description: z.string() })).optional(),
+    map: z.object({ image: z.string().optional(), embedUrl: z.string().optional() }).optional(),
   }),
-  status: z.enum(["active", "draft", "archived"]),
-  brochureLink: z
-    .string()
-    .url("Must be a valid URL")
-    .optional()
-    .or(z.literal("")),
-  stripePaymentLink: z
-    .string()
-    .url("Must be a valid URL")
-    .optional()
-    .or(z.literal("")),
-  preDeparturePack: z
-    .string()
-    .url("Must be a valid URL")
-    .optional()
-    .or(z.literal("")),
 });
 
-type TourFormData = z.infer<typeof tourFormSchema>;
+// ─── Icon map (matches www's Icon.tsx) ───────────────────────────────────────
+
+const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number | string }>> = {
+  days: Calendar, route: Route, people: Users, transport: Bus, airport: Plane,
+  accommodation: Hotel, activities: Compass, meals: Utensils, team: HeartHandshake,
+  plus: CheckCircle2, location: MapPin, info: Info, faq: HelpCircle, download: Download,
+  instagram: Camera, luggage: Luggage, shield: ShieldCheck, sun: Sun, handshake: HeartHandshake,
+};
+
+// Tag palette — solid bg colours matching www TourHeader exactly
+const TAG_PALETTE = [
+  "bg-spring-green text-midnight",
+  "bg-vivid-orange text-midnight",
+  "bg-sunglow-yellow text-midnight",
+  "bg-light-purple text-midnight",
+];
+
+const CURRENCY_SYM: Record<string, string> = { USD: "$", EUR: "€", GBP: "£" };
+const ALL_ICONS = Object.keys(ICON_COMPONENTS);
+
+
+// ─── Inline editing primitives ────────────────────────────────────────────────
+
+/** Input that shrinks/grows to exactly its content width.
+ *  A hidden sibling <span> with the same text drives the layout width;
+ *  the real <input> is absolutely positioned on top of it. */
+function AutoSizeInput({
+  value, onChange, placeholder, className = "", compact = false,
+}: { value: string; onChange: (v: string) => void; placeholder?: string; className?: string; compact?: boolean }) {
+  const [local, setLocal] = useState(value);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current !== document.activeElement) setLocal(value);
+  }, [value]);
+  const pad = compact ? "" : "px-1";
+  return (
+    <span className="relative inline-flex min-w-[2ch]">
+      {/* Invisible sizer — same font + text as the input */}
+      <span className={`invisible whitespace-pre pointer-events-none select-none ${pad} ${className}`} aria-hidden>
+        {local || placeholder || " "}
+      </span>
+      <input
+        ref={ref}
+        type="text"
+        value={local}
+        onChange={(e) => {
+          const v = e.target.value;
+          setLocal(v);
+          clearTimeout(timer.current);
+          timer.current = setTimeout(() => onChange(v), 300);
+        }}
+        onBlur={(e) => { clearTimeout(timer.current); onChange(e.target.value); }}
+        placeholder={placeholder}
+        className={`absolute inset-0 w-full bg-transparent border-none outline-none
+          hover:ring-2 hover:ring-crimson-red/20 focus:ring-2 focus:ring-crimson-red/40
+          transition-shadow placeholder:text-dark-gray/30 rounded-sm ${pad} ${className}`}
+      />
+    </span>
+  );
+}
+
+/** An input that looks like the rendered content. Local state gives instant display;
+ *  debounced onChange batches RHF updates to at most once per 300 ms burst. */
+function InlineInput({
+  value, onChange, placeholder, className = "",
+}: { value: string; onChange: (v: string) => void; placeholder?: string; className?: string }) {
+  const [local, setLocal] = useState(value);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const ref = useRef<HTMLInputElement>(null);
+  // Keep in sync when the same field is edited elsewhere, unless focused here.
+  useEffect(() => {
+    if (ref.current !== document.activeElement) setLocal(value);
+  }, [value]);
+  return (
+    <input
+      ref={ref}
+      type="text"
+      value={local}
+      onChange={(e) => {
+        const v = e.target.value;
+        setLocal(v);
+        clearTimeout(timer.current);
+        timer.current = setTimeout(() => onChange(v), 300);
+      }}
+      onBlur={(e) => { clearTimeout(timer.current); onChange(e.target.value); }}
+      placeholder={placeholder}
+      className={`bg-transparent border-none outline-none w-full px-1 -mx-1 rounded-sm
+        hover:ring-2 hover:ring-crimson-red/20 focus:ring-2 focus:ring-crimson-red/40 transition-shadow
+        placeholder:text-dark-gray/30 ${className}`}
+    />
+  );
+}
+
+/** Auto-growing textarea. Same local-state + debounce pattern as InlineInput. */
+function InlineTextarea({
+  value, onChange, placeholder, className = "",
+}: { value: string; onChange: (v: string) => void; placeholder?: string; className?: string }) {
+  const [local, setLocal] = useState(value);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (ref.current) { ref.current.style.height = "auto"; ref.current.style.height = ref.current.scrollHeight + "px"; }
+  }, [local]);
+  // Keep in sync when the same field is edited elsewhere, unless focused here.
+  useEffect(() => {
+    if (ref.current !== document.activeElement) setLocal(value);
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      value={local}
+      onChange={(e) => {
+        const v = e.target.value;
+        setLocal(v);
+        clearTimeout(timer.current);
+        timer.current = setTimeout(() => onChange(v), 300);
+      }}
+      onBlur={(e) => { clearTimeout(timer.current); onChange(e.target.value); }}
+      placeholder={placeholder}
+      rows={1}
+      className={`bg-transparent border-none outline-none resize-none overflow-hidden w-full px-1 -mx-1 rounded-sm
+        hover:ring-2 hover:ring-crimson-red/20 focus:ring-2 focus:ring-crimson-red/40 transition-shadow
+        placeholder:text-dark-gray/30 ${className}`}
+    />
+  );
+}
+
+/**
+ * Renders `- item` lines as visual bullet points when idle; switches to a raw
+ * textarea on click so the user can edit the `- ` prefix syntax directly.
+ */
+function InlineBulletTextarea({
+  value, onChange, placeholder, className = "",
+}: { value: string; onChange: (v: string) => void; placeholder?: string; className?: string }) {
+  const [editing, setEditing] = useState(false);
+  const [local, setLocal] = useState(value);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const ref = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (editing && ref.current) {
+      ref.current.focus();
+      ref.current.style.height = "auto";
+      ref.current.style.height = ref.current.scrollHeight + "px";
+    }
+  }, [editing]);
+
+  if (editing) {
+    return (
+      <textarea
+        ref={ref}
+        value={local}
+        onChange={(e) => {
+          const v = e.target.value;
+          setLocal(v);
+          clearTimeout(timer.current);
+          timer.current = setTimeout(() => onChange(v), 300);
+          if (ref.current) { ref.current.style.height = "auto"; ref.current.style.height = ref.current.scrollHeight + "px"; }
+        }}
+        onBlur={() => { clearTimeout(timer.current); onChange(local); setEditing(false); }}
+        rows={1}
+        placeholder={placeholder}
+        className={`bg-transparent border-none outline-none resize-none overflow-hidden w-full px-1 -mx-1 rounded-sm
+          ring-2 ring-crimson-red/40 transition-shadow placeholder:text-dark-gray/30 ${className}`}
+      />
+    );
+  }
+
+  const lines = local ? local.split("\n").filter(Boolean) : [];
+  if (!lines.length) {
+    return (
+      <p onClick={() => setEditing(true)}
+        className={`cursor-text px-1 -mx-1 rounded-sm text-dark-gray/30 hover:ring-2 hover:ring-crimson-red/20 transition-shadow ${className}`}>
+        {placeholder}
+      </p>
+    );
+  }
+
+  return (
+    <div onClick={() => setEditing(true)}
+      className={`cursor-text px-1 -mx-1 rounded-sm hover:ring-2 hover:ring-crimson-red/20 transition-shadow ${className}`}>
+      {lines.map((line, i) => {
+        const isBullet = line.trimStart().startsWith("- ");
+        const text = isBullet ? line.trimStart().slice(2) : line;
+        return isBullet ? (
+          <ul key={i} className="list-disc pl-4 marker:text-dark-gray"><li>{text}</li></ul>
+        ) : (
+          <p key={i}>{text}</p>
+        );
+      })}
+    </div>
+  );
+}
+
+/** "Edit me" wrapper — shows a dashed outline on hover to indicate editability */
+function EditZone({ children, label, className = "" }: { children: React.ReactNode; label?: string; className?: string }) {
+  return (
+    <div className={`relative group/zone ${className}`}>
+      {label && (
+        <span className="absolute -top-5 left-0 text-[10px] font-body font-bold text-crimson-red uppercase tracking-widest opacity-0 group-hover/zone:opacity-100 transition-opacity pointer-events-none select-none">
+          {label}
+        </span>
+      )}
+      <div className="rounded-sm group-hover/zone:ring-2 group-hover/zone:ring-crimson-red/20 transition-shadow">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ─── Props ────────────────────────────────────────────────────────────────────
 
 interface TourFormProps {
   onClose: () => void;
@@ -242,3092 +369,1225 @@ interface TourFormProps {
   isLoading?: boolean;
 }
 
-export default function TourForm({
-  onClose,
-  onSubmit,
-  tour,
-  isLoading = false,
-}: TourFormProps) {
-  // Section navigation state
-  const [activeSection, setActiveSection] = useState<string>("");
-  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
-  const isScrollingProgrammatically = React.useRef(false);
+// ─── Main Component ───────────────────────────────────────────────────────────
 
-  // Define sections for navigation
-  const sections = [
-    { id: "cover-image", title: "Cover Image", icon: ImageIcon },
-    { id: "basic-info", title: "Basic Information", icon: FileText },
-    { id: "travel-dates", title: "Tour Dates", icon: Calendar },
-    { id: "pricing", title: "Pricing", icon: Banknote },
-    { id: "external-links", title: "External Links", icon: FolderOpen },
-    { id: "highlights", title: "Highlights", icon: Star },
-    { id: "itinerary", title: "Itinerary", icon: Plane },
-    { id: "requirements", title: "Requirements", icon: AlertCircle },
-    { id: "gallery", title: "Gallery Images", icon: FolderOpen },
-  ];
-
-  const presetLocations = [
-    "Philippines",
-    "Maldives",
-    "Sri Lanka",
-    "Argentina",
-    "Brazil",
-    "Vietnam",
-    "India",
-    "Tanzania",
-    "New Zealand",
-    "Ecuador",
-    "Galapagos",
-    "Amazon",
-    "Andes",
-    "Coast",
-    "Other",
-  ];
-
-  // Scroll to a specific section
-  const scrollToSection = (sectionId: string) => {
-    const element = document.getElementById(`section-${sectionId}`);
-    if (element) {
-      isScrollingProgrammatically.current = true;
-      setActiveSection(sectionId);
-      element.scrollIntoView({ behavior: "smooth", block: "start" });
-      setTimeout(() => {
-        isScrollingProgrammatically.current = false;
-      }, 1000);
-    }
-  };
-
-  // Track active section on window scroll
-  useEffect(() => {
-    const handleScroll = () => {
-      if (isScrollingProgrammatically.current) return;
-      if (!scrollContainerRef.current) return;
-
-      const sectionEls =
-        scrollContainerRef.current.querySelectorAll('[id^="section-"]');
-      if (sectionEls.length === 0) return;
-
-      const scrollTop = window.scrollY;
-      const scrollHeight = document.documentElement.scrollHeight;
-      const clientHeight = window.innerHeight;
-      const headerHeight = 160;
-
-      const isAtBottom = Math.abs(scrollHeight - scrollTop - clientHeight) < 10;
-      const isAtTop = scrollTop < 10;
-
-      let mostVisibleSection = "";
-      let maxVisibleArea = 0;
-
-      sectionEls.forEach((section, index) => {
-        const rect = section.getBoundingClientRect();
-
-        if (isAtBottom && index === sectionEls.length - 1) {
-          mostVisibleSection = section.id.replace("section-", "");
-          maxVisibleArea = 1000;
-          return;
-        }
-
-        if (isAtTop && index === 0) {
-          mostVisibleSection = section.id.replace("section-", "");
-          maxVisibleArea = 1000;
-          return;
-        }
-
-        const visibleTop = Math.max(rect.top, headerHeight);
-        const visibleBottom = Math.min(rect.bottom, clientHeight);
-        const visibleHeight = Math.max(0, visibleBottom - visibleTop);
-
-        if (visibleHeight > maxVisibleArea) {
-          maxVisibleArea = visibleHeight;
-          mostVisibleSection = section.id.replace("section-", "");
-        }
-      });
-
-      if (mostVisibleSection && mostVisibleSection !== activeSection) {
-        setActiveSection(mostVisibleSection);
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    setTimeout(handleScroll, 100);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, [activeSection]);
-
-  // Set first section as active on load and initialize scroll tracking
-  useEffect(() => {
-    if (sections.length > 0) {
-      // Set first section as active
-      if (!activeSection) {
-        setActiveSection(sections[0].id);
-      }
-
-      // Trigger initial active section detection after DOM is ready
-      const initializeScrollTracking = () => {
-        const runDetection = () => {
-          if (!scrollContainerRef.current) return;
-          const sectionEls =
-            scrollContainerRef.current.querySelectorAll('[id^="section-"]');
-          if (sectionEls.length === 0) return;
-          const firstVisible = sectionEls[0];
-          if (firstVisible) {
-            setActiveSection(firstVisible.id.replace("section-", ""));
-          }
-        };
-        setTimeout(runDetection, 100);
-        setTimeout(runDetection, 300);
-      };
-
-      // Use requestAnimationFrame to ensure DOM is ready
-      requestAnimationFrame(() => {
-        setTimeout(initializeScrollTracking, 100);
-      });
-    }
-  }, [activeSection]);
-
-  console.log("TourForm rendered with props:", {
-    tour: tour?.id,
-    isLoading,
-  });
-
+export default function TourForm({ onClose, onSubmit, tour, isLoading = false }: TourFormProps) {
+  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedCover, setUploadedCover] = useState<string | null>(null);
   const [uploadedGallery, setUploadedGallery] = useState<string[]>([]);
-  // For new tours: store actual File objects as blobs
   const [coverBlob, setCoverBlob] = useState<File | null>(null);
   const [galleryBlobs, setGalleryBlobs] = useState<File[]>([]);
-  // Track original gallery for cleanup when updating
   const [originalGallery, setOriginalGallery] = useState<string[]>([]);
-  // Cover image toggle state
-  const [useCoverUrl, setUseCoverUrl] = useState(false);
-  const [coverImageUrl, setCoverImageUrl] = useState("");
-  const { toast } = useToast();
+  const [panelOpen, setPanelOpen] = useState(false);
+  const [datesModalOpen, setDatesModalOpen] = useState(false);
+  const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set([0]));
+  const [expandedFaqs, setExpandedFaqs] = useState<Set<number>>(new Set());
+  const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
 
-  // Helper: compute duration between start/end in days
-  const calculateDurationDays = (
-    start?: string,
-    end?: string,
-  ): number | null => {
-    if (!start || !end) return null;
-    const s = new Date(start);
-    const e = new Date(end);
-    if (isNaN(s.getTime()) || isNaN(e.getTime())) return null;
-    const diffDays = Math.round(
-      (e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24),
-    );
-    return diffDays > 0 ? diffDays : null;
-  };
+  // Image picker modal state
+  type PickerField =
+    | "cover"
+    | "gallery-add"
+    | `gallery-edit-${number}`
+    | `highlight-${number}`
+    | `accommodation-${number}`
+    | `itinerary-${number}`;
+  const [pickerState, setPickerState] = useState<{
+    field: PickerField;
+    initialUrl?: string;
+    multiple?: boolean;
+  } | null>(null);
 
-  const handleNumberWheel = (event: React.WheelEvent<HTMLInputElement>) => {
-    event.currentTarget.blur();
-  };
-
-  const numberToInputValue = (value: unknown): string => {
-    return value === undefined || value === null ? "" : String(value);
-  };
-
-  const isValidIntegerInput = (value: string): boolean => {
-    return /^\d*$/.test(value);
-  };
-
-  const isValidDecimalInput = (value: string): boolean => {
-    return /^\d*\.?\d*$/.test(value);
-  };
-
-  const handleIntegerInputChange = (
-    value: string,
-    onChange: (value: string | undefined) => void,
-  ): void => {
-    if (!isValidIntegerInput(value)) {
-      return;
-    }
-
-    onChange(value === "" ? undefined : value);
-  };
-
-  const handleDecimalInputChange = (
-    value: string,
-    onChange: (value: string | undefined) => void,
-  ): void => {
-    if (!isValidDecimalInput(value)) {
-      return;
-    }
-
-    onChange(value === "" ? undefined : value);
-  };
+  const hlScrollRef = useRef<HTMLDivElement>(null);
+  const accomScrollRef = useRef<HTMLDivElement>(null);
+  // Incremented when a tour loads so all InlineInput/InlineTextarea instances remount
+  // with fresh initial values (replaces the removed useEffect sync in each primitive).
+  const [editorKey, setEditorKey] = useState(0);
 
   const form = useForm<any>({
-    resolver: zodResolver(tourFormSchema),
+    resolver: zodResolver(schema),
     defaultValues: {
-      name: "",
-      slug: "",
-      url: "",
-      tourCode: "",
-      description: "",
-      location: "",
-      locationOther: "",
-      duration: "1 days",
-      travelDates: [
-        {
-          startDate: "",
-          endDate: "",
-          isAvailable: true,
-          maxCapacity: undefined,
-          currentBookings: undefined,
-          hasCustomPricing: false,
-          customOriginal: undefined,
-          customDiscounted: undefined,
-          customDeposit: undefined,
-          hasCustomOriginal: false,
-          hasCustomDiscounted: false,
-          hasCustomDeposit: false,
-        },
-      ],
-      pricing: {
-        original: undefined,
-        discounted: undefined,
-        deposit: undefined,
-        currency: "USD",
-      },
+      name: "", slug: "", url: "", tourCode: "", description: "",
+      duration: "1 days", cardHeaderTitle: "11 Day Tour", cardSubHeader: "Destination", status: "draft",
+      comingSoon: false, isHosted: false, bookingSlug: "", seo: { title: "", description: "" },
+      destinations: [],
+      stripePaymentLink: "", depositNote: "", footnote: "",
+      brochureLink: "", preDeparturePack: "",
+      pricing: { original: undefined, discounted: undefined, deposit: undefined, currency: "GBP" },
+      travelDates: [{ startDate: "", endDate: "", isAvailable: true, hasCustomPricing: false,
+        customOriginal: undefined, customDiscounted: undefined, customDeposit: undefined,
+        hasCustomOriginal: false, hasCustomDiscounted: false, hasCustomDeposit: false }],
       details: {
-        highlights: [""],
-        itinerary: [{ day: 1, title: "", description: "" }],
+        highlights: [{ text: "", image: undefined, subtitle: undefined }],
+        itinerary: [{ day: 1, title: "", description: "", image: undefined, accommodation: undefined, activities: undefined, meals: undefined, details: [] }],
         requirements: [""],
+        keyFacts: [], tags: [], inclusions: [], accommodations: [], faqs: [],
+        thingsToKnow: [], tips: [], map: { image: "", embedUrl: "" },
       },
-      status: "draft",
-      brochureLink: "",
-      stripePaymentLink: "",
-      preDeparturePack: "",
     },
   });
 
-  const {
-    fields: highlightFields,
-    append: appendHighlight,
-    remove: removeHighlight,
-  } = useFieldArray({
-    control: form.control,
-    name: "details.highlights" as any,
-  });
+  const w = form.watch;
+  const sv = (n: string, v: any) => form.setValue(n as any, v);
+  const gv = (n: string) => form.getValues(n as any);
 
-  const {
-    fields: itineraryFields,
-    append: appendItinerary,
-    remove: removeItinerary,
-  } = useFieldArray({
-    control: form.control,
-    name: "details.itinerary",
-  });
+  // Field arrays
+  const { fields: tagFields, append: addTag, remove: rmTag, move: moveTag } = useFieldArray({ control: form.control, name: "details.tags" });
+  const { fields: inclFields, append: addIncl, remove: rmIncl, move: moveIncl } = useFieldArray({ control: form.control, name: "details.inclusions" });
+  const { fields: hlFields, append: addHl, remove: rmHl, move: moveHl } = useFieldArray({ control: form.control, name: "details.highlights" as any });
+  const { fields: iterFields, append: addIter, remove: rmIter, move: moveIter } = useFieldArray({ control: form.control, name: "details.itinerary" });
+  const { fields: accomFields, append: addAccom, remove: rmAccom, move: moveAccom } = useFieldArray({ control: form.control, name: "details.accommodations" });
+  const { fields: faqFields, append: addFaq, remove: rmFaq, move: moveFaq } = useFieldArray({ control: form.control, name: "details.faqs" });
+  const { fields: ttkFields, append: addTtk, remove: rmTtk, move: moveTtk } = useFieldArray({ control: form.control, name: "details.thingsToKnow" });
+  const { fields: tipFields, append: addTip, remove: rmTip, move: moveTip } = useFieldArray({ control: form.control, name: "details.tips" });
+  const { fields: reqFields, append: addReq, remove: rmReq } = useFieldArray({ control: form.control, name: "details.requirements" as any });
+  const { fields: dateFields, append: addDate, remove: rmDate } = useFieldArray({ control: form.control, name: "travelDates" });
+  const { fields: kfFields, append: addKf, remove: rmKf, move: moveKf } = useFieldArray({ control: form.control, name: "details.keyFacts" as any });
 
-  const {
-    fields: requirementFields,
-    append: appendRequirement,
-    remove: removeRequirement,
-  } = useFieldArray({
-    control: form.control,
-    name: "details.requirements" as any,
-  });
+  // Watched values — only fields used for conditional rendering, computed values, or structural display
+  const name = w("name") as string;          // toolbar display + slug auto-gen
+  const slug = (w("slug") as string) || (tour?.slug ?? "");
+  const duration = w("duration") as string;  // durationLabel computed value
+  const cardHeaderTitle = w("cardHeaderTitle") as string;
+  const cardSubHeader = w("cardSubHeader") as string;
+  const pricing = w("pricing");              // booking card live preview
+  const tags = w("details.tags") as Array<{ label: string; icon: string }> | undefined;
+  const inclusions = w("details.inclusions") as any[] | undefined;
+  const highlights = w("details.highlights") as any[] | undefined;
+  const itinerary = w("details.itinerary") as any[] | undefined;
+  const accoms = w("details.accommodations") as any[] | undefined;
+  const faqs = w("details.faqs") as any[] | undefined;
+  const ttks = w("details.thingsToKnow") as any[] | undefined;
+  const tips = w("details.tips") as any[] | undefined;
+  const kfData = w("details.keyFacts") as Array<{ icon: string; label: string; values: string[] }> | undefined;
+  const travelDates = w("travelDates") as any[] | undefined; // Tour Dates key-fact display
+  const mapData = w("details.map") as any;   // conditional render of map section
+  const status = w("status") as string;      // conditional section rendering
 
-  const {
-    fields: travelDateFields,
-    append: appendTravelDate,
-    remove: removeTravelDate,
-  } = useFieldArray({
-    control: form.control,
-    name: "travelDates",
-  });
+  // Memoised computed values — only recalculate when their inputs change
+  const sym = useMemo(() => CURRENCY_SYM[pricing?.currency ?? "GBP"] ?? "£", [pricing?.currency]);
+  const displayPrice = useMemo(() => pricing?.discounted
+    ? `${sym}${Number(pricing.discounted).toLocaleString()}`
+    : pricing?.original
+    ? `${sym}${Number(pricing.original).toLocaleString()}`
+    : `${sym}—`, [pricing, sym]);
+  const depositAmt = useMemo(() => pricing?.deposit ? `${sym}${Number(pricing.deposit).toLocaleString()}` : null, [pricing, sym]);
+  const durationLabel = useMemo(() => duration
+    ? duration.replace(/\b(\d+)\s+days?\b/gi, "$1 Day Tour")
+    : "", [duration]);
 
-  // Helper function to handle null values in form fields
-  const handleNullValue = (value: string | null | undefined): string => {
-    return value === null || value === undefined ? "" : value;
-  };
+  // Derived "Tour Dates" key fact — available date ranges formatted like www.
+  // Computed inline (not memoised): react-hook-form mutates the travelDates
+  // array in place, so a [travelDates]-keyed memo would go stale on edits.
+  // `toDateValue` handles ISO strings, Timestamps, and Date objects alike.
+  const dateRangeFmt = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const tourDateValues = (travelDates ?? [])
+    .filter((d) => d?.isAvailable !== false)
+    .map((d) => {
+      const ds = toDateValue(d?.startDate);
+      const de = toDateValue(d?.endDate);
+      return ds && de ? `${dateRangeFmt.format(ds)} – ${dateRangeFmt.format(de)}` : null;
+    })
+    .filter(Boolean) as string[];
 
-  // Helper function to format date as "mmm dd, yyyy"
-  const formatDateDisplay = (isoDate: string): string => {
-    if (!isoDate) return "";
-    const date = new Date(isoDate + "T00:00:00");
-    return date.toLocaleDateString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-    });
-  };
+  // Auto-slug
+  useEffect(() => { if (name && !tour) sv("slug", generateSlug(name)); }, [name]);
 
-  // Reset form when tour prop changes
+  // Populate from existing tour
   useEffect(() => {
-    console.log("Form reset effect triggered, tour:", tour?.id || "new tour");
-
     if (tour) {
-      console.log("Resetting form with existing tour data:", {
-        name: tour.name,
-        slug: tour.slug,
-        status: tour.status,
-        media: tour.media,
-      });
-
-      // Convert Timestamps to string dates for form
       const travelDates = tour.travelDates?.map((td) => {
-        const startDate = toIsoDateString(td.startDate);
-        const endDate = toIsoDateString(td.endDate);
+        const s = toIso(td.startDate), e = toIso(td.endDate);
+        let days = td.tourDays;
+        if (!days && s && e) days = Math.ceil((new Date(e).getTime() - new Date(s).getTime()) / 86400000) + 1;
+        return { startDate: s, endDate: e, tourDays: days, isAvailable: td.isAvailable,
+          hasCustomPricing: !!(td.customOriginal ?? td.customDiscounted ?? td.customDeposit),
+          customOriginal: td.customOriginal, customDiscounted: td.customDiscounted, customDeposit: td.customDeposit,
+          hasCustomOriginal: td.hasCustomOriginal ?? td.customOriginal !== undefined,
+          hasCustomDiscounted: td.hasCustomDiscounted ?? td.customDiscounted !== undefined,
+          hasCustomDeposit: td.hasCustomDeposit ?? td.customDeposit !== undefined };
+      }) ?? [{ startDate: "", endDate: "", isAvailable: true, hasCustomPricing: false,
+               customOriginal: undefined, customDiscounted: undefined, customDeposit: undefined,
+               hasCustomOriginal: false, hasCustomDiscounted: false, hasCustomDeposit: false }];
 
-        // Calculate tourDays if not present
-        let tourDays = td.tourDays;
-        if (!tourDays && startDate && endDate) {
-          const start = new Date(startDate);
-          const end = new Date(endDate);
-          const diffTime = Math.abs(end.getTime() - start.getTime());
-          tourDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // +1 to include both start and end day
-        }
+      const highlights = (tour.details?.highlights?.filter(Boolean) ?? [{ text: "", image: undefined, subtitle: undefined }]).map((h: any) =>
+        typeof h === "string" ? { text: h, image: undefined, subtitle: undefined }
+          : { text: h.text ?? "", image: h.image, subtitle: h.subtitle });
 
-        return {
-          startDate,
-          endDate,
-          tourDays,
-          isAvailable: td.isAvailable,
-          maxCapacity: td.maxCapacity ?? undefined,
-          currentBookings: td.currentBookings ?? undefined,
-          hasCustomPricing:
-            td.customOriginal !== undefined ||
-            td.customDiscounted !== undefined ||
-            td.customDeposit !== undefined
-              ? true
-              : false,
-          customOriginal: td.customOriginal,
-          customDiscounted: td.customDiscounted,
-          customDeposit: td.customDeposit,
-          hasCustomOriginal:
-            td.hasCustomOriginal ?? td.customOriginal !== undefined,
-          hasCustomDiscounted:
-            td.hasCustomDiscounted ?? td.customDiscounted !== undefined,
-          hasCustomDeposit:
-            td.hasCustomDeposit ?? td.customDeposit !== undefined,
-        };
-      }) || [
-        {
-          startDate: "",
-          endDate: "",
-          isAvailable: true,
-          maxCapacity: undefined,
-          currentBookings: undefined,
-          hasCustomPricing: false,
-          customOriginal: undefined,
-          customDiscounted: undefined,
-          customDeposit: undefined,
-          hasCustomOriginal: false,
-          hasCustomDiscounted: false,
-          hasCustomDeposit: false,
-        },
-      ];
+      const itinerary = (tour.details?.itinerary?.filter(Boolean) ?? [{ day: 1, title: "", description: "" }]).map((d: any) => ({
+        day: d.day, title: d.title ?? "", description: d.description ?? "",
+        image: d.image, accommodation: d.accommodation, activities: d.activities, meals: d.meals,
+        details: d.details ?? [] }));
 
+      const d = tour.details as any;
       form.reset({
-        name: tour.name || "",
-        slug: tour.slug || "",
-        url: handleNullValue(tour.url),
-        tourCode: handleNullValue(tour.tourCode),
-        description: tour.description || "",
-        location:
-          tour.location && presetLocations.includes(tour.location)
-            ? tour.location
-            : tour.location
-              ? "Other"
-              : "",
-        locationOther:
-          tour.location && !presetLocations.includes(tour.location)
-            ? tour.location
-            : "",
+        name: tour.name || "", slug: tour.slug || "", url: tour.url ?? "",
+        tourCode: tour.tourCode || "", description: tour.description || "",
         duration: tour.duration || "1 days",
-        travelDates: travelDates,
-        pricing: tour.pricing
-          ? {
-              original: tour.pricing.original ?? undefined,
-              discounted: tour.pricing.discounted ?? undefined,
-              deposit: tour.pricing.deposit ?? undefined,
-              currency: tour.pricing.currency || "USD",
-            }
-          : {
-              original: undefined,
-              discounted: undefined,
-              deposit: undefined,
-              currency: "USD",
-            },
-        details: tour.details
-          ? {
-              highlights: tour.details.highlights?.filter(
-                (h) => h !== null,
-              ) || [""],
-              itinerary: tour.details.itinerary?.filter((i) => i !== null) || [
-                { day: 1, title: "", description: "" },
-              ],
-              requirements: tour.details.requirements?.filter(
-                (r) => r !== null,
-              ) || [""],
-            }
-          : {
-              highlights: [""],
-              itinerary: [{ day: 1, title: "", description: "" }],
-              requirements: [""],
-            },
+        cardHeaderTitle: (tour as any).cardHeaderTitle ?? (tour.duration ? tour.duration.replace(/\b(\d+)\s+days?\b/gi, "$1 Day Tour") : ""),
+        cardSubHeader: (tour as any).cardSubHeader ?? (tour as any).destinations?.[0] ?? "",
         status: tour.status || "draft",
-        brochureLink: handleNullValue(tour.brochureLink),
-        stripePaymentLink: handleNullValue(tour.stripePaymentLink),
-        preDeparturePack: handleNullValue(tour.preDeparturePack),
+        comingSoon: (tour as any).comingSoon ?? false, isHosted: (tour as any).isHosted ?? false, bookingSlug: (tour as any).bookingSlug ?? "",
+        seo: (tour as any).seo ?? { title: "", description: "" },
+        destinations: (tour as any).destinations ?? [],
+        stripePaymentLink: tour.stripePaymentLink ?? "", depositNote: (tour as any).depositNote ?? "",
+        footnote: (tour as any).footnote ?? "", brochureLink: tour.brochureLink ?? "",
+        preDeparturePack: tour.preDeparturePack ?? "",
+        pricing: tour.pricing ? {
+          original: tour.pricing.original ?? undefined, discounted: tour.pricing.discounted ?? undefined,
+          deposit: tour.pricing.deposit ?? undefined, currency: tour.pricing.currency || "GBP",
+        } : { original: undefined, discounted: undefined, deposit: undefined, currency: "GBP" },
+        travelDates,
+        details: {
+          highlights, itinerary,
+          requirements: tour.details?.requirements?.filter(Boolean) ?? [""],
+          keyFacts: d?.keyFacts ?? [], tags: d?.tags ?? [], inclusions: d?.inclusions ?? [],
+          accommodations: d?.accommodations ?? [], faqs: d?.faqs ?? [],
+          thingsToKnow: d?.thingsToKnow ?? [], tips: d?.tips ?? [],
+          map: d?.map ?? { image: "", embedUrl: "" },
+        },
       });
-
-      // Initialize uploaded images from existing tour
       setUploadedCover(tour.media?.coverImage || null);
       setUploadedGallery(tour.media?.gallery || []);
-      // Store original gallery for cleanup comparison
       setOriginalGallery(tour.media?.gallery || []);
-      // Clear blobs for existing tours (they use direct uploads)
-      setCoverBlob(null);
-      setGalleryBlobs([]);
-      // Initialize cover image URL state
-      setUseCoverUrl(false);
-      setCoverImageUrl("");
-    } else {
-      console.log("Resetting form for new tour");
-
-      form.reset({
-        name: "",
-        slug: "",
-        url: "",
-        tourCode: "",
-        description: "",
-        location: "",
-        locationOther: "",
-        duration: "1 days",
-        travelDates: [
-          {
-            startDate: "",
-            endDate: "",
-            isAvailable: true,
-            maxCapacity: undefined,
-            currentBookings: undefined,
-          },
-        ],
-        pricing: {
-          original: undefined,
-          discounted: undefined,
-          deposit: undefined,
-          currency: "USD",
-        },
-        details: {
-          highlights: [""],
-          itinerary: [{ day: 1, title: "", description: "" }],
-          requirements: [""],
-        },
-        status: "draft",
-        brochureLink: "",
-        stripePaymentLink: "",
-        preDeparturePack: "",
-      });
-
-      // Reset uploaded images for new tour
-      setUploadedCover(null);
-      setUploadedGallery([]);
-      // Reset original gallery for new tours
-      setOriginalGallery([]);
-      // Reset blobs for new tours
-      setCoverBlob(null);
-      setGalleryBlobs([]);
-      // Reset cover image URL state for new tours
-      setUseCoverUrl(false);
-      setCoverImageUrl("");
+      setCoverBlob(null); setGalleryBlobs([]);
+      setEditorKey(k => k + 1); // remount all InlineInput/InlineTextarea with fresh values
     }
   }, [tour, form]);
 
-  // Auto-generate slug from name
-  const watchedName = form.watch("name");
-  useEffect(() => {
-    if (watchedName && !tour) {
-      const slug = generateSlug(watchedName);
-      console.log("Auto-generating slug:", { watchedName, slug });
-      form.setValue("slug", slug);
-    }
-  }, [watchedName, form, tour]);
+  // ── Media handlers ──────────────────────────────────────────────────────────
+  const rmGallery = (i: number) => {
+    if (uploadedGallery[i]?.startsWith("blob:")) revokeBlobUrl(uploadedGallery[i]);
+    setUploadedGallery((p) => p.filter((_, j) => j !== i));
+    setGalleryBlobs((p) => p.filter((_, j) => j !== i));
+  };
 
-  // Cover image upload handler
-  const handleCoverUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    console.log("Cover upload handler triggered");
-
-    const files = e.target.files;
-    if (!files || files.length === 0) {
-      console.log("No files selected for cover upload");
-      return;
-    }
-
-    const file = files[0];
-    console.log("Cover file selected:", {
-      name: file.name,
-      size: file.size,
-      type: file.type,
-    });
-
-    const validation = validateImageFile(file);
-    console.log("Cover file validation result:", validation);
-
-    if (!validation.valid) {
-      console.error("Cover file validation failed:", validation.error);
-      toast({
-        title: "Invalid file",
-        description: validation.error,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Store the blob for both new and existing tours
-    setCoverBlob(file);
-    const blobUrl = createBlobUrl(file);
-    setUploadedCover(blobUrl);
-
-    toast({
-      title: "Cover image selected",
-      description: "Image ready for upload",
+  // Reorder gallery thumbnails (drag-and-drop). Keeps the parallel blob array in
+  // lockstep when present and remaps the active-thumb index to follow the move.
+  const moveGallery = (from: number, to: number) => {
+    const reorder = <T,>(arr: T[]): T[] => {
+      const next = arr.slice();
+      const [m] = next.splice(from, 1);
+      next.splice(to, 0, m);
+      return next;
+    };
+    const len = uploadedGallery.length;
+    setUploadedGallery((p) => reorder(p));
+    setGalleryBlobs((p) => (p.length === len ? reorder(p) : p));
+    setActiveGalleryIndex((idx) => {
+      if (idx === from) return to;
+      if (from < idx && to >= idx) return idx - 1;
+      if (from > idx && to <= idx) return idx + 1;
+      return idx;
     });
   };
 
-  // Gallery images upload handler
-  const handleGalleryUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const files = e.target.files;
+  // Called when the user confirms an image (or images) in the picker modal.
+  // Routes the result URL(s) to the correct form field based on which picker was opened.
+  const handlePickerConfirm = (urls: string[]) => {
+    if (!pickerState) return;
+    const { field, initialUrl } = pickerState;
 
-    // Guard against null FileList returned by some browsers / environments
-    const fileArray = files ? Array.from(files) : [];
-
-    const validFiles: File[] = [];
-
-    for (const file of fileArray) {
-      const validation = validateImageFile(file);
-
-      if (validation.valid) {
-        validFiles.push(file);
-      } else {
-        console.error(
-          `Gallery file validation failed for ${file.name}:`,
-          validation.error,
-        );
-        toast({
-          title: "Invalid file",
-          description: `${file.name}: ${validation.error}`,
-          variant: "destructive",
-        });
+    if (field === "cover") {
+      setUploadedCover(urls[0] ?? null);
+    } else if (field === "gallery-add") {
+      setUploadedGallery((prev) => [...prev, ...urls]);
+    } else if (field.startsWith("gallery-edit-")) {
+      const idx = Number(field.replace("gallery-edit-", ""));
+      if (initialUrl) {
+        setUploadedGallery((prev) => prev.map((u, j) => (j === idx ? (urls[0] ?? u) : u)));
       }
+    } else if (field.startsWith("highlight-")) {
+      const i = Number(field.replace("highlight-", ""));
+      const hl = (form.getValues as any)(`details.highlights.${i}`);
+      sv(`details.highlights.${i}`, { ...hl, image: urls[0] });
+    } else if (field.startsWith("accommodation-")) {
+      const i = Number(field.replace("accommodation-", ""));
+      sv(`details.accommodations.${i}.image`, urls[0]);
+    } else if (field.startsWith("itinerary-")) {
+      const i = Number(field.replace("itinerary-", ""));
+      sv(`details.itinerary.${i}.image`, urls[0]);
     }
 
-    if (validFiles.length === 0) return;
-
-    // Store the blobs for both new and existing tours
-    setGalleryBlobs((prev) => {
-      const newBlobs = [...prev, ...validFiles];
-      console.log("Updated gallery blobs count:", newBlobs.length);
-      return newBlobs;
-    });
-    const blobUrls = validFiles.map((file) => createBlobUrl(file));
-    setUploadedGallery((prev) => [...prev, ...blobUrls]);
-
-    toast({
-      title: "Gallery images selected",
-      description: `${validFiles.length} image(s) ready for upload`,
-    });
+    setPickerState(null);
   };
 
-  // Remove cover image
-  const removeCoverImage = () => {
-    if (uploadedCover?.startsWith("blob:")) {
-      revokeBlobUrl(uploadedCover);
-    }
-    setUploadedCover(null);
-    setCoverBlob(null);
-    setCoverImageUrl("");
-  };
-
-  // Handle cover image URL input
-  const handleCoverImageUrlChange = (url: string) => {
-    setCoverImageUrl(url);
-    if (url.trim()) {
-      setUploadedCover(url);
-      setCoverBlob(null); // Clear blob when using URL
-    } else {
-      setUploadedCover(null);
-    }
-  };
-
-  // Handle toggle between upload and URL
-  const handleCoverToggle = (useUrl: boolean) => {
-    setUseCoverUrl(useUrl);
-    if (useUrl) {
-      // Switch to URL mode - clear blob and set URL if available
-      if (coverImageUrl.trim()) {
-        setUploadedCover(coverImageUrl);
-      } else {
-        setUploadedCover(null);
-      }
-      setCoverBlob(null);
-    } else {
-      // Switch to upload mode - clear URL and keep existing blob if any
-      setCoverImageUrl("");
-      if (!coverBlob) {
-        setUploadedCover(null);
-      }
-    }
-  };
-
-  // Remove gallery image
-  const removeGalleryImage = (index: number) => {
-    const imageUrl = uploadedGallery[index];
-    if (imageUrl?.startsWith("blob:")) {
-      revokeBlobUrl(imageUrl);
-    }
-
-    setUploadedGallery((prev) => prev.filter((_, i) => i !== index));
-    setGalleryBlobs((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  // Upload highlight images to storage
-  const uploadHighlightImages = async (
-    highlights: any[],
-    tourId: string,
-  ): Promise<any[]> => {
-    const processedHighlights = await Promise.all(
-      highlights.map(async (highlight, index) => {
-        if (typeof highlight === "string") {
-          return highlight;
-        }
-
-        // If highlight has an image and it's a blob URL
-        if (highlight.image && highlight.image.startsWith("blob:")) {
-          try {
-            // Fetch the blob from the blob URL
-            const response = await fetch(highlight.image);
-            const blob = await response.blob();
-            const file = new File([blob], `highlight-${index}.jpg`, {
-              type: blob.type,
-            });
-
-            // Upload to storage
-            const uploadResult = await uploadAllBlobsToStorage(
-              file,
-              [],
-              tourId,
-            );
-
-            if (
-              uploadResult.coverResult?.success &&
-              uploadResult.coverResult.url
-            ) {
-              return {
-                text: highlight.text,
-                image: uploadResult.coverResult.url,
-              };
-            }
-          } catch (error) {
-            console.error(`Failed to upload highlight ${index} image:`, error);
-          }
-        }
-
-        return highlight;
-      }),
-    );
-
-    return processedHighlights;
-  };
-
-  // Handle form submission
-  const handleFormSubmit = async (data: TourFormDataWithStringDates) => {
-    if (tour) {
-      await handleUpdateTour(data);
-    } else {
-      return await handleCreateTour(data);
-    }
-  };
-
-  // Create tour with blob upload handling
-  const handleCreateTour = async (data: TourFormDataWithStringDates) => {
+  // ── Submit ──────────────────────────────────────────────────────────────────
+  const handleSubmit = async (data: any) => {
+    setIsSubmitting(true);
     try {
-      // First create the tour without images
-      const tourId = await onSubmit(data);
+      if (tour) {
+        await onSubmit(data);
 
-      const tourIdString = typeof tourId === "string" ? tourId : "";
+        // Upload any legacy blob files (fallback; normally empty with the picker flow)
+        let finalCover = uploadedCover && !uploadedCover.startsWith("blob:") ? uploadedCover : null;
+        let finalGallery = uploadedGallery.filter((u) => !u.startsWith("blob:"));
 
-      // Upload highlight images if any
-      if (
-        tourIdString &&
-        data.details.highlights.some(
-          (h: any) =>
-            typeof h === "object" && h.image && h.image.startsWith("blob:"),
-        )
-      ) {
-        const processedHighlights = await uploadHighlightImages(
-          data.details.highlights,
-          tourIdString,
-        );
-
-        // Update tour with processed highlights
-        await updateTourMedia(tourIdString, {
-          highlights: processedHighlights as any,
-        } as any);
-      }
-
-      // If we have blobs to upload and tour creation was successful
-      if ((coverBlob || galleryBlobs.length > 0) && tourId && !useCoverUrl) {
-        toast({
-          title: "Tour created",
-          description: "Now uploading images...",
-        });
-
-        // Upload all blobs to storage
-        const uploadResults = await uploadAllBlobsToStorage(
-          coverBlob,
-          galleryBlobs,
-          typeof tourId === "string" ? tourId : "",
-        );
-
-        if (uploadResults.allSuccessful) {
-          // Update the tour with real image URLs
-          try {
-            const mediaUpdate: { coverImage?: string; gallery?: string[] } = {};
-
-            if (
-              uploadResults.coverResult?.success &&
-              uploadResults.coverResult.url
-            ) {
-              mediaUpdate.coverImage = uploadResults.coverResult.url;
-            }
-
-            if (
-              uploadResults.galleryResults &&
-              uploadResults.galleryResults.length > 0
-            ) {
-              const galleryUrls = uploadResults.galleryResults
-                .filter((result) => result.success && result.url)
-                .map((result) => result.url!);
-
-              if (galleryUrls.length > 0) {
-                mediaUpdate.gallery = galleryUrls;
-              }
-            }
-
-            // Update the tour document with real URLs
-            if (Object.keys(mediaUpdate).length > 0) {
-              await updateTourMedia(
-                typeof tourId === "string" ? tourId : "",
-                mediaUpdate,
-              );
-            }
-          } catch (updateError) {
-            console.error(
-              "Failed to update tour with image URLs:",
-              updateError,
-            );
-          }
-
-          toast({
-            title: "Success",
-            description: "Tour created and all images uploaded successfully!",
-          });
-        } else {
-          console.warn("Some images failed to upload:", uploadResults);
-
-          // Even if some uploads failed, try to update with successful ones
-          try {
-            const mediaUpdate: { coverImage?: string; gallery?: string[] } = {};
-
-            if (
-              uploadResults.coverResult?.success &&
-              uploadResults.coverResult.url
-            ) {
-              mediaUpdate.coverImage = uploadResults.coverResult.url;
-            }
-
-            if (
-              uploadResults.galleryResults &&
-              uploadResults.galleryResults.length > 0
-            ) {
-              const galleryUrls = uploadResults.galleryResults
-                .filter((result) => result.success && result.url)
-                .map((result) => result.url!);
-
-              if (galleryUrls.length > 0) {
-                mediaUpdate.gallery = galleryUrls;
-              }
-            }
-
-            // Update the tour document with any successful URLs
-            if (Object.keys(mediaUpdate).length > 0) {
-              await updateTourMedia(
-                typeof tourId === "string" ? tourId : "",
-                mediaUpdate,
-              );
-            }
-          } catch (updateError) {
-            console.error(
-              "Failed to update tour with successful image URLs:",
-              updateError,
-            );
-          }
-
-          toast({
-            title: "Partial success",
-            description:
-              "Tour created but some images failed to upload. Check console for troubleshooting help.",
-            variant: "destructive",
-          });
+        if (coverBlob || galleryBlobs.length > 0) {
+          const r = await uploadAllBlobsToStorage(coverBlob, galleryBlobs, tour.id);
+          if (r.coverResult?.success) finalCover = r.coverResult.url ?? null;
+          const blobUrls = r.galleryResults?.filter((x) => x.success).map((x) => x.url!) ?? [];
+          if (blobUrls.length) finalGallery = [...finalGallery, ...blobUrls];
         }
 
-        // Cleanup blob URLs
-        const allUrls = [...uploadedGallery];
-        if (uploadedCover) allUrls.push(uploadedCover);
-        cleanupBlobUrls(allUrls);
+        const mu: any = {};
+        if (finalCover) mu.coverImage = finalCover;
+        if (finalGallery.length || originalGallery.length) {
+          mu.gallery = finalGallery;
+          await cleanupRemovedGalleryImages(originalGallery, finalGallery);
+        }
+        if (Object.keys(mu).length) await updateTourMedia(tour.id, mu);
+        toast({ title: "Saved", description: "Tour updated successfully." });
       } else {
-        toast({
-          title: "Success",
-          description: "Tour created successfully!",
-        });
-      }
-    } catch (error) {
-      console.error("Error creating tour:", error);
-      // If tour creation fails, cleanup blob URLs
-      const allUrls = [...uploadedGallery];
-      if (uploadedCover) allUrls.push(uploadedCover);
-      cleanupBlobUrls(allUrls);
-      throw error;
-    }
-  };
+        const id = await onSubmit(data);
+        const tourId = typeof id === "string" ? id : "";
+        if (tourId) {
+          let finalCover = uploadedCover && !uploadedCover.startsWith("blob:") ? uploadedCover : null;
+          let finalGallery = uploadedGallery.filter((u) => !u.startsWith("blob:"));
 
-  // Update existing tour
-  const handleUpdateTour = async (data: TourFormDataWithStringDates) => {
-    console.log("Updating existing tour with data:", data);
-    console.log("Blobs to upload:", {
-      coverBlob: coverBlob?.name,
-      galleryBlobsCount: galleryBlobs.length,
-    });
-
-    try {
-      // First update the tour with the basic data
-      await onSubmit(data);
-      console.log("Tour updated successfully");
-
-      // Check for gallery cleanup even if no new uploads
-      const currentGallery = uploadedGallery.filter(
-        (url) => !url.startsWith("blob:"),
-      );
-      const hasGalleryChanges =
-        currentGallery.length !== originalGallery.length ||
-        !currentGallery.every((url) => originalGallery.includes(url));
-
-      // If we have blobs to upload (and not using URL mode)
-      if ((coverBlob || galleryBlobs.length > 0) && tour?.id && !useCoverUrl) {
-        console.log("Starting image upload process for update...");
-
-        toast({
-          title: "Tour updated",
-          description: "Now uploading new images...",
-        });
-
-        // Upload all blobs to storage
-        const uploadResults = await uploadAllBlobsToStorage(
-          coverBlob,
-          galleryBlobs,
-          tour.id,
-        );
-
-        console.log("Upload results:", uploadResults);
-
-        if (uploadResults.allSuccessful) {
-          console.log("All uploads successful, updating tour media...");
-
-          // Update the tour with real image URLs
-          try {
-            const mediaUpdate: { coverImage?: string; gallery?: string[] } = {};
-
-            // If we uploaded a new cover image, use the new URL
-            if (
-              uploadResults.coverResult?.success &&
-              uploadResults.coverResult.url
-            ) {
-              mediaUpdate.coverImage = uploadResults.coverResult.url;
-              setUploadedCover(uploadResults.coverResult.url);
-            }
-
-            // If we uploaded new gallery images, append them to existing gallery
-            if (
-              uploadResults.galleryResults &&
-              uploadResults.galleryResults.length > 0
-            ) {
-              const newGalleryUrls = uploadResults.galleryResults
-                .filter((result) => result.success && result.url)
-                .map((result) => result.url!);
-
-              if (newGalleryUrls.length > 0) {
-                // Combine existing gallery with new images
-                const existingGallery = uploadedGallery.filter(
-                  (url) => !url.startsWith("blob:"),
-                );
-                const finalGallery = [...existingGallery, ...newGalleryUrls];
-                mediaUpdate.gallery = finalGallery;
-                setUploadedGallery(finalGallery);
-
-                // Clean up removed images from storage
-                await cleanupRemovedGalleryImages(
-                  originalGallery,
-                  finalGallery,
-                );
-              }
-            } else {
-              // No new uploads, but check if any existing images were removed
-              const currentGallery = uploadedGallery.filter(
-                (url) => !url.startsWith("blob:"),
-              );
-              if (
-                currentGallery.length !== originalGallery.length ||
-                !currentGallery.every((url) => originalGallery.includes(url))
-              ) {
-                mediaUpdate.gallery = currentGallery;
-                // Clean up removed images from storage
-                await cleanupRemovedGalleryImages(
-                  originalGallery,
-                  currentGallery,
-                );
-              }
-            }
-
-            // Update the tour document with real URLs
-            if (Object.keys(mediaUpdate).length > 0) {
-              await updateTourMedia(tour.id, mediaUpdate);
-              console.log("Tour media updated successfully:", mediaUpdate);
-            }
-          } catch (updateError) {
-            console.error(
-              "Failed to update tour with image URLs:",
-              updateError,
-            );
+          if (coverBlob || galleryBlobs.length > 0) {
+            const r = await uploadAllBlobsToStorage(coverBlob, galleryBlobs, tourId);
+            if (r.coverResult?.success) finalCover = r.coverResult.url ?? null;
+            const urls = r.galleryResults?.filter((x) => x.success).map((x) => x.url!) ?? [];
+            if (urls.length) finalGallery = [...finalGallery, ...urls];
           }
 
-          toast({
-            title: "Success",
-            description: "Tour updated and all images uploaded successfully!",
-          });
-        } else {
-          console.warn("Some images failed to upload:", uploadResults);
-          toast({
-            title: "Partial Success",
-            description: "Tour updated, but some images failed to upload.",
-            variant: "destructive",
-          });
+          const mu: any = {};
+          if (finalCover) mu.coverImage = finalCover;
+          if (finalGallery.length) mu.gallery = finalGallery;
+          if (Object.keys(mu).length) await updateTourMedia(tourId, mu);
         }
-
-        // Clear blob states after upload
-        setCoverBlob(null);
-        setGalleryBlobs([]);
-      } else if (hasGalleryChanges && tour?.id) {
-        // No new uploads but gallery has changes (removals)
-        console.log(
-          "No new uploads but gallery has changes, cleaning up removed images...",
-        );
-
-        const currentGallery = uploadedGallery.filter(
-          (url) => !url.startsWith("blob:"),
-        );
-
-        // Clean up removed images from storage
-        await cleanupRemovedGalleryImages(originalGallery, currentGallery);
-
-        // Update the tour document with the new gallery
-        await updateTourMedia(tour.id, { gallery: currentGallery });
-
-        toast({
-          title: "Success",
-          description: "Tour updated and removed images cleaned up!",
-        });
+        toast({ title: "Created", description: "New tour package created." });
       }
-    } catch (error) {
-      console.error("Error in handleUpdateTour:", error);
-      throw error;
-    }
-  };
-
-  const handleSubmit = async (data: TourFormData) => {
-    console.log("Form submitted with data:", data);
-    console.log("Current state:", {
-      isSubmitting,
-      uploadedCover,
-      uploadedGalleryCount: uploadedGallery.length,
-      coverBlob: coverBlob?.name,
-      galleryBlobsCount: galleryBlobs.length,
-      useCoverUrl,
-      coverImageUrl,
-    });
-
-    // Validate cover image URL if using URL mode
-    if (useCoverUrl && coverImageUrl.trim()) {
-      try {
-        new URL(coverImageUrl.trim());
-      } catch (error) {
-        toast({
-          title: "Invalid Image URL",
-          description: "Please enter a valid image URL",
-          variant: "destructive",
-        });
-        return;
-      }
-    }
-
-    try {
-      setIsSubmitting(true);
-
-      // Determine final location: if user selected 'Other', prefer `locationOther`
-      const { locationOther, ...restData } = data as any;
-      const finalLocation =
-        (data as any).location === "Other" && locationOther
-          ? locationOther
-          : (data as any).location;
-
-      // Filter out empty strings from arrays
-      const cleanedData: TourFormDataWithStringDates = {
-        ...restData,
-        location: finalLocation,
-        travelDates: data.travelDates.map((td: any) => ({
-          startDate: td.startDate,
-          endDate: td.endDate,
-          tourDays: td.tourDays,
-          isAvailable: td.isAvailable,
-          maxCapacity: td.maxCapacity,
-          currentBookings: td.currentBookings,
-          hasCustomPricing: td.hasCustomPricing,
-          customOriginal: td.customOriginal,
-          customDiscounted: td.customDiscounted,
-          customDeposit: td.customDeposit,
-          hasCustomOriginal: td.hasCustomOriginal,
-          hasCustomDiscounted: td.hasCustomDiscounted,
-          hasCustomDeposit: td.hasCustomDeposit,
-        })),
-        details: {
-          highlights: data.details.highlights
-            .filter((h: any) => {
-              if (typeof h === "string") {
-                return h.trim() !== "";
-              }
-              return h.text && h.text.trim() !== "";
-            })
-            .map((h: any) => {
-              // Keep highlights as-is (support both string and object format)
-              if (typeof h === "string") {
-                return h;
-              }
-              return h;
-            }),
-          itinerary: data.details.itinerary,
-          requirements: data.details.requirements.filter(
-            (r) => r.trim() !== "",
-          ),
-        },
-        // Include uploaded images in media field
-        media: {
-          // For cover image: use uploaded cover if available, otherwise keep existing
-          coverImage: (() => {
-            if (useCoverUrl && coverImageUrl.trim()) {
-              // If using URL mode and URL is provided, use the URL
-              return coverImageUrl.trim();
-            } else if (uploadedCover && !uploadedCover.startsWith("blob:")) {
-              // If not using URL mode and we have a non-blob URL, use it
-              return uploadedCover;
-            } else if (tour?.media?.coverImage) {
-              // Otherwise, keep existing cover image
-              return tour.media.coverImage;
-            }
-            return "";
-          })(),
-          // For gallery: merge existing non-blob URLs with uploaded URLs
-          gallery: (() => {
-            const existingGallery = tour?.media?.gallery || [];
-            const currentUploadedGallery = uploadedGallery || [];
-
-            // If we have uploaded gallery items, use them
-            if (currentUploadedGallery.length > 0) {
-              // Filter out blob URLs from uploaded gallery (they'll be handled by blob upload process)
-              const realUrls = currentUploadedGallery.filter(
-                (url) => !url.startsWith("blob:"),
-              );
-              return realUrls.length > 0 ? realUrls : existingGallery;
-            }
-
-            // Otherwise, keep existing gallery
-            return existingGallery;
-          })(),
-        },
-      };
-
-      console.log("Cleaned form data:", cleanedData);
-
-      await handleFormSubmit(cleanedData);
-
-      console.log("Form submission completed successfully");
-      onClose();
-    } catch (error) {
-      console.error("Error submitting tour:", error);
-      toast({
-        title: "Error",
-        description:
-          error instanceof Error ? error.message : "Something went wrong",
-        variant: "destructive",
-      });
+      cleanupBlobUrls([...uploadedGallery, ...(uploadedCover ? [uploadedCover] : [])]);
+    } catch (err) {
+      console.error(err);
+      toast({ title: "Error", description: "Failed to save tour.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
-      console.log("Form submission finished, isSubmitting set to false");
     }
   };
 
-  const handleInvalidSubmit = (errors: Record<string, unknown>) => {
-    console.error("Form validation failed:", errors);
-    toast({
-      title: "Cannot create tour yet",
-      description:
-        "Please complete the required fields highlighted in the form.",
-      variant: "destructive",
-    });
-  };
-
-  // Test Supabase storage connection
-  const testStorageConnection = async () => {
-    try {
-      console.log("Testing storage connection...");
-      const result = await testSupabaseStorageConnection();
-
-      if (result.success) {
-        toast({
-          title: "Storage Test Successful",
-          description: "Supabase storage is working correctly!",
-        });
-      } else {
-        toast({
-          title: "Storage Test Failed",
-          description: result.error || "Unknown error occurred",
-          variant: "destructive",
-        });
-      }
-
-      console.log("Storage test result:", result);
-    } catch (error) {
-      console.error("Error testing storage:", error);
-      toast({
-        title: "Storage Test Error",
-        description: error instanceof Error ? error.message : "Unknown error",
-        variant: "destructive",
-      });
-    }
-  };
-
+  // ── Render ──────────────────────────────────────────────────────────────────
   return (
-    <div className="bg-background relative">
-      {/* Loading Overlay */}
+    <div key={editorKey} className="min-h-screen bg-light-grey">
+      {/* Loading overlay */}
       {isLoading && (
-        <div className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-center justify-center">
-          <div className="flex flex-col items-center gap-4">
-            <div className="relative">
-              <div className="w-16 h-16 border-4 border-crimson-red/30 rounded-full"></div>
-              <div className="w-16 h-16 border-4 border-crimson-red border-t-transparent rounded-full animate-spin absolute inset-0"></div>
-            </div>
-            <div className="text-center">
-              <p className="text-lg font-semibold text-foreground">
-                Loading Tour Data...
-              </p>
-              <p className="text-sm text-muted-foreground mt-1">
-                Please wait while we fetch the tour details
-              </p>
-            </div>
-          </div>
+        <div className="fixed inset-0 z-[100] bg-white/80 backdrop-blur-sm flex items-center justify-center">
+          <div className="w-12 h-12 border-4 border-crimson-red border-t-transparent rounded-full animate-spin" />
         </div>
       )}
 
-      {/* Page Header */}
-      <div className="relative px-8 pt-6 pb-6 text-white overflow-hidden flex-shrink-0">
-        {/* Blurred Background Image */}
-        {(uploadedCover || tour?.media?.coverImage) && (
-          <div className="absolute inset-0 z-0">
-            <div
-              className="absolute inset-0 bg-cover bg-center bg-no-repeat scale-110"
-              style={{
-                backgroundImage: `url(${
-                  uploadedCover || tour?.media?.coverImage
-                })`,
-                filter: "blur(20px)",
-              }}
-            />
-            <div className="absolute inset-0 bg-black/60" />
-          </div>
-        )}
-
-        {/* Fallback gradient background when no cover image */}
-        {!uploadedCover && !tour?.media?.coverImage && (
-          <div className="absolute inset-0 bg-gradient-to-r from-crimson-red to-light-red" />
-        )}
-
-        {/* Content with proper z-index */}
-        <div className="relative z-10">
+      {/* ── Editor toolbar ─────────────────────────────────────────────────── */}
+      {/* DashboardLayout has a sticky h-16 navbar on both mobile and desktop — sit just below it */}
+      <div className="sticky top-16 z-30 bg-white border-b border-light-grey shadow-xsmall">
+        <div className="max-w-7xl mx-auto px-4 md:px-8 h-14 flex items-center justify-between gap-4">
           <button
             type="button"
             onClick={onClose}
-            className="flex items-center gap-1 text-white/70 hover:text-white text-sm mb-3 transition-colors"
+            className="flex items-center gap-2 font-body text-b4-desktop text-dark-gray hover:text-midnight transition-colors"
           >
-            ← Back to Tours
+            <ArrowLeft className="h-4 w-4" />
+            Back to Tours
           </button>
-          <h1 className="text-3xl font-bold text-white mb-2 drop-shadow-lg">
-            {tour ? "Edit Tour Package" : "Create New Tour Package"}
-          </h1>
-          <p className="text-white/90 text-lg drop-shadow-md">
-            {tour
-              ? "Update the tour package details below."
-              : "Fill in the details to create a new tour package."}
-          </p>
-          <div className="flex items-center gap-4 mt-4 text-white/80">
-            <div className="flex items-center gap-2">
-              <Package className="w-5 h-5 text-white drop-shadow-sm" />
-              <span className="font-medium">Tour Management</span>
+
+          <div className="flex items-center gap-3">
+            {/* Status badge */}
+            <Select value={w("status")} onValueChange={(v) => sv("status", v)}>
+              <SelectTrigger className="h-8 text-xs border-border w-28">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="draft">Draft</SelectItem>
+                <SelectItem value="active">Active</SelectItem>
+                <SelectItem value="archived">Archived</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Coming soon toggle */}
+            <div className="flex items-center gap-1.5 text-xs text-dark-gray">
+              <Switch
+                checked={w("comingSoon") ?? false}
+                onCheckedChange={(v) => sv("comingSoon", v)}
+                className="scale-75 data-[state=checked]:bg-vivid-orange"
+              />
+              <span>Coming Soon</span>
             </div>
-            <div className="flex items-center gap-2">
-              <Hash className="w-5 h-5 text-white drop-shadow-sm" />
-              <span className="font-medium">
-                {tour?.tourCode || "New Tour"}
-              </span>
-            </div>
+
+            <button
+              type="button"
+              onClick={() => setPanelOpen(p => !p)}
+              className={`flex items-center gap-1.5 h-9 px-4 rounded-full border font-body text-sm transition-colors ${panelOpen ? "border-crimson-red bg-crimson-red/5 text-crimson-red" : "border-border text-midnight hover:bg-light-grey"}`}
+            >
+              <Settings className="h-4 w-4" />
+              Settings
+            </button>
+
+            <Button
+              type="button"
+              disabled={isSubmitting}
+              onClick={form.handleSubmit(handleSubmit, (errs) => { console.error("Form validation errors:", errs); toast({ title: "Validation error", description: "Check required fields and try again.", variant: "destructive" }); })}
+              className="h-9 bg-crimson-red hover:bg-light-red text-white rounded-full px-5 font-body font-bold text-sm shadow-small"
+            >
+              <Save className="h-4 w-4 mr-1.5" />
+              {isSubmitting ? "Saving…" : tour ? "Save Changes" : "Create Tour"}
+            </Button>
           </div>
         </div>
       </div>
 
-      <div className="flex">
-        {/* Main Content */}
-        <div
-          ref={scrollContainerRef}
-          className="flex-1 pl-6 pb-6 max-w-4xl mx-auto"
-        >
-            <Form {...form}>
-              <form
-                id="tour-form"
-                onSubmit={form.handleSubmit(handleSubmit)}
-                className="p-6 space-y-6"
-              >
-                {/* Cover Image Section */}
-                <Card
-                  id="section-cover-image"
-                  className="bg-background border border-border scroll-mt-4 shadow-md"
-                >
-                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
-                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <ImageIcon className="h-4 w-4 text-crimson-red" />
-                      </div>
-                      Cover Image
-                    </CardTitle>
-                    <CardDescription className="text-muted-foreground">
-                      Upload a high-quality cover image for this tour
-                      (recommended: 1200x800px) or use an image URL
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-4">
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {/* Left Column - Controls */}
-                      <div className="space-y-4">
-                        {/* Toggle Switch */}
-                        <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border-2 border-border">
-                          <div className="flex items-center space-x-3">
-                            <Switch
-                              id="cover-toggle"
-                              checked={useCoverUrl}
-                              onCheckedChange={handleCoverToggle}
-                              disabled={isSubmitting}
-                            />
-                            <Label
-                              htmlFor="cover-toggle"
-                              className="text-sm font-medium text-foreground"
-                            >
-                              {useCoverUrl
-                                ? "Use Image URL"
-                                : "Upload Image File"}
-                            </Label>
-                          </div>
-                          <Badge
-                            variant="outline"
-                            className="border-crimson-red text-crimson-red text-xs"
-                          >
-                            {useCoverUrl ? "URL Mode" : "Upload Mode"}
-                          </Badge>
-                        </div>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmit, (errs) => { console.error("Form validation errors:", errs); })}>
+          {/* ── Page container (matches www max-w-7xl) ────────────────────── */}
+          <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 flex flex-col">
 
-                        {/* Upload Mode */}
-                        {!useCoverUrl && (
-                          <div className="space-y-1">
-                            <Label
-                              htmlFor="cover-upload"
-                              className="text-sm font-medium text-foreground"
-                            >
-                              Upload Image
-                            </Label>
-                            <input
-                              type="file"
-                              accept="image/*"
-                              onChange={handleCoverUpload}
-                              disabled={isSubmitting}
-                              className="hidden"
-                              id="cover-upload"
-                            />
-                            <Label
-                              htmlFor="cover-upload"
-                              className={`flex items-center gap-3 px-4 py-3 border-2 border-dashed border-crimson-red/30 rounded-lg cursor-pointer hover:bg-crimson-red/5 transition-colors duration-200 ${
-                                isSubmitting
-                                  ? "opacity-50 cursor-not-allowed"
-                                  : ""
-                              }`}
-                            >
-                              <Upload className="h-4 w-4 text-crimson-red" />
-                              <span className="font-medium text-foreground text-sm">
-                                Choose Cover Image
-                              </span>
-                            </Label>
-                            <p className="text-xs text-muted-foreground">
-                              Upload JPEG, PNG, WebP, or other image formats
-                            </p>
-                          </div>
-                        )}
-
-                        {/* URL Mode */}
-                        {useCoverUrl && (
-                          <div className="space-y-1">
-                            <Label
-                              htmlFor="cover-url"
-                              className="text-sm font-medium text-foreground"
-                            >
-                              Image URL
-                            </Label>
-                            <Input
-                              id="cover-url"
-                              type="url"
-                              placeholder="https://example.com/image.jpg"
-                              value={coverImageUrl}
-                              onChange={(e) =>
-                                handleCoverImageUrlChange(e.target.value)
-                              }
-                              disabled={isSubmitting}
-                              className="w-full border-2 border-border focus:border-crimson-red text-sm"
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              Enter a direct link to an image (JPG, PNG, WebP,
-                              etc.)
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Right Column - Image Preview */}
-                      <div className="flex items-center justify-center">
-                        {uploadedCover ? (
-                          <div className="relative w-full max-w-md">
-                            <img
-                              src={uploadedCover}
-                              alt="Cover preview"
-                              className="w-full object-cover rounded-lg border-2 border-border"
-                              style={{ aspectRatio: "16/9" }}
-                            />
-                            <Button
-                              type="button"
-                              variant="destructive"
-                              size="sm"
-                              onClick={removeCoverImage}
-                              className="absolute top-2 right-2 bg-crimson-red hover:bg-light-red h-6 w-6 p-0"
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="w-full max-w-md h-32 bg-muted/20 border-2 border-dashed border-border rounded-lg flex items-center justify-center">
-                            <div className="text-center text-muted-foreground">
-                              <ImageIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                              <p className="text-sm">No image selected</p>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Basic Information */}
-                <Card
-                  id="section-basic-info"
-                  className="bg-background border border-border scroll-mt-4 shadow-md"
-                >
-                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
-                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <FileText className="h-4 w-4 text-crimson-red" />
-                      </div>
-                      Basic Information
-                    </CardTitle>
-                    <CardDescription className="text-muted-foreground">
-                      Enter the essential details about your tour package
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-4 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <FormField
-                        control={form.control}
-                        name="name"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-foreground font-medium">
-                              Tour Name
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Enter tour name"
-                                {...field}
-                                className="border-2 border-border focus:border-royal-purple"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="tourCode"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-foreground font-medium">
-                              Tour Code
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                {...field}
-                                placeholder="Enter tour code (e.g., SIA, PHS, IDD)"
-                                className="border-2 border-border focus:border-royal-purple"
-                              />
-                            </FormControl>
-                            <FormDescription className="text-muted-foreground">
-                              Unique identifier for the tour package (e.g., SIA,
-                              PHS, IDD)
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <FormField
-                        control={form.control}
-                        name="slug"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-foreground font-medium">
-                              URL Slug
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="tour-url-slug"
-                                {...field}
-                                className="border-2 border-border focus:border-royal-purple"
-                              />
-                            </FormControl>
-                            <FormDescription className="text-muted-foreground">
-                              URL-friendly identifier for the tour
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="url"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-foreground font-medium">
-                              Direct URL
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="https://imheretravels.com/tour-name"
-                                {...field}
-                                className="border-2 border-border focus:border-royal-purple"
-                              />
-                            </FormControl>
-                            <FormDescription className="text-muted-foreground">
-                              Direct link to tour page (optional)
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-
-                    <FormField
-                      control={form.control}
-                      name="description"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-foreground font-medium">
-                            Description
-                          </FormLabel>
-                          <FormControl>
-                            <Textarea
-                              placeholder="Describe the tour package..."
-                              rows={6}
-                              {...field}
-                              className="border-2 border-border focus:border-royal-purple resize-y"
-                            />
-                          </FormControl>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <FormField
-                        control={form.control}
-                        name="location"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-2 text-foreground font-medium">
-                              <MapPin className="h-4 w-4 text-royal-purple" />
-                              Location
-                            </FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              value={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="border-2 border-border focus:border-royal-purple">
-                                  <SelectValue placeholder="Select location" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                {presetLocations.map((loc) => (
-                                  <SelectItem key={loc} value={loc}>
-                                    {loc}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <FormDescription className="text-muted-foreground">
-                              Choose a preset location or select "Other" to
-                              enter a custom location.
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      {form.watch("location") === "Other" && (
-                        <div className="col-span-3">
-                          <FormField
-                            control={form.control}
-                            name="locationOther"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="text-foreground font-medium">
-                                  Specify location
-                                </FormLabel>
-                                <FormControl>
-                                  <Input
-                                    placeholder="Enter city, country or region"
-                                    {...field}
-                                    className="border-2 border-border focus:border-royal-purple"
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                      )}
-
-                      <FormField
-                        control={form.control}
-                        name="duration"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="flex items-center gap-2 text-foreground font-medium">
-                              <Clock className="h-4 w-4 text-spring-green" />
-                              Duration
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                type="text"
-                                placeholder="e.g., 11 days"
-                                {...field}
-                                onChange={(e) => field.onChange(e.target.value)}
-                                className="border-2 border-border focus:border-spring-green"
-                              />
-                            </FormControl>
-                            <FormDescription>
-                              Enter duration in format "X days" (e.g., "11
-                              days")
-                            </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="status"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-foreground font-medium">
-                              Status
-                            </FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              value={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="border-2 border-border focus:border-vivid-orange">
-                                  <SelectValue placeholder="Select status" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="draft">Draft</SelectItem>
-                                <SelectItem value="active">Active</SelectItem>
-                                <SelectItem value="archived">
-                                  Archived
-                                </SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Tour Dates */}
-                <Card
-                  id="section-travel-dates"
-                  className="bg-background border border-border scroll-mt-4 shadow-md"
-                >
-                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
-                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <Calendar className="h-4 w-4 text-crimson-red" />
-                      </div>
-                      Tour Dates
-                    </CardTitle>
-                    <CardDescription className="text-muted-foreground">
-                      Add available tour dates for this tour package
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-4 space-y-4">
-                    {travelDateFields.map((field, index) => (
-                      <div
-                        key={field.id}
-                        className={`border-2 border-border rounded-lg p-4 space-y-4 shadow-sm transition-colors duration-200 border-l-4 ${
-                          form.watch(`travelDates.${index}.isAvailable`)
-                            ? "bg-muted/20 border-l-crimson-red"
-                            : "bg-gray-100/50 border-l-gray-300"
-                        }`}
-                      >
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-crimson-red text-white rounded-full flex items-center justify-center font-bold text-sm">
-                              {index + 1}
-                            </div>
-                            <h4 className="font-medium text-foreground">
-                              Tour Date {index + 1}
-                            </h4>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <FormField
-                              control={form.control}
-                              name={`travelDates.${index}.isAvailable`}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <div className="flex items-center gap-1.5 px-2 py-1.5 bg-muted/30 rounded border border-border">
-                                    <FormLabel className="text-[11px] font-medium text-foreground">
-                                      {field.value
-                                        ? "Active"
-                                        : "Make this tour date available"}
-                                    </FormLabel>
-                                    <FormControl>
-                                      <Switch
-                                        checked={field.value}
-                                        onCheckedChange={field.onChange}
-                                        className="data-[state=checked]:bg-green-600 scale-75 -mx-1"
-                                      />
-                                    </FormControl>
-                                  </div>
-                                </FormItem>
-                              )}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              title="Duplicate date"
-                              onClick={() => {
-                                const values = form.getValues(
-                                  `travelDates.${index}` as any,
-                                ) as any;
-                                appendTravelDate({
-                                  startDate: values?.startDate || "",
-                                  endDate: values?.endDate || "",
-                                  tourDays: values?.tourDays,
-                                  isAvailable: values?.isAvailable ?? true,
-                                  maxCapacity: values?.maxCapacity,
-                                  currentBookings: values?.currentBookings,
-                                  customOriginal: values?.customOriginal,
-                                  customDiscounted: values?.customDiscounted,
-                                  customDeposit: values?.customDeposit,
-                                  hasCustomOriginal:
-                                    !!values?.hasCustomOriginal,
-                                  hasCustomDiscounted:
-                                    !!values?.hasCustomDiscounted,
-                                  hasCustomDeposit: !!values?.hasCustomDeposit,
-                                });
-                              }}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Copy className="h-4 w-4 text-royal-purple" />
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              title="Delete date"
-                              onClick={() => removeTravelDate(index)}
-                              disabled={travelDateFields.length === 1}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Minus className="h-4 w-4 text-vivid-orange" />
-                            </Button>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2 sm:gap-3 items-end">
-                          <FormField
-                            control={form.control}
-                            name={`travelDates.${index}.startDate`}
-                            render={({ field }) => (
-                              <FormItem className="sm:col-span-4">
-                                <FormLabel className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                                  Start
-                                  <Plane className="h-3.5 w-3.5 text-crimson-red" />
-                                </FormLabel>
-                                <FormControl>
-                                  <TourDatePicker
-                                    value={field.value || ""}
-                                    onChange={(iso) => {
-                                      field.onChange(iso);
-                                      // Auto-calculate end date when start date changes
-                                      const days = form.getValues(
-                                        `travelDates.${index}.tourDays` as any,
-                                      ) as number;
-                                      if (iso && days && days > 0) {
-                                        const startDate = new Date(iso);
-                                        const endDate = new Date(startDate);
-                                        // Subtract 1 because the start date counts as day 1
-                                        endDate.setDate(
-                                          endDate.getDate() + days - 1,
-                                        );
-                                        const endDateString = endDate
-                                          .toISOString()
-                                          .split("T")[0];
-                                        form.setValue(
-                                          `travelDates.${index}.endDate` as any,
-                                          endDateString,
-                                        );
-                                      }
-                                    }}
-                                    label="Tour Start Date"
-                                    minYear={2000}
-                                    maxYear={2050}
-                                  />
-                                </FormControl>
-                                <FormDescription className="text-xs text-muted-foreground">
-                                  &nbsp;
-                                </FormDescription>
-                                <FormMessage className="text-xs" />
-                              </FormItem>
-                            )}
-                          />
-
-                          {/* Days Input */}
-                          <FormField
-                            control={form.control}
-                            name={`travelDates.${index}.tourDays`}
-                            render={({ field }) => (
-                              <FormItem className="sm:col-span-2">
-                                <FormLabel className="text-sm font-medium text-foreground">
-                                  Days
-                                </FormLabel>
-                                <FormControl>
-                                  <div className="relative">
-                                    <Clock className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                      type="text"
-                                      inputMode="numeric"
-                                      pattern="[0-9]*"
-                                      placeholder="e.g., 9"
-                                      value={numberToInputValue(field.value)}
-                                      onChange={(e) => {
-                                        const rawValue = e.target.value;
-                                        if (!isValidIntegerInput(rawValue)) {
-                                          return;
-                                        }
-
-                                        const daysValue =
-                                          rawValue === ""
-                                            ? undefined
-                                            : Number.parseInt(rawValue, 10);
-                                        field.onChange(daysValue);
-                                        // Auto-calculate end date when days change
-                                        const startDate = form.getValues(
-                                          `travelDates.${index}.startDate` as any,
-                                        ) as string;
-                                        if (
-                                          startDate &&
-                                          daysValue &&
-                                          daysValue > 0
-                                        ) {
-                                          const start = new Date(startDate);
-                                          const end = new Date(start);
-                                          // Subtract 1 because the start date counts as day 1
-                                          end.setDate(
-                                            end.getDate() + daysValue - 1,
-                                          );
-                                          const endDateString = end
-                                            .toISOString()
-                                            .split("T")[0];
-                                          form.setValue(
-                                            `travelDates.${index}.endDate` as any,
-                                            endDateString,
-                                          );
-                                        }
-                                      }}
-                                      className="pl-8 h-9 text-sm border-2 border-border focus:border-spring-green"
-                                    />
-                                  </div>
-                                </FormControl>
-                                <FormDescription className="text-xs text-muted-foreground">
-                                  &nbsp;
-                                </FormDescription>
-                                <FormMessage className="text-xs" />
-                              </FormItem>
-                            )}
-                          />
-
-                          <FormField
-                            control={form.control}
-                            name={`travelDates.${index}.endDate`}
-                            render={({ field }) => (
-                              <FormItem className="sm:col-span-4">
-                                <FormLabel className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                                  <Plane className="h-3.5 w-3.5 text-crimson-red rotate-180" />
-                                  End
-                                </FormLabel>
-                                <FormControl>
-                                  <div className="relative">
-                                    <div className="mt-1 w-full px-3 py-2 rounded-md bg-muted/50 text-muted-foreground border-2 border-border text-sm h-9 flex items-center cursor-not-allowed">
-                                      {field.value
-                                        ? formatDateDisplay(field.value)
-                                        : "Auto-calculated"}
-                                    </div>
-                                  </div>
-                                </FormControl>
-                                <FormDescription className="text-xs text-muted-foreground">
-                                  Auto-calculated
-                                </FormDescription>
-                                <FormMessage className="text-xs" />
-                              </FormItem>
-                            )}
-                          />
-
-                          {/* Duration Badge - Hidden */}
-                          <div className="sm:col-span-2 hidden">
-                            {(() => {
-                              const start = form.watch(
-                                `travelDates.${index}.startDate` as any,
-                              ) as string;
-                              const end = form.watch(
-                                `travelDates.${index}.endDate` as any,
-                              ) as string;
-                              const days = calculateDurationDays(start, end);
-                              return days ? (
-                                <Badge
-                                  variant="outline"
-                                  className="text-xs border-spring-green text-spring-green"
-                                >
-                                  {days} days
-                                </Badge>
-                              ) : null;
-                            })()}
-                          </div>
-                        </div>
-
-                        {/* Tour Size (max capacity) */}
-                        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 sm:gap-3">
-                          <FormField
-                            control={form.control}
-                            name={`travelDates.${index}.maxCapacity`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel className="text-sm font-medium text-foreground flex items-center gap-1.5">
-                                  <Users className="h-4 w-4 text-muted-foreground" />
-                                  Tour Size
-                                </FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="text"
-                                    inputMode="numeric"
-                                    pattern="[0-9]*"
-                                    placeholder="e.g., 12"
-                                    {...field}
-                                    value={numberToInputValue(field.value)}
-                                    onChange={(e) =>
-                                      handleIntegerInputChange(
-                                        e.target.value,
-                                        field.onChange,
-                                      )
-                                    }
-                                    className="h-9 text-sm border-2 border-border focus:border-spring-green"
-                                  />
-                                </FormControl>
-                                <FormDescription className="text-xs text-muted-foreground">
-                                  Max travelers
-                                </FormDescription>
-                                <FormMessage className="text-xs" />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-
-                        {/* Custom Pricing per date (compact, per-field add/remove) */}
-                        <div className="space-y-3 pt-1">
-                          <div className="space-y-2">
-                            <div className="flex flex-wrap items-center gap-2 p-2.5 bg-muted/30 rounded-lg border-2 border-border">
-                              <span className="text-xs sm:text-sm font-medium text-foreground whitespace-nowrap">
-                                Add fields:
-                              </span>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 px-2 text-xs"
-                                onClick={() => {
-                                  form.setValue(
-                                    `travelDates.${index}.hasCustomOriginal` as any,
-                                    true,
-                                  );
-                                }}
-                                disabled={
-                                  form.watch(
-                                    `travelDates.${index}.hasCustomOriginal`,
-                                  ) === true
-                                }
-                              >
-                                + Custom Price
-                              </Button>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 px-2 text-xs"
-                                onClick={() => {
-                                  form.setValue(
-                                    `travelDates.${index}.hasCustomDeposit` as any,
-                                    true,
-                                  );
-                                }}
-                                disabled={
-                                  form.watch(
-                                    `travelDates.${index}.hasCustomDeposit`,
-                                  ) === true
-                                }
-                              >
-                                + ResFee
-                              </Button>
-                            </div>
-                            <p className="text-xs text-muted-foreground px-2.5">
-                              Changing the price here will override the default
-                              pricing for this tour date only.
-                            </p>
-                          </div>
-
-                          {(form.watch(
-                            `travelDates.${index}.hasCustomOriginal`,
-                          ) ||
-                            form.watch(
-                              `travelDates.${index}.hasCustomDiscounted`,
-                            ) ||
-                            form.watch(
-                              `travelDates.${index}.hasCustomDeposit`,
-                            )) && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 p-2.5 bg-muted/20 rounded-lg border border-border">
-                              {form.watch(
-                                `travelDates.${index}.hasCustomOriginal`,
-                              ) && (
-                                <FormField
-                                  control={form.control}
-                                  name={`travelDates.${index}.customOriginal`}
-                                  render={({ field }) => (
-                                    <FormItem className="space-y-1.5">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <FormLabel className="text-xs sm:text-sm font-medium text-foreground truncate">
-                                          Custom Price{" "}
-                                          <Badge
-                                            variant="outline"
-                                            className="text-[9px]"
-                                          >
-                                            Opt
-                                          </Badge>
-                                        </FormLabel>
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-6 w-6 p-0 flex-shrink-0"
-                                          onClick={() => {
-                                            form.setValue(
-                                              `travelDates.${index}.hasCustomOriginal` as any,
-                                              false,
-                                            );
-                                            form.setValue(
-                                              `travelDates.${index}.customOriginal` as any,
-                                              undefined,
-                                            );
-                                          }}
-                                          title="Remove"
-                                        >
-                                          <Minus className="h-3 w-3" />
-                                        </Button>
-                                      </div>
-                                      <FormControl>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          placeholder="e.g., 299.99"
-                                          {...field}
-                                          value={numberToInputValue(
-                                            field.value,
-                                          )}
-                                          onChange={(e) =>
-                                            handleDecimalInputChange(
-                                              e.target.value,
-                                              field.onChange,
-                                            )
-                                          }
-                                          className="h-8 text-sm border-2 border-border focus:border-vivid-orange"
-                                        />
-                                      </FormControl>
-                                      <FormMessage className="text-xs" />
-                                    </FormItem>
-                                  )}
-                                />
-                              )}
-
-                              {form.watch(
-                                `travelDates.${index}.hasCustomDiscounted`,
-                              ) && (
-                                <FormField
-                                  control={form.control}
-                                  name={`travelDates.${index}.customDiscounted`}
-                                  render={({ field }) => (
-                                    <FormItem className="space-y-1.5">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <FormLabel className="text-xs sm:text-sm font-medium text-foreground truncate">
-                                          Discounted{" "}
-                                          <Badge
-                                            variant="outline"
-                                            className="text-[9px]"
-                                          >
-                                            Opt
-                                          </Badge>
-                                        </FormLabel>
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-6 w-6 p-0 flex-shrink-0"
-                                          onClick={() => {
-                                            form.setValue(
-                                              `travelDates.${index}.hasCustomDiscounted` as any,
-                                              false,
-                                            );
-                                            form.setValue(
-                                              `travelDates.${index}.customDiscounted` as any,
-                                              undefined,
-                                            );
-                                          }}
-                                          title="Remove"
-                                        >
-                                          <Minus className="h-3 w-3" />
-                                        </Button>
-                                      </div>
-                                      <FormControl>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          placeholder="e.g., 249.99"
-                                          {...field}
-                                          value={numberToInputValue(
-                                            field.value,
-                                          )}
-                                          onChange={(e) =>
-                                            handleDecimalInputChange(
-                                              e.target.value,
-                                              field.onChange,
-                                            )
-                                          }
-                                          className="h-8 text-sm border-2 border-border focus:border-vivid-orange"
-                                        />
-                                      </FormControl>
-                                      {(() => {
-                                        const original = form.watch(
-                                          `pricing.original` as any,
-                                        ) as number;
-                                        const discounted = form.watch(
-                                          `travelDates.${index}.customDiscounted` as any,
-                                        ) as number;
-                                        if (
-                                          original &&
-                                          discounted &&
-                                          discounted < original
-                                        ) {
-                                          const pct = Math.round(
-                                            ((original - discounted) /
-                                              original) *
-                                              100,
-                                          );
-                                          return (
-                                            <span className="text-xs text-muted-foreground">
-                                              -{pct}% off
-                                            </span>
-                                          );
-                                        }
-                                        return null;
-                                      })()}
-                                      <FormMessage className="text-xs" />
-                                    </FormItem>
-                                  )}
-                                />
-                              )}
-
-                              {form.watch(
-                                `travelDates.${index}.hasCustomDeposit`,
-                              ) && (
-                                <FormField
-                                  control={form.control}
-                                  name={`travelDates.${index}.customDeposit`}
-                                  render={({ field }) => (
-                                    <FormItem className="space-y-1.5">
-                                      <div className="flex items-center justify-between gap-2">
-                                        <FormLabel className="text-xs sm:text-sm font-medium text-foreground truncate">
-                                          Reservation{" "}
-                                          <Badge
-                                            variant="outline"
-                                            className="text-[9px]"
-                                          >
-                                            Opt
-                                          </Badge>
-                                        </FormLabel>
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          className="h-6 w-6 p-0 flex-shrink-0"
-                                          onClick={() => {
-                                            form.setValue(
-                                              `travelDates.${index}.hasCustomDeposit` as any,
-                                              false,
-                                            );
-                                            form.setValue(
-                                              `travelDates.${index}.customDeposit` as any,
-                                              undefined,
-                                            );
-                                          }}
-                                          title="Remove"
-                                        >
-                                          <Minus className="h-3 w-3" />
-                                        </Button>
-                                      </div>
-                                      <FormControl>
-                                        <Input
-                                          type="text"
-                                          inputMode="decimal"
-                                          placeholder="e.g., 100.00"
-                                          {...field}
-                                          value={numberToInputValue(
-                                            field.value,
-                                          )}
-                                          onChange={(e) =>
-                                            handleDecimalInputChange(
-                                              e.target.value,
-                                              field.onChange,
-                                            )
-                                          }
-                                          className="h-8 text-sm border-2 border-border focus:border-vivid-orange"
-                                        />
-                                      </FormControl>
-                                      <FormMessage className="text-xs" />
-                                    </FormItem>
-                                  )}
-                                />
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() =>
-                        appendTravelDate({
-                          startDate: "",
-                          endDate: "",
-                          tourDays: undefined,
-                          isAvailable: true,
-                          maxCapacity: undefined,
-                          currentBookings: undefined,
-                          hasCustomPricing: false,
-                        })
-                      }
-                      className="w-full border-2 border-crimson-red text-crimson-red hover:bg-crimson-red hover:text-white"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Tour Date
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                {/* Pricing */}
-                <Card
-                  id="section-pricing"
-                  className="bg-background border border-border scroll-mt-4 shadow-md"
-                >
-                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
-                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <Banknote className="h-4 w-4 text-crimson-red" />
-                      </div>
-                      Default Pricing
-                    </CardTitle>
-                    <CardDescription className="text-muted-foreground">
-                      Set pricing details and currency for your tour
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-4 space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                      <FormField
-                        control={form.control}
-                        name="pricing.original"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-foreground font-medium">
-                              Original Price
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                type="text"
-                                inputMode="decimal"
-                                {...field}
-                                value={numberToInputValue(field.value)}
-                                onChange={(e) =>
-                                  handleDecimalInputChange(
-                                    e.target.value,
-                                    field.onChange,
-                                  )
-                                }
-                                className="border-2 border-border focus:border-vivid-orange"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="pricing.deposit"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-foreground font-medium">
-                              Reservation Fee
-                            </FormLabel>
-                            <FormControl>
-                              <Input
-                                type="text"
-                                inputMode="decimal"
-                                {...field}
-                                value={numberToInputValue(field.value)}
-                                onChange={(e) =>
-                                  handleDecimalInputChange(
-                                    e.target.value,
-                                    field.onChange,
-                                  )
-                                }
-                                className="border-2 border-border focus:border-vivid-orange"
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="pricing.currency"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel className="text-foreground font-medium">
-                              Currency
-                            </FormLabel>
-                            <Select
-                              onValueChange={field.onChange}
-                              value={field.value}
-                            >
-                              <FormControl>
-                                <SelectTrigger className="border-2 border-border focus:border-vivid-orange">
-                                  <SelectValue placeholder="Select currency" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="USD">USD</SelectItem>
-                                <SelectItem value="EUR">EUR</SelectItem>
-                                <SelectItem value="GBP">GBP</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* External Links */}
-                <Card
-                  id="section-external-links"
-                  className="bg-background border border-border scroll-mt-4 shadow-md"
-                >
-                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
-                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <FolderOpen className="h-4 w-4 text-crimson-red" />
-                      </div>
-                      External Links
-                    </CardTitle>
-                    <CardDescription className="text-muted-foreground">
-                      Add links to brochures, payment pages, and pre-departure
-                      materials
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-4 space-y-6">
-                    <FormField
-                      control={form.control}
-                      name="brochureLink"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-foreground font-medium">
-                            Brochure Link
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="https://drive.google.com/file/d/..."
-                              {...field}
-                              className="border-2 border-border focus:border-royal-purple"
-                            />
-                          </FormControl>
-                          <FormDescription className="text-muted-foreground">
-                            Link to tour brochure (Google Drive, PDF, etc.)
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="stripePaymentLink"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-foreground font-medium">
-                            Stripe Payment Link
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="https://book.stripe.com/..."
-                              {...field}
-                              className="border-2 border-border focus:border-royal-purple"
-                            />
-                          </FormControl>
-                          <FormDescription className="text-muted-foreground">
-                            Stripe checkout link for tour bookings
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-
-                    <FormField
-                      control={form.control}
-                      name="preDeparturePack"
-                      render={({ field }) => (
-                        <FormItem>
-                          <FormLabel className="text-foreground font-medium">
-                            Pre-Departure Pack
-                          </FormLabel>
-                          <FormControl>
-                            <Input
-                              placeholder="https://drive.google.com/file/d/..."
-                              {...field}
-                              className="border-2 border-border focus:border-royal-purple"
-                            />
-                          </FormControl>
-                          <FormDescription className="text-muted-foreground">
-                            Link to pre-departure information pack
-                          </FormDescription>
-                          <FormMessage />
-                        </FormItem>
-                      )}
-                    />
-                  </CardContent>
-                </Card>
-
-                {/* Highlights */}
-                <Card
-                  id="section-highlights"
-                  className="bg-background border border-border scroll-mt-4 shadow-md"
-                >
-                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
-                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <Star className="h-4 w-4 text-crimson-red" />
-                      </div>
-                      Highlights
-                    </CardTitle>
-                    <CardDescription className="text-muted-foreground">
-                      List the key attractions and experiences of your tour
-                      (with optional images)
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-4 space-y-4">
-                    {highlightFields.map((field, index) => {
-                      const currentValue = form.watch(
-                        `details.highlights.${index}` as any,
-                      );
-                      const isObject =
-                        typeof currentValue === "object" &&
-                        currentValue !== null;
-                      const highlightText = isObject
-                        ? currentValue.text
-                        : currentValue;
-                      const highlightImage = isObject
-                        ? currentValue.image
-                        : undefined;
-
-                      return (
-                        <div
-                          key={field.id}
-                          className="border border-border rounded-lg p-4 space-y-3 group hover:border-sunglow-yellow transition-colors"
-                        >
-                          {/* Highlight Text */}
-                          <FormField
-                            control={form.control}
-                            name={`details.highlights.${index}`}
-                            render={({ field: formField }) => (
-                              <FormItem>
-                                <FormControl>
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-2 h-2 bg-sunglow-yellow rounded-full flex-shrink-0"></div>
-                                    <Input
-                                      placeholder={`Highlight ${index + 1}`}
-                                      value={highlightText || ""}
-                                      onChange={(e) => {
-                                        const newValue = e.target.value;
-                                        if (isObject) {
-                                          formField.onChange({
-                                            text: newValue,
-                                            image: currentValue.image,
-                                          });
-                                        } else {
-                                          formField.onChange(newValue);
-                                        }
-                                      }}
-                                      className="border-none bg-transparent focus:ring-2 focus:ring-sunglow-yellow focus:ring-opacity-50 rounded px-2"
-                                    />
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      size="icon"
-                                      onClick={() => removeHighlight(index)}
-                                      disabled={highlightFields.length === 1}
-                                      className="h-8 w-8 p-0 border-vivid-orange text-vivid-orange hover:bg-vivid-orange hover:text-white"
-                                    >
-                                      <Minus className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-
-                          {/* Image Upload with Toggle */}
-                          <div className="space-y-3">
-                            {/* Toggle and Mode Badge */}
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2 whitespace-nowrap">
-                                <ImageIcon className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm font-medium text-foreground">
-                                  Highlight Image
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-2 whitespace-nowrap">
-                                  <span className="text-xs text-muted-foreground">
-                                    Upload File
-                                  </span>
-                                  <Switch
-                                    checked={highlightImage === ""}
-                                    onCheckedChange={(checked) => {
-                                      const formField = form.getValues(
-                                        `details.highlights.${index}` as any,
-                                      );
-                                      const text =
-                                        typeof formField === "string"
-                                          ? formField
-                                          : formField?.text || "";
-                                      form.setValue(
-                                        `details.highlights.${index}` as any,
-                                        {
-                                          text: text,
-                                          image: checked ? "" : undefined,
-                                        },
-                                      );
-                                    }}
-                                  />
-                                  <span className="text-xs text-muted-foreground">
-                                    Use URL
-                                  </span>
-                                </div>
-                                {/* Reserve space for badge to prevent layout shift */}
-                                <div className="w-20 flex justify-end">
-                                  {highlightImage !== undefined ? (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-xs whitespace-nowrap"
-                                    >
-                                      {highlightImage === ""
-                                        ? "URL Mode"
-                                        : highlightImage
-                                          ? "Image Set"
-                                          : "Upload Mode"}
-                                    </Badge>
-                                  ) : (
-                                    <span className="text-xs opacity-0">
-                                      placeholder
-                                    </span>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Image Preview or Upload Area */}
-                            {highlightImage ? (
-                              <div className="relative group/image">
-                                <img
-                                  src={highlightImage}
-                                  alt={`Highlight ${index + 1}`}
-                                  className="w-full h-32 object-contain rounded-lg border border-border bg-muted/20"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="destructive"
-                                  size="sm"
-                                  onClick={() => {
-                                    const formField = form.getValues(
-                                      `details.highlights.${index}` as any,
-                                    );
-                                    if (typeof formField === "object") {
-                                      form.setValue(
-                                        `details.highlights.${index}` as any,
-                                        {
-                                          text: formField.text,
-                                          image: undefined,
-                                        },
-                                      );
-                                    }
-                                  }}
-                                  className="absolute top-2 right-2 opacity-0 group-hover/image:opacity-100 transition-opacity"
-                                >
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="space-y-2">
-                                {highlightImage === "" ? (
-                                  // URL Mode
-                                  <div className="space-y-2">
-                                    <Input
-                                      placeholder="https://example.com/image.jpg"
-                                      value={highlightImage || ""}
-                                      onChange={(e) => {
-                                        const currentFormValue = form.getValues(
-                                          `details.highlights.${index}` as any,
-                                        );
-                                        const text =
-                                          typeof currentFormValue === "string"
-                                            ? currentFormValue
-                                            : currentFormValue?.text || "";
-                                        form.setValue(
-                                          `details.highlights.${index}` as any,
-                                          {
-                                            text: text,
-                                            image: e.target.value,
-                                          },
-                                        );
-                                      }}
-                                      className="border-2 border-border focus:border-sunglow-yellow"
-                                    />
-                                    <p className="text-xs text-muted-foreground">
-                                      Enter a direct link to an image (JPG, PNG,
-                                      WebP, etc.)
-                                    </p>
-                                  </div>
-                                ) : (
-                                  // Upload Mode
-                                  <div className="space-y-2">
-                                    <div className="flex items-center gap-2">
-                                      <Button
-                                        type="button"
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => {
-                                          const input =
-                                            document.createElement("input");
-                                          input.type = "file";
-                                          input.accept = "image/*";
-                                          input.onchange = async (e: any) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) {
-                                              try {
-                                                const validation =
-                                                  await validateImageFile(file);
-                                                if (!validation.valid) {
-                                                  toast({
-                                                    title: "Invalid image",
-                                                    description:
-                                                      validation.error,
-                                                    variant: "destructive",
-                                                  });
-                                                  return;
-                                                }
-                                                const blobUrl =
-                                                  createBlobUrl(file);
-                                                const currentFormValue =
-                                                  form.getValues(
-                                                    `details.highlights.${index}` as any,
-                                                  );
-                                                const text =
-                                                  typeof currentFormValue ===
-                                                  "string"
-                                                    ? currentFormValue
-                                                    : currentFormValue?.text ||
-                                                      "";
-                                                form.setValue(
-                                                  `details.highlights.${index}` as any,
-                                                  {
-                                                    text: text,
-                                                    image: blobUrl,
-                                                  },
-                                                );
-                                                toast({
-                                                  title: "Image uploaded",
-                                                  description:
-                                                    "Image will be saved when you submit the form",
-                                                });
-                                              } catch (error) {
-                                                console.error(
-                                                  "Error uploading highlight image:",
-                                                  error,
-                                                );
-                                                toast({
-                                                  title: "Upload failed",
-                                                  description:
-                                                    "Failed to upload image",
-                                                  variant: "destructive",
-                                                });
-                                              }
-                                            }
-                                          };
-                                          input.click();
-                                        }}
-                                        className="border-2 border-dashed border-sunglow-yellow text-sunglow-yellow hover:bg-sunglow-yellow/10"
-                                      >
-                                        <Upload className="h-4 w-4 mr-2" />
-                                        Choose Highlight Image
-                                      </Button>
-                                    </div>
-                                    <p className="text-xs text-muted-foreground">
-                                      Upload JPEG, PNG, WebP or other image
-                                      formats
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() =>
-                        (appendHighlight as any)({ text: "", image: undefined })
-                      }
-                      className="w-full border-2 border-crimson-red text-crimson-red hover:bg-crimson-red hover:text-white"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Highlight
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                {/* Itinerary */}
-                <Card
-                  id="section-itinerary"
-                  className="bg-background border border-border scroll-mt-4 shadow-md"
-                >
-                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
-                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <Plane className="h-4 w-4 text-crimson-red" />
-                      </div>
-                      Itinerary
-                    </CardTitle>
-                    <CardDescription className="text-muted-foreground">
-                      Create a detailed day-by-day schedule for your tour
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-4 relative">
-                    {/* Continuous timeline line */}
-                    <div
-                      className="absolute left-[2.60rem] top-12 w-0.5 bg-crimson-red/40"
-                      style={{
-                        height: `calc(100% - 7rem)`,
-                      }}
-                    ></div>
-
-                    {itineraryFields.map((field, index) => (
-                      <div
-                        key={field.id}
-                        className="flex items-start gap-4 group relative mb-8"
-                      >
-                        {/* Day Number */}
-                        <div className="flex-shrink-0 relative z-10">
-                          <div className="w-10 h-10 bg-crimson-red text-white rounded-full flex items-center justify-center font-bold text-sm">
-                            {index + 1}
-                          </div>
-                        </div>
-
-                        {/* Content */}
-                        <div className="flex-1 space-y-3">
-                          <div className="flex items-center justify-between">
-                            <FormField
-                              control={form.control}
-                              name={`details.itinerary.${index}.title`}
-                              render={({ field }) => (
-                                <FormItem className="flex-1">
-                                  <FormControl>
-                                    <Input
-                                      placeholder="Day title"
-                                      {...field}
-                                      className="border-none bg-transparent text-lg mr-5 font-semibold text-foreground placeholder:text-muted-foreground focus:ring-2 focus:ring-crimson-red focus:ring-opacity-50 rounded px-2 py-1"
-                                    />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => removeItinerary(index)}
-                              disabled={itineraryFields.length === 1}
-                              className="h-6 w-6 p-0 border-crimson-red text-crimson-red hover:bg-crimson-red hover:text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                          </div>
-
-                          <FormField
-                            control={form.control}
-                            name={`details.itinerary.${index}.description`}
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormControl>
-                                  <Textarea
-                                    placeholder="Activities for this day"
-                                    {...field}
-                                    className="border-none bg-transparent text-muted-foreground placeholder:text-muted-foreground/60 focus:ring-2 focus:ring-crimson-red focus:ring-opacity-50 rounded px-2 resize-none overflow-hidden"
-                                    style={{
-                                      height: "auto",
-                                      minHeight: "3rem",
-                                    }}
-                                    ref={(textarea) => {
-                                      if (textarea) {
-                                        textarea.style.height = "auto";
-                                        textarea.style.height =
-                                          textarea.scrollHeight + "px";
-                                      }
-                                    }}
-                                    onChange={(e) => {
-                                      field.onChange(e);
-                                      const target =
-                                        e.target as HTMLTextAreaElement;
-                                      target.style.height = "auto";
-                                      target.style.height =
-                                        target.scrollHeight + "px";
-                                    }}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* Add Day Button */}
-                    <div className="flex items-start gap-4 group relative">
-                      <div className="flex-shrink-0 relative z-10">
-                        <div className="w-10 h-10 bg-crimson-red/20 border-2 border-dashed border-crimson-red text-crimson-red rounded-full flex items-center justify-center font-bold text-sm">
-                          {itineraryFields.length + 1}
-                        </div>
-                      </div>
-                      <div className="flex-1">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() =>
-                            appendItinerary({
-                              day: itineraryFields.length + 1,
-                              title: "",
-                              description: "",
-                            })
-                          }
-                          className="w-full border-2 border-dashed border-crimson-red text-crimson-red hover:bg-crimson-red hover:text-white bg-transparent"
-                        >
-                          <Plus className="h-4 w-4 mr-2" />
-                          Add Day {itineraryFields.length + 1}
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Requirements */}
-                <Card
-                  id="section-requirements"
-                  className="bg-background border border-border scroll-mt-4 shadow-md"
-                >
-                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
-                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <AlertCircle className="h-4 w-4 text-crimson-red" />
-                      </div>
-                      Requirements
-                    </CardTitle>
-                    <CardDescription className="text-muted-foreground">
-                      Specify any prerequisites or requirements for travelers
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-4 space-y-3">
-                    {requirementFields.map((field, index) => (
-                      <FormField
-                        key={field.id}
-                        control={form.control}
-                        name={`details.requirements.${index}`}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormControl>
-                              <div className="flex items-center gap-3 group">
-                                <div className="w-2 h-2 bg-vivid-orange rounded-full flex-shrink-0"></div>
-                                <Input
-                                  placeholder={`Requirement ${index + 1}`}
-                                  {...field}
-                                  className="border-none bg-transparent group-hover:bg-background transition-colors duration-200 focus:ring-2 focus:ring-vivid-orange focus:ring-opacity-50 rounded px-2"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  onClick={() => removeRequirement(index)}
-                                  disabled={requirementFields.length === 1}
-                                  className="h-6 w-6 p-0 border-vivid-orange text-vivid-orange hover:bg-vivid-orange hover:text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200"
-                                >
-                                  <Minus className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    ))}
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => (appendRequirement as any)("")}
-                      className="w-full border-2 border-crimson-red text-crimson-red hover:bg-crimson-red hover:text-white"
-                    >
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Requirement
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                {/* Gallery Images */}
-                <Card
-                  id="section-gallery"
-                  className="bg-background border border-border scroll-mt-4 shadow-md"
-                >
-                  <CardHeader className="py-3 px-4 bg-crimson-red/10 border-b border-crimson-red/20">
-                    <CardTitle className="flex items-center gap-2 text-foreground text-sm font-bold">
-                      <div className="p-1.5 bg-crimson-red/10 rounded-full rounded-br-none">
-                        <FolderOpen className="h-4 w-4 text-crimson-red" />
-                      </div>
-                      Gallery Images
-                    </CardTitle>
-                    <CardDescription className="text-muted-foreground">
-                      Upload multiple images to showcase your tour (up to 10
-                      images)
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-4">
-                    <div className="space-y-6">
-                      <div className="flex items-center gap-4">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          onChange={handleGalleryUpload}
-                          disabled={isSubmitting}
-                          className="hidden"
-                          id="gallery-upload"
-                        />
-                        <Label
-                          htmlFor="gallery-upload"
-                          className={`flex items-center gap-3 px-6 py-4 border-2 border-dashed border-royal-purple/30 rounded-lg cursor-pointer hover:bg-royal-purple/5 transition-colors duration-200 ${
-                            isSubmitting ? "opacity-50 cursor-not-allowed" : ""
-                          }`}
-                        >
-                          <Upload className="h-5 w-5 text-royal-purple" />
-                          <span className="font-medium text-foreground">
-                            Choose Gallery Images
-                          </span>
-                        </Label>
-                      </div>
-
-                      {uploadedGallery.length > 0 && (
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                          {uploadedGallery.map((image, index) => (
-                            <div key={index} className="relative">
-                              <img
-                                src={image}
-                                alt={`Gallery ${index + 1}`}
-                                className="w-full h-32 object-cover rounded-lg border-2 border-border"
-                              />
-                              <Button
-                                type="button"
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => removeGalleryImage(index)}
-                                className="absolute top-2 right-2 bg-crimson-red hover:bg-light-red"
-                              >
-                                <X className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              </form>
-            </Form>
-          </div>
-
-          {/* Section Navigator Sidebar */}
-          <div className="w-48 border-l border-border/50 p-4 flex flex-col sticky top-0 self-start max-h-screen overflow-y-auto scrollbar-hide">
-            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-              Sections
-            </h3>
-            <nav className="space-y-1 flex-1">
-              {sections.map((section) => {
-                const IconComponent = section.icon;
-                return (
-                  <button
-                    key={section.id}
-                    onClick={() => scrollToSection(section.id)}
-                    className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-all ${
-                      activeSection === section.id
-                        ? "bg-crimson-red text-white shadow-sm"
-                        : "text-foreground hover:bg-muted/50"
-                    }`}
-                  >
-                    <IconComponent
-                      className={`h-3 w-3 flex-shrink-0 ${
-                        activeSection === section.id
-                          ? "text-white"
-                          : "text-crimson-red"
-                      }`}
-                    />
-                    <span className="text-xs font-medium truncate">
-                      {section.title}
-                    </span>
-                  </button>
-                );
-              })}
+            {/* Breadcrumbs */}
+            <nav className="flex items-center gap-2 font-body text-b4-desktop text-dark-gray mb-4">
+              <span>Home</span><span>/</span><span>Tours</span><span>/</span>
+              <span className="text-midnight font-bold truncate max-w-xs">{name || "New Tour"}</span>
             </nav>
 
-            {/* Action Buttons */}
-            <div className="pt-4 border-t border-border/50 space-y-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={onClose}
-                className="w-full border-2 border-border text-muted-foreground hover:bg-muted hover:text-foreground text-xs py-2"
-              >
-                Cancel
-              </Button>
-              <Button
-                type="button"
-                disabled={isSubmitting || isLoading}
-                className="w-full flex items-center gap-2 bg-crimson-red hover:bg-light-red text-white text-xs py-2"
-                onClick={() =>
-                  form.handleSubmit(handleSubmit, handleInvalidSubmit)()
-                }
-              >
-                <Save className="h-3 w-3" />
-                {isSubmitting
-                  ? "Saving..."
-                  : tour
-                    ? "Update Tour"
-                    : "Create Tour"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+            {/* H1 — editable tour name */}
+            <EditZone label="Tour Name" className="mb-4">
+              <InlineInput
+                value={name}
+                onChange={(v) => sv("name", v)}
+                placeholder="Tour Name"
+                className="font-display text-h1-mobile md:text-h1-desktop font-bold text-midnight"
+              />
+            </EditZone>
+
+            {/* ── Two-column grid ────────────────────────────────────────── */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px] lg:gap-8">
+
+              {/* ─── LEFT COLUMN ─────────────────────────────────────────── */}
+              <div className="min-w-0">
+
+                {/* Gallery — outside main card, same as www */}
+                {(() => {
+                  const galleryImages = uploadedGallery.filter(Boolean) as string[];
+                  const activeImg = galleryImages[activeGalleryIndex] ?? uploadedCover;
+                  return (
+                    <>
+                      <div className="relative aspect-[4/3] md:aspect-video w-full overflow-hidden rounded-[24px] bg-light-grey group/hero">
+                        {activeImg ? (
+                          <img src={resolveImg(activeImg)} alt="Hero" className="w-full h-full object-cover" />
+                        ) : (
+                          <button type="button" onClick={() => setPickerState({ field: "cover" })}
+                            className="flex flex-col items-center justify-center h-full w-full cursor-pointer hover:bg-light-grey/80 transition-colors">
+                            <ImageIcon className="h-10 w-10 text-dark-gray/40 mb-2" />
+                            <span className="font-body text-b4-desktop text-dark-gray">Click to upload hero image</span>
+                          </button>
+                        )}
+                        {uploadedCover && (
+                          <div className="absolute inset-0 bg-black/0 group-hover/hero:bg-black/30 transition-colors flex items-center justify-center">
+                            <div className="opacity-0 group-hover/hero:opacity-100 transition-opacity flex gap-2">
+                              <button type="button" onClick={() => setPickerState({ field: "cover", initialUrl: resolveImg(uploadedCover) || undefined })}
+                                className="flex size-10 items-center justify-center bg-white text-midnight rounded-full shadow-small hover:shadow-medium hover:text-crimson-red transition-colors cursor-pointer">
+                                <Camera className="h-5 w-5" />
+                              </button>
+                              <button type="button" onClick={() => { if (uploadedCover?.startsWith("blob:")) revokeBlobUrl(uploadedCover); setUploadedCover(null); setCoverBlob(null); setActiveGalleryIndex(0); }}
+                                className="flex items-center gap-1 bg-crimson-red text-white rounded-full px-3 py-2 text-sm font-body cursor-pointer shadow-small">
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                        {galleryImages.length > 0 && (
+                          <>
+                            <button type="button" onClick={() => setActiveGalleryIndex(idx => (idx - 1 + galleryImages.length) % galleryImages.length)}
+                              className="absolute left-3 top-1/2 -translate-y-1/2 size-10 rounded-full bg-white/90 shadow-small flex items-center justify-center hover:bg-white transition-colors">
+                              <ChevronLeft className="h-5 w-5 text-midnight" />
+                            </button>
+                            <button type="button" onClick={() => setActiveGalleryIndex(idx => (idx + 1) % galleryImages.length)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 size-10 rounded-full bg-white/90 shadow-small flex items-center justify-center hover:bg-white transition-colors">
+                              <ChevronRight className="h-5 w-5 text-midnight" />
+                            </button>
+                          </>
+                        )}
+                      </div>
+                      <SortableList ids={galleryImages} strategy={horizontalListSortingStrategy} onReorder={moveGallery}>
+                      <div className="pl-1 py-1 mt-4 flex gap-2 overflow-x-auto scrollbar-hide">
+                        {galleryImages.map((img, idx) => (
+                          <SortableItem key={img} id={img}>
+                            {({ setNodeRef, style, handle }) => (
+                          <div ref={setNodeRef} style={style} className="relative group/thumb flex-shrink-0 w-[calc((100%-2.5rem)/6)]">
+                            <button type="button" onClick={() => setActiveGalleryIndex(idx)}
+                              className={`block aspect-[4/3] w-full rounded-[16px] overflow-hidden transition-opacity ${idx === activeGalleryIndex ? "opacity-100 ring-2 ring-crimson-red" : "opacity-60 hover:opacity-80"}`}>
+                              <img src={resolveImg(img)} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
+                            </button>
+                            {/* Hover overlay: centered camera icon + corner delete */}
+                            <div className="absolute inset-0 rounded-[16px] opacity-0 group-hover/thumb:opacity-100 transition-opacity pointer-events-none bg-black/30" />
+                            <button type="button"
+                              onClick={() => setPickerState({ field: `gallery-edit-${idx}`, initialUrl: resolveImg(img) || undefined })}
+                              className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity rounded-[16px]">
+                              <Camera className="h-4 w-4 text-white drop-shadow" />
+                            </button>
+                            <button type="button" onClick={() => { rmGallery(idx); if (activeGalleryIndex >= galleryImages.length - 1) setActiveGalleryIndex(Math.max(0, galleryImages.length - 2)); }}
+                              className="absolute top-0.5 right-0.5 opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-crimson-red text-white rounded-full w-4 h-4 flex items-center justify-center">
+                              <X className="h-2.5 w-2.5" />
+                            </button>
+                            <DragHandle handle={handle} className="absolute top-0.5 left-0.5 z-10 opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-white/90 hover:bg-white rounded-full p-0.5 shadow-small" />
+                          </div>
+                            )}
+                          </SortableItem>
+                        ))}
+                        <button type="button" onClick={() => setPickerState({ field: "gallery-add", multiple: true })}
+                          className="flex-shrink-0 w-[calc((100%-2.5rem)/6)] aspect-[4/3] rounded-[16px] border-2 border-dashed border-dark-gray/20 flex items-center justify-center cursor-pointer hover:border-crimson-red/40 hover:bg-crimson-red/5 transition-colors">
+                          <Plus className="h-5 w-5 text-dark-gray/40" />
+                        </button>
+                      </div>
+                      </SortableList>
+                    </>
+                  );
+                })()}
+
+                {/* ── ONE main card: all content sections ──────────────────── */}
+                <div className="mt-6 rounded-[24px] bg-white px-5 py-8 md:px-10 md:py-10">
+
+                  {/* Tour Header: duration | name — wraps naturally like www */}
+                  {(() => {
+                    const hClass = "font-hk-grotesk text-[2rem] md:text-[2.5rem] font-bold leading-[1.2] md:tracking-[-0.02em] text-midnight";
+                    return (
+                      <EditZone label="Header">
+                        <div className="flex items-start gap-x-1">
+                          <div className="flex items-baseline gap-x-1 flex-shrink-0">
+                            <AutoSizeInput value={duration} onChange={(v) => sv("duration", v)} placeholder="11 days"
+                              className={hClass} />
+                            <span className={`${hClass} select-none`}> | </span>
+                          </div>
+                          <InlineTextarea value={name} onChange={(v) => sv("name", v)} placeholder="Tour Name"
+                            className={`${hClass} flex-1 min-w-[8rem]`} />
+                        </div>
+                      </EditZone>
+                    );
+                  })()}
+
+                  {/* Tags */}
+                  <SortableList ids={(tagFields as any[]).map((f) => f.id)} strategy={rectSortingStrategy} onReorder={(a, b) => moveTag(a, b)}>
+                  <div className="mt-6 flex flex-wrap gap-2 items-center">
+                    {(tagFields as any[]).map((field, i) => {
+                      const tag = tags?.[i];
+                      const TagIcon = ICON_COMPONENTS[tag?.icon ?? "location"] ?? MapPin;
+                      return (
+                        <SortableItem key={field.id} id={field.id}>
+                          {({ setNodeRef, style, handle }) => (
+                        <span ref={setNodeRef} style={style} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-body font-medium text-sm ${TAG_PALETTE[i % 4]} group/tag`}>
+                          <DragHandle handle={handle} className="-ml-1.5 shrink-0 opacity-0 group-hover/tag:opacity-100 transition-opacity !text-current" />
+                          <TagIcon className="size-3.5 shrink-0" strokeWidth={2.75} />
+                          <AutoSizeInput value={tag?.label ?? ""} onChange={(v) => sv(`details.tags.${i}.label`, v)} placeholder="Tag" className="font-body text-sm" compact />
+                          <button type="button" onClick={() => rmTag(i)} className="w-0 overflow-hidden group-hover/tag:w-auto transition-all opacity-0 group-hover/tag:opacity-100"><X className="size-3" /></button>
+                        </span>
+                          )}
+                        </SortableItem>
+                      );
+                    })}
+                    <button type="button" onClick={() => (addTag as any)({ label: "", icon: "location" })}
+                      className="inline-flex items-center gap-1 rounded-full border border-dashed border-dark-gray/30 px-3 py-1.5 font-body text-b4-desktop text-dark-gray/60 hover:border-crimson-red/40 hover:text-crimson-red transition-colors">
+                      <Plus className="size-3.5" /> Tag
+                    </button>
+                  </div>
+                  </SortableList>
+
+                  {/* Description */}
+                  <EditZone label="Description" className="mt-6 max-w-3xl">
+                    <InlineTextarea value={gv("description") ?? ""} onChange={(v) => sv("description", v)}
+                      placeholder="Describe the tour experience…" className="font-body text-b2-mobile md:text-b2-desktop text-dark-gray" />
+                  </EditZone>
+
+                  {/* Key Facts */}
+                  <section className="mt-8 md:mt-10 w-full">
+                    <ul className="flex flex-col gap-6">
+                      {/* Tour Dates — derived from travelDates; edited via modal */}
+                      <li className="flex items-start gap-4 group/td">
+                        <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-light-grey">
+                          <Calendar className="size-5 text-midnight" strokeWidth={2.75} />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="font-hk-grotesk text-b2-mobile md:text-b2-desktop !font-bold text-midnight">Tour Dates</p>
+                            <button type="button" onClick={() => setDatesModalOpen(true)}
+                              className="flex items-center gap-1 text-xs text-crimson-red hover:text-light-red">
+                              <Pencil className="h-3 w-3" /> Edit dates
+                            </button>
+                          </div>
+                          <ul className="mt-1 space-y-0.5">
+                            {tourDateValues.length === 0 ? (
+                              <li className="flex items-center gap-2 font-body text-b2-mobile md:text-b2-desktop text-dark-gray">
+                                <span className="inline-block size-1.5 shrink-0 rounded-full bg-crimson-red" aria-hidden />
+                                To be announced
+                              </li>
+                            ) : tourDateValues.map((v, idx) => (
+                              <li key={idx} className="flex items-center gap-2 font-body text-b2-mobile md:text-b2-desktop text-dark-gray">
+                                <span className="inline-block size-1.5 shrink-0 rounded-full bg-crimson-red" aria-hidden />
+                                {v}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </li>
+                      {(() => {
+                        // Reorder only the editable facts; the derived "Tour Dates" row
+                        // stays pinned above. Map visible→actual index so moveKf is correct.
+                        const visible = (kfFields as any[])
+                          .map((f, i) => ({ f, i }))
+                          .filter(({ i }) => kfData?.[i]?.label !== "Tour Dates");
+                        return (
+                          <SortableList
+                            ids={visible.map((v) => v.f.id)}
+                            strategy={verticalListSortingStrategy}
+                            onReorder={(a, b) => moveKf(visible[a].i, visible[b].i)}
+                          >
+                            {visible.map(({ f: field, i }) => {
+                              const kf = kfData?.[i];
+                              const KfIcon = ICON_COMPONENTS[kf?.icon ?? "days"] ?? Calendar;
+                              return (
+                                <SortableItem key={field.id} id={field.id}>
+                                  {({ setNodeRef, style, handle }) => (
+                          <li ref={setNodeRef} style={style} className="flex items-start gap-4 group/kf">
+                            <Select value={kf?.icon ?? "days"} onValueChange={(v) => sv(`details.keyFacts.${i}.icon`, v)}>
+                              <SelectTrigger className="flex size-12 shrink-0 items-center justify-center rounded-full bg-light-grey border-0 p-0 [&>svg:last-child]:hidden hover:ring-2 hover:ring-crimson-red/20 transition-shadow">
+                                <KfIcon className="size-5 text-midnight" strokeWidth={2.75} />
+                              </SelectTrigger>
+                              <SelectContent>{ALL_ICONS.map((k) => { const IC = ICON_COMPONENTS[k]; return <SelectItem key={k} value={k}><span className="flex items-center gap-2"><IC className="h-4 w-4" />{k}</span></SelectItem>; })}</SelectContent>
+                            </Select>
+                            <div className="flex-1 min-w-0">
+                              <InlineInput value={kf?.label ?? ""} onChange={(v) => sv(`details.keyFacts.${i}.label`, v)}
+                                placeholder="Label" className="font-hk-grotesk text-b2-mobile md:text-b2-desktop !font-bold text-midnight" />
+                              <InlineTextarea
+                                value={(kf?.values ?? []).join("\n")}
+                                onChange={(v) => sv(`details.keyFacts.${i}.values`, v.split("\n").filter(Boolean))}
+                                placeholder="Value (one per line)"
+                                className="mt-1 font-body text-b2-mobile md:text-b2-desktop text-dark-gray" />
+                            </div>
+                            <DragHandle handle={handle} className="opacity-0 group-hover/kf:opacity-100 transition-opacity mt-3 shrink-0" />
+                            <button type="button" onClick={() => rmKf(i)}
+                              className="opacity-0 group-hover/kf:opacity-100 transition-opacity text-crimson-red mt-1 shrink-0">
+                              <X className="h-4 w-4" />
+                            </button>
+                          </li>
+                                  )}
+                                </SortableItem>
+                              );
+                            })}
+                          </SortableList>
+                        );
+                      })()}
+                    </ul>
+                    <button type="button" onClick={() => (addKf as any)({ icon: "days", label: "", values: [""] })}
+                      className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
+                      <Plus className="h-4 w-4" /> Add key fact
+                    </button>
+                  </section>
+
+                  {/* What's Included */}
+                  <section className="mt-10 md:mt-14 w-full">
+                    <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">What's Included</h2>
+                    <SortableList ids={(inclFields as any[]).map((f) => f.id)} strategy={rectSortingStrategy} onReorder={(a, b) => moveIncl(a, b)}>
+                    <ul className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+                      {(inclFields as any[]).map((field, i) => {
+                        const incl = inclusions?.[i];
+                        const IncIcon = ICON_COMPONENTS[incl?.icon ?? "plus"] ?? CheckCircle2;
+                        const rawValue: string = Array.isArray(incl?.value) ? incl.value.join("\n") : (incl?.value ?? "");
+                        return (
+                          <SortableItem key={field.id} id={field.id}>
+                            {({ setNodeRef, style, handle }) => (
+                          <li ref={setNodeRef} style={style} className="flex items-start gap-4 group/incl">
+                            <Select value={incl?.icon ?? "plus"} onValueChange={(v) => sv(`details.inclusions.${i}.icon`, v)}>
+                              <SelectTrigger className="flex size-12 shrink-0 items-center justify-center rounded-full bg-light-grey text-midnight border-0 p-0 [&>svg:last-child]:hidden hover:ring-2 hover:ring-crimson-red/20 transition-shadow">
+                                <IncIcon className="size-5" />
+                              </SelectTrigger>
+                              <SelectContent>{ALL_ICONS.map((k) => { const IC = ICON_COMPONENTS[k]; return <SelectItem key={k} value={k}><span className="flex items-center gap-2"><IC className="h-4 w-4" />{k}</span></SelectItem>; })}</SelectContent>
+                            </Select>
+                            <div className="flex-1 min-w-0">
+                              <InlineInput value={incl?.label ?? ""} onChange={(v) => sv(`details.inclusions.${i}.label`, v)} placeholder="Label" className="font-hk-grotesk text-b2-desktop font-bold text-midnight" />
+                              <InlineBulletTextarea value={rawValue} onChange={(v) => sv(`details.inclusions.${i}.value`, v)} placeholder="Detail (use - for bullets)" className="mt-1 font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
+                            </div>
+                            <DragHandle handle={handle} className="opacity-0 group-hover/incl:opacity-100 transition-opacity mt-1 shrink-0" />
+                            <button type="button" onClick={() => rmIncl(i)} className="opacity-0 group-hover/incl:opacity-100 transition-opacity text-crimson-red mt-1 shrink-0"><X className="h-4 w-4" /></button>
+                          </li>
+                            )}
+                          </SortableItem>
+                        );
+                      })}
+                    </ul>
+                    </SortableList>
+                    <button type="button" onClick={() => (addIncl as any)({ icon: "plus", label: "", value: "" })}
+                      className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
+                      <Plus className="h-4 w-4" /> Add inclusion
+                    </button>
+                  </section>
+
+                  {/* Trip Highlights */}
+                  <section className="mt-10 md:mt-14 w-full">
+                    <div className="flex items-center justify-between gap-4">
+                      <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Trip Highlights</h2>
+                      <div className="flex shrink-0 gap-2">
+                        <button type="button"
+                          onClick={() => hlScrollRef.current?.scrollBy({ left: -(hlScrollRef.current.offsetWidth / 2 + 12), behavior: "smooth" })}
+                          className="flex size-9 items-center justify-center rounded-full border border-midnight text-midnight transition-all hover:border-crimson-red hover:text-crimson-red active:scale-90 active:bg-light-grey">
+                          <ChevronLeft className="size-4" strokeWidth={2.25} />
+                        </button>
+                        <button type="button"
+                          onClick={() => hlScrollRef.current?.scrollBy({ left: hlScrollRef.current.offsetWidth / 2 + 12, behavior: "smooth" })}
+                          className="flex size-9 items-center justify-center rounded-full border border-midnight text-midnight transition-all hover:border-crimson-red hover:text-crimson-red active:scale-90 active:bg-light-grey">
+                          <ChevronRight className="size-4" strokeWidth={2.25} />
+                        </button>
+                      </div>
+                    </div>
+                    <SortableList ids={(hlFields as any[]).map((f) => f.id)} strategy={horizontalListSortingStrategy} onReorder={(a, b) => moveHl(a, b)}>
+                    <div ref={hlScrollRef} className="mt-8 flex gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
+                      {(hlFields as any[]).map((field, i) => {
+                        const hl = highlights?.[i];
+                        return (
+                          <SortableItem key={field.id} id={field.id}>
+                            {({ setNodeRef, style, handle }) => (
+                          <div ref={setNodeRef} style={style} className="group/hl flex-shrink-0 w-[calc(50%-12px)] snap-start flex flex-col gap-4">
+                            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[24px] bg-light-grey group/hlimg">
+                              {hl?.image ? (
+                                <>
+                                  <img src={resolveImg(hl.image)} alt="" className="w-full h-full object-cover" />
+                                  <div className="absolute inset-0 bg-black/0 group-hover/hlimg:bg-black/20 transition-colors" />
+                                  <button type="button"
+                                    onClick={() => setPickerState({ field: `highlight-${i}`, initialUrl: resolveImg(hl.image) || undefined })}
+                                    className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/hlimg:opacity-100 transition-opacity">
+                                    <Camera className="h-5 w-5 text-white drop-shadow" />
+                                  </button>
+                                  <button type="button" onClick={() => sv(`details.highlights.${i}`, { ...hl, image: undefined })}
+                                    className="absolute top-2 right-2 opacity-0 group-hover/hlimg:opacity-100 transition-opacity bg-crimson-red text-white rounded-full w-6 h-6 flex items-center justify-center">
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </>
+                              ) : (
+                                <button type="button" onClick={() => setPickerState({ field: `highlight-${i}` })}
+                                  className="flex flex-col items-center justify-center h-full w-full cursor-pointer hover:bg-light-grey/70">
+                                  <ImageIcon className="h-8 w-8 text-dark-gray/30 mb-1" />
+                                  <span className="text-xs text-dark-gray/40">Add image</span>
+                                </button>
+                              )}
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-start gap-2">
+                                <InlineTextarea value={hl?.text ?? ""} onChange={(v) => sv(`details.highlights.${i}`, { ...hl, text: v })} placeholder="Highlight text" className="font-hk-grotesk text-h6-mobile md:text-h6-desktop font-bold text-midnight flex-1" />
+                                <DragHandle handle={handle} className="flex-shrink-0 mt-1 opacity-0 group-hover/hl:opacity-100 transition-opacity" />
+                                <button type="button" onClick={() => rmHl(i)} className="text-crimson-red flex-shrink-0 mt-0.5"><X className="h-4 w-4" /></button>
+                              </div>
+                              <InlineInput value={hl?.subtitle ?? ""} onChange={(v) => sv(`details.highlights.${i}`, { ...hl, subtitle: v })} placeholder="Subtitle (optional)" className="font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
+                            </div>
+                          </div>
+                            )}
+                          </SortableItem>
+                        );
+                      })}
+                    </div>
+                    </SortableList>
+                    <button type="button" onClick={() => { (addHl as any)({ text: "", image: undefined, subtitle: undefined }); setTimeout(() => hlScrollRef.current?.scrollTo({ left: hlScrollRef.current.scrollWidth, behavior: "smooth" }), 50); }}
+                      className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
+                      <Plus className="h-4 w-4" /> Add highlight
+                    </button>
+                  </section>
+
+                  {/* Map */}
+                  {(mapData?.image || mapData?.embedUrl) && (
+                    <section className="mt-10 md:mt-14 w-full">
+                      <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Map</h2>
+                      <div className="mt-8 relative aspect-video w-full overflow-hidden rounded-[24px] bg-light-grey">
+                        {mapData.embedUrl ? <iframe src={mapData.embedUrl} className="w-full h-full" /> : mapData.image ? <img src={resolveImg(mapData.image)} alt="Map" className="w-full h-full object-cover" /> : null}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Itinerary */}
+                  <section className="mt-10 md:mt-14 w-full">
+                    <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Itinerary</h2>
+                    <SortableList ids={(iterFields as any[]).map((f) => f.id)} strategy={verticalListSortingStrategy} onReorder={(a, b) => moveIter(a, b)}>
+                    <ol className="mt-8 divide-y divide-light-grey border-t border-light-grey">
+                      {(iterFields as any[]).map((field, i) => {
+                        const day = itinerary?.[i];
+                        const isOpen = expandedDays.has(i);
+                        return (
+                          <SortableItem key={field.id} id={field.id}>
+                            {({ setNodeRef, style, handle }) => (
+                          <li ref={setNodeRef} style={style} className="group/day">
+                            <div className="flex items-center gap-3 py-4">
+                              <DragHandle handle={handle} className="shrink-0 opacity-0 group-hover/day:opacity-100 transition-opacity" />
+                              <span className="size-7 shrink-0 bg-crimson-red text-white rounded-full flex items-center justify-center font-hk-grotesk font-bold text-b4-desktop">{i + 1}</span>
+                              <div className="flex-1 min-w-0 flex items-baseline gap-1.5">
+                                <span className="font-hk-grotesk text-h6-mobile md:text-h6-desktop font-bold text-midnight shrink-0">Day {i + 1}</span>
+                                <InlineInput value={day?.title ?? ""} onChange={(v) => sv(`details.itinerary.${i}.title`, v)} placeholder="Day title…" className="font-hk-grotesk text-h6-mobile md:text-h6-desktop text-crimson-red" />
+                              </div>
+                              <button type="button" onClick={() => setExpandedDays((p) => { const n = new Set(p); if (isOpen) { n.delete(i); } else { n.add(i); } return n; })}
+                                className={`size-5 shrink-0 text-midnight transition-transform ${isOpen ? "rotate-180" : ""}`}>
+                                <ChevronDown className="h-5 w-5" />
+                              </button>
+                              <button type="button" onClick={() => rmIter(i)} disabled={iterFields.length === 1} className="text-crimson-red opacity-0 group-hover/day:opacity-100 disabled:opacity-0 transition-opacity"><X className="h-4 w-4" /></button>
+                            </div>
+                            {isOpen && (
+                              <div className="pb-5 grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-[1fr_348px]">
+                                <InlineTextarea value={day?.description ?? ""} onChange={(v) => sv(`details.itinerary.${i}.description`, v)} placeholder="Describe this day…" className="font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
+                                <div className="relative aspect-[16/10] overflow-hidden rounded-[16px] bg-light-grey md:row-span-2 group/dayimg">
+                                  {day?.image ? (
+                                    <>
+                                      <img src={resolveImg(day.image)} alt={`Day ${i + 1}`} className="w-full h-full object-cover" />
+                                      <div className="absolute inset-0 rounded-[16px] opacity-0 group-hover/dayimg:opacity-100 transition-opacity pointer-events-none bg-black/30" />
+                                      <button type="button"
+                                        onClick={() => setPickerState({ field: `itinerary-${i}`, initialUrl: resolveImg(day?.image) || undefined })}
+                                        className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/dayimg:opacity-100 transition-opacity">
+                                        <Camera className="h-5 w-5 text-white drop-shadow" />
+                                      </button>
+                                      <button type="button" onClick={() => sv(`details.itinerary.${i}.image`, "")}
+                                        className="absolute top-2 right-2 opacity-0 group-hover/dayimg:opacity-100 transition-opacity bg-crimson-red text-white rounded-full w-6 h-6 flex items-center justify-center">
+                                        <X className="h-3 w-3" />
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <button type="button" onClick={() => setPickerState({ field: `itinerary-${i}` })}
+                                      className="flex flex-col items-center justify-center h-full w-full cursor-pointer hover:bg-light-grey/70">
+                                      <ImageIcon className="h-8 w-8 text-dark-gray/30 mb-1" />
+                                      <span className="text-xs text-dark-gray/40">Add image</span>
+                                    </button>
+                                  )}
+                                </div>
+                                <div className="border-t border-light-grey/60 pt-3">
+                                  <ul className="grid grid-cols-1 gap-x-6 gap-y-4 sm:grid-cols-2">
+                                    {(day?.details ?? []).map((det: any, di: number) => {
+                                      const DetIcon = ICON_COMPONENTS[det?.icon ?? "activities"] ?? Compass;
+                                      return (
+                                        <li key={di} className="flex items-start gap-3 group/det">
+                                          <Select value={det?.icon ?? "activities"} onValueChange={(v) => {
+                                            const arr = [...(gv(`details.itinerary.${i}.details`) ?? [])];
+                                            arr[di] = { ...arr[di], icon: v };
+                                            sv(`details.itinerary.${i}.details`, arr);
+                                          }}>
+                                            <SelectTrigger className="shrink-0 mt-0.5 border-0 bg-transparent shadow-none p-0 w-auto h-auto text-midnight [&>svg:last-child]:hidden hover:text-crimson-red transition-colors">
+                                              <DetIcon className="size-4" />
+                                            </SelectTrigger>
+                                            <SelectContent>{ALL_ICONS.map((k) => { const IC = ICON_COMPONENTS[k]; return <SelectItem key={k} value={k}><span className="flex items-center gap-2"><IC className="h-4 w-4" />{k}</span></SelectItem>; })}</SelectContent>
+                                          </Select>
+                                          <div className="flex-1 min-w-0">
+                                            <InlineInput
+                                              value={det?.label ?? ""}
+                                              onChange={(v) => {
+                                                const arr = [...(gv(`details.itinerary.${i}.details`) ?? [])];
+                                                arr[di] = { ...arr[di], label: v };
+                                                sv(`details.itinerary.${i}.details`, arr);
+                                              }}
+                                              placeholder="Label"
+                                              className="font-hk-grotesk text-b4-mobile !font-bold text-midnight w-full"
+                                            />
+                                            <InlineBulletTextarea
+                                              value={det?.value ?? ""}
+                                              onChange={(v) => {
+                                                const arr = [...(gv(`details.itinerary.${i}.details`) ?? [])];
+                                                arr[di] = { ...arr[di], value: v };
+                                                sv(`details.itinerary.${i}.details`, arr);
+                                              }}
+                                              placeholder="Detail (use - for bullets)"
+                                              className="mt-0.5 font-body text-b4-mobile text-dark-gray"
+                                            />
+                                          </div>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              const arr = (gv(`details.itinerary.${i}.details`) ?? []).filter((_: unknown, j: number) => j !== di);
+                                              sv(`details.itinerary.${i}.details`, arr);
+                                            }}
+                                            className="opacity-0 group-hover/det:opacity-100 transition-opacity text-crimson-red mt-0.5 shrink-0"
+                                          >
+                                            <X className="h-3.5 w-3.5" />
+                                          </button>
+                                        </li>
+                                      );
+                                    })}
+                                  </ul>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const arr = [...(gv(`details.itinerary.${i}.details`) ?? []), { icon: "activities", label: "", value: "" }];
+                                      sv(`details.itinerary.${i}.details`, arr);
+                                    }}
+                                    className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red"
+                                  >
+                                    <Plus className="h-4 w-4" /> Add detail
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </li>
+                            )}
+                          </SortableItem>
+                        );
+                      })}
+                    </ol>
+                    </SortableList>
+                    <button type="button" onClick={() => { addIter({ day: iterFields.length + 1, title: "", description: "", image: undefined, accommodation: undefined, activities: undefined, meals: undefined, details: [] }); setExpandedDays((p) => { const n = new Set(p); n.add(iterFields.length); return n; }); }}
+                      className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
+                      <Plus className="h-4 w-4" /> Add Day {iterFields.length + 1}
+                    </button>
+                  </section>
+
+                  {/* Where We Stay */}
+                  <section className="mt-10 md:mt-14 w-full">
+                    <div className="flex items-center justify-between gap-4">
+                      <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Where We Stay</h2>
+                      <div className="flex shrink-0 gap-2">
+                        <button type="button"
+                          onClick={() => accomScrollRef.current?.scrollBy({ left: -(accomScrollRef.current.offsetWidth / 2 + 12), behavior: "smooth" })}
+                          className="flex size-9 items-center justify-center rounded-full border border-midnight text-midnight transition-all hover:border-crimson-red hover:text-crimson-red active:scale-90 active:bg-light-grey">
+                          <ChevronLeft className="size-4" strokeWidth={2.25} />
+                        </button>
+                        <button type="button"
+                          onClick={() => accomScrollRef.current?.scrollBy({ left: accomScrollRef.current.offsetWidth / 2 + 12, behavior: "smooth" })}
+                          className="flex size-9 items-center justify-center rounded-full border border-midnight text-midnight transition-all hover:border-crimson-red hover:text-crimson-red active:scale-90 active:bg-light-grey">
+                          <ChevronRight className="size-4" strokeWidth={2.25} />
+                        </button>
+                      </div>
+                    </div>
+                    <SortableList ids={(accomFields as any[]).map((f) => f.id)} strategy={horizontalListSortingStrategy} onReorder={(a, b) => moveAccom(a, b)}>
+                    <div ref={accomScrollRef} className="mt-8 flex gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
+                      {(accomFields as any[]).map((field, i) => {
+                        const ac = accoms?.[i];
+                        return (
+                          <SortableItem key={field.id} id={field.id}>
+                            {({ setNodeRef, style, handle }) => (
+                          <div ref={setNodeRef} style={style} className="group/ac flex-shrink-0 w-[calc(50%-12px)] snap-start flex flex-col gap-4">
+                            <div className="relative aspect-[4/3] overflow-hidden rounded-[24px] bg-light-grey group/acimg">
+                              {ac?.image
+                                ? <img src={resolveImg(ac.image)} alt="" className="w-full h-full object-cover" />
+                                : <button type="button" onClick={() => setPickerState({ field: `accommodation-${i}` })}
+                                    className="flex flex-col items-center justify-center h-full w-full cursor-pointer hover:bg-light-grey/70">
+                                    <ImageIcon className="h-8 w-8 text-dark-gray/30 mb-1" />
+                                    <span className="text-xs text-dark-gray/40">Add image</span>
+                                  </button>}
+                              {ac?.image && (
+                                <>
+                                  <button type="button"
+                                    onClick={() => setPickerState({ field: `accommodation-${i}`, initialUrl: resolveImg(ac.image) || undefined })}
+                                    className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/acimg:opacity-100 transition-opacity">
+                                    <Camera className="h-5 w-5 text-white drop-shadow" />
+                                  </button>
+                                  <button type="button" onClick={() => sv(`details.accommodations.${i}.image`, "")}
+                                    className="absolute top-2 right-2 opacity-0 group-hover/acimg:opacity-100 transition-opacity bg-crimson-red text-white rounded-full w-6 h-6 flex items-center justify-center">
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <InlineInput value={ac?.name ?? ""} onChange={(v) => sv(`details.accommodations.${i}.name`, v)} placeholder="Hotel name" className="font-hk-grotesk text-xl font-bold text-midnight flex-1" />
+                                <DragHandle handle={handle} className="shrink-0 opacity-0 group-hover/ac:opacity-100 transition-opacity" />
+                                <button type="button" onClick={() => rmAccom(i)} className="text-crimson-red shrink-0"><X className="h-4 w-4" /></button>
+                              </div>
+                              <InlineInput value={ac?.nights ?? ""} onChange={(v) => sv(`details.accommodations.${i}.nights`, v)} placeholder="e.g. 2 nights in hotel" className="font-body text-sm text-dark-gray" />
+                              <div className="flex items-center gap-1.5">
+                                <ExternalLink className="h-3 w-3 text-dark-gray/40 shrink-0" />
+                                <InlineInput value={ac?.image ?? ""} onChange={(v) => sv(`details.accommodations.${i}.image`, v)} placeholder="Image URL (or use camera above)" className="font-body text-xs text-dark-gray/40 flex-1" />
+                              </div>
+                            </div>
+                          </div>
+                            )}
+                          </SortableItem>
+                        );
+                      })}
+                    </div>
+                    </SortableList>
+                    <button type="button" onClick={() => { (addAccom as any)({ name: "", nights: "", image: "" }); setTimeout(() => accomScrollRef.current?.scrollTo({ left: accomScrollRef.current.scrollWidth, behavior: "smooth" }), 50); }}
+                      className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
+                      <Plus className="h-4 w-4" /> Add accommodation
+                    </button>
+                  </section>
+
+                  {/* FAQs */}
+                  <section className="mt-10 md:mt-14 w-full">
+                    <div className="flex items-center justify-between">
+                      <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">FAQs</h2>
+                      {faqFields.length > 0 && (
+                        <button type="button"
+                          onClick={() => setExpandedFaqs(expandedFaqs.size === faqFields.length ? new Set() : new Set((faqFields as any[]).map((_, i) => i)))}
+                          className="font-body text-b4-desktop text-crimson-red underline-offset-2 hover:underline">
+                          {expandedFaqs.size === faqFields.length ? "Collapse All" : "Expand All"}
+                        </button>
+                      )}
+                    </div>
+                    {faqFields.length > 0 && (
+                      <SortableList ids={(faqFields as any[]).map((f) => f.id)} strategy={verticalListSortingStrategy} onReorder={(a, b) => moveFaq(a, b)}>
+                      <dl className="mt-8">
+                        {(faqFields as any[]).map((field, i) => {
+                          const faq = faqs?.[i];
+                          const isOpen = expandedFaqs.has(i);
+                          return (
+                            <SortableItem key={field.id} id={field.id}>
+                              {({ setNodeRef, style, handle }) => (
+                            <div ref={setNodeRef} style={style} className="border-b border-[#d7d6db] group/faq">
+                              <div className="flex w-full items-center justify-between gap-4 py-3">
+                                <InlineInput value={faq?.question ?? ""} onChange={(v) => sv(`details.faqs.${i}.question`, v)}
+                                  placeholder="Question" className="font-hk-grotesk text-h6-mobile md:text-h6-desktop text-midnight flex-1" />
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <button type="button" onClick={() => setExpandedFaqs((prev) => { const next = new Set(prev); if (next.has(i)) { next.delete(i); } else { next.add(i); } return next; })}
+                                    className={`transition-transform ${isOpen ? "rotate-180" : ""}`}>
+                                    <ChevronDown className="size-5 text-midnight" />
+                                  </button>
+                                  <DragHandle handle={handle} className="opacity-0 group-hover/faq:opacity-100 transition-opacity" />
+                                  <button type="button" onClick={() => rmFaq(i)} className="opacity-0 group-hover/faq:opacity-100 transition-opacity text-crimson-red"><X className="size-4" /></button>
+                                </div>
+                              </div>
+                              {isOpen && (
+                                <div className="pb-4">
+                                  <InlineTextarea value={faq?.answer ?? ""} onChange={(v) => sv(`details.faqs.${i}.answer`, v)}
+                                    placeholder="Answer…" className="font-body text-b2-mobile md:text-b2-desktop text-midnight" />
+                                </div>
+                              )}
+                            </div>
+                              )}
+                            </SortableItem>
+                          );
+                        })}
+                      </dl>
+                      </SortableList>
+                    )}
+                    <button type="button" onClick={() => (addFaq as any)({ question: "", answer: "" })}
+                      className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
+                      <Plus className="h-4 w-4" /> Add FAQ
+                    </button>
+                  </section>
+
+                  {/* Things to Know */}
+                  <section className="mt-10 md:mt-14 w-full">
+                    <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Things to Know</h2>
+                    {ttkFields.length > 0 ? (
+                      <>
+                        <SortableList ids={(ttkFields as any[]).map((f) => f.id)} strategy={rectSortingStrategy} onReorder={(a, b) => moveTtk(a, b)}>
+                        <ul className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+                          {(ttkFields as any[]).map((field, i) => {
+                            const ttk = ttks?.[i];
+                            const Icon = ICON_COMPONENTS[ttk?.icon ?? "info"] ?? Info;
+                            return (
+                              <SortableItem key={field.id} id={field.id}>
+                                {({ setNodeRef, style, handle }) => (
+                              <li ref={setNodeRef} style={style} className="flex flex-col gap-4 rounded-[24px] border border-light-grey p-6 md:p-8 group/ttk">
+                                <div className="flex items-start justify-between">
+                                  <Select value={ttk?.icon ?? "info"} onValueChange={(v) => sv(`details.thingsToKnow.${i}.icon`, v)}>
+                                    <SelectTrigger className="flex size-14 items-center justify-center rounded-full bg-light-grey text-midnight border-0 p-0 [&>svg:last-child]:hidden"><Icon className="h-6 w-6 text-midnight" /></SelectTrigger>
+                                    <SelectContent>{ALL_ICONS.map((k) => { const IC = ICON_COMPONENTS[k]; return <SelectItem key={k} value={k}><span className="flex items-center gap-2"><IC className="h-4 w-4" />{k}</span></SelectItem>; })}</SelectContent>
+                                  </Select>
+                                  <div className="flex items-center gap-2">
+                                    <DragHandle handle={handle} className="opacity-0 group-hover/ttk:opacity-100 transition-opacity" />
+                                    <button type="button" onClick={() => rmTtk(i)} className="text-crimson-red opacity-0 group-hover/ttk:opacity-100 transition-opacity"><X className="h-4 w-4" /></button>
+                                  </div>
+                                </div>
+                                <InlineInput value={ttk?.title ?? ""} onChange={(v) => sv(`details.thingsToKnow.${i}.title`, v)} placeholder="Title" className="font-hk-grotesk text-h5-mobile md:text-h5-desktop text-midnight" />
+                                <InlineTextarea value={ttk?.description ?? ""} onChange={(v) => sv(`details.thingsToKnow.${i}.description`, v)} placeholder="Description…" className="font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
+                                <div className="mt-auto space-y-1">
+                                  <div className="flex items-center gap-1">
+                                    <InlineInput value={ttk?.ctaLabel ?? ""} onChange={(v) => sv(`details.thingsToKnow.${i}.ctaLabel`, v)} placeholder="CTA label" className="font-body text-sm font-bold text-crimson-red" />
+                                    <ChevronRight className="h-4 w-4 text-crimson-red shrink-0" />
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    <ExternalLink className="h-3 w-3 text-dark-gray/40 shrink-0" />
+                                    <InlineInput value={ttk?.ctaHref ?? ""} onChange={(v) => sv(`details.thingsToKnow.${i}.ctaHref`, v)} placeholder="https://www.imheretravels.com/…" className="font-body text-xs text-dark-gray/40 flex-1" />
+                                  </div>
+                                </div>
+                              </li>
+                                )}
+                              </SortableItem>
+                            );
+                          })}
+                        </ul>
+                        </SortableList>
+                        <button type="button" onClick={() => (addTtk as any)({ icon: "info", title: "", description: "", ctaLabel: "", ctaHref: "" })}
+                          className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
+                          <Plus className="h-4 w-4" /> Add card
+                        </button>
+                      </>
+                    ) : (
+                      <button type="button" onClick={() => (addTtk as any)({ icon: "info", title: "", description: "", ctaLabel: "", ctaHref: "" })}
+                        className="mt-4 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
+                        <Plus className="h-4 w-4" /> Add card
+                      </button>
+                    )}
+                  </section>
+
+                  {/* Tips */}
+                  <section className="mt-10 md:mt-14 w-full">
+                    <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Tips</h2>
+                    {tipFields.length > 0 ? (
+                      <>
+                        <SortableList ids={(tipFields as any[]).map((f) => f.id)} strategy={rectSortingStrategy} onReorder={(a, b) => moveTip(a, b)}>
+                        <ul className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
+                          {(tipFields as any[]).map((field, i) => {
+                            const tip = tips?.[i];
+                            const Icon = ICON_COMPONENTS[tip?.icon ?? "luggage"] ?? Luggage;
+                            return (
+                              <SortableItem key={field.id} id={field.id}>
+                                {({ setNodeRef, style, handle }) => (
+                              <li ref={setNodeRef} style={style} className="flex items-start gap-4 group/tip">
+                                <Select value={tip?.icon ?? "luggage"} onValueChange={(v) => sv(`details.tips.${i}.icon`, v)}>
+                                  <SelectTrigger className="flex size-12 shrink-0 items-center justify-center rounded-full bg-light-grey text-midnight border-0 p-0 [&>svg:last-child]:hidden hover:ring-2 hover:ring-crimson-red/20 transition-shadow"><Icon className="size-5 text-midnight" /></SelectTrigger>
+                                  <SelectContent>{ALL_ICONS.map((k) => { const IC = ICON_COMPONENTS[k]; return <SelectItem key={k} value={k}><span className="flex items-center gap-2"><IC className="h-4 w-4" />{k}</span></SelectItem>; })}</SelectContent>
+                                </Select>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-start gap-2">
+                                    <InlineInput value={tip?.title ?? ""} onChange={(v) => sv(`details.tips.${i}.title`, v)} placeholder="Title" className="font-hk-grotesk text-b2-desktop font-bold text-midnight flex-1" />
+                                    <DragHandle handle={handle} className="opacity-0 group-hover/tip:opacity-100 transition-opacity mt-0.5" />
+                                    <button type="button" onClick={() => rmTip(i)} className="text-crimson-red opacity-0 group-hover/tip:opacity-100 transition-opacity"><X className="h-4 w-4" /></button>
+                                  </div>
+                                  <InlineTextarea value={tip?.description ?? ""} onChange={(v) => sv(`details.tips.${i}.description`, v)} placeholder="Tip description…" className="mt-1 font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
+                                </div>
+                              </li>
+                                )}
+                              </SortableItem>
+                            );
+                          })}
+                        </ul>
+                        </SortableList>
+                        <button type="button" onClick={() => (addTip as any)({ icon: "luggage", title: "", description: "" })}
+                          className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
+                          <Plus className="h-4 w-4" /> Add tip
+                        </button>
+                      </>
+                    ) : (
+                      <button type="button" onClick={() => (addTip as any)({ icon: "luggage", title: "", description: "" })}
+                        className="mt-4 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
+                        <Plus className="h-4 w-4" /> Add tip
+                      </button>
+                    )}
+                  </section>
+
+                </div>{/* end ONE main card */}
+              </div>{/* end left column */}
+
+              {/* ─── RIGHT COLUMN: BookingCard ───────────────────────────── */}
+              <div className="mt-6 lg:mt-0 lg:sticky lg:top-[136px] self-start">
+                <div className="overflow-hidden rounded-[24px] bg-white shadow-medium">
+                  {/* Duration + route */}
+                  <div className="px-6 pb-5 pt-6 md:px-7 md:pt-7">
+                    <InlineTextarea value={cardHeaderTitle} onChange={(v) => sv("cardHeaderTitle", v)} placeholder={durationLabel || "11 Day Tour"} className="font-hk-grotesk text-h5-mobile md:text-h5-desktop font-bold text-midnight w-full" />
+                    <InlineTextarea value={cardSubHeader} onChange={(v) => sv("cardSubHeader", v)} placeholder="Destination" className="mt-1 font-body text-b2-mobile md:text-b1 text-dark-gray w-full" />
+                  </div>
+
+                  {/* Price */}
+                  <div className="border-t border-light-grey px-6 py-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                        <span className="font-body text-b4-desktop text-dark-gray">From</span>
+                        <span className="font-body text-b4-desktop text-dark-gray">{sym}</span>
+                        <span className="font-display text-h3-mobile text-midnight leading-none">
+                          {pricing?.discounted || pricing?.original
+                            ? Number(pricing?.discounted || pricing?.original).toLocaleString()
+                            : "—"}
+                        </span>
+                      </div>
+                      <button type="button" onClick={() => setPanelOpen(true)}
+                        className="flex shrink-0 items-center gap-1 text-xs text-crimson-red hover:text-light-red">
+                        <Pencil className="h-3 w-3" /> Edit Pricing
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Icon facts */}
+                  <div className="px-6 pb-4">
+                    <ul className="space-y-3">
+                      <li className="flex items-center gap-3">
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-light-grey"><Calendar className="h-4 w-4 text-midnight" /></span>
+                        <span className="font-body text-b4-desktop text-midnight">{cardHeaderTitle || durationLabel || "—"}</span>
+                      </li>
+                      <li className="flex items-center gap-3">
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-light-grey"><Route className="h-4 w-4 text-midnight" /></span>
+                        <span className="font-body text-b4-desktop text-midnight">{cardSubHeader || "—"}</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  {/* CTA */}
+                  <div className="border-t border-light-grey px-6 py-5 space-y-3">
+                    <div className="flex items-center gap-2 border border-border rounded-md px-3 py-1.5">
+                      <ExternalLink className="h-3.5 w-3.5 text-dark-gray flex-shrink-0" />
+                      <InlineInput value={w("stripePaymentLink") ?? ""} onChange={(v) => sv("stripePaymentLink", v)} placeholder="Stripe payment link" className="font-body text-b4-desktop text-dark-gray" />
+                    </div>
+                    <div className="inline-flex w-full items-center justify-center rounded-full bg-crimson-red px-6 py-3.5 font-body font-bold text-white shadow-small pointer-events-none select-none">
+                      Reserve Now
+                    </div>
+                    {/* Deposit notice (editable) */}
+                    <div className="mt-2">
+                      <InlineTextarea
+                        value={gv("depositNote") ?? ""}
+                        onChange={(v) => sv("depositNote", v)}
+                        placeholder={depositAmt ? `Reserve for ${depositAmt} — deducted from total fees. Non-refundable.` : "Deposit notice text…"}
+                        className="font-body text-b4-mobile text-dark-gray text-center"
+                      />
+                    </div>
+                    {/* Footnote (editable) */}
+                    <div>
+                      <InlineInput
+                        value={gv("footnote") ?? ""}
+                        onChange={(v) => sv("footnote", v)}
+                        placeholder="*Additional fees may apply"
+                        className="font-body text-b4-mobile text-grey text-center"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>{/* end two-column */}
+          </div>{/* end page container */}
+        </form>
+
+        <TourSettingsPanel
+          open={panelOpen}
+          onClose={() => setPanelOpen(false)}
+          form={form}
+          tour={tour ?? null}
+          coverImageUrl={resolveImg(uploadedCover) || undefined}
+          onEditCover={() => setPickerState({ field: "cover", initialUrl: resolveImg(uploadedCover) || undefined })}
+          onRemoveCover={() => {
+            if (uploadedCover?.startsWith("blob:")) revokeBlobUrl(uploadedCover);
+            setUploadedCover(null);
+            setCoverBlob(null);
+            setActiveGalleryIndex(0);
+          }}
+        />
+
+        <TravelDatesModal
+          open={datesModalOpen}
+          onClose={() => setDatesModalOpen(false)}
+          form={form}
+        />
+      </Form>
+
+      {/* ── Image Picker Modal ─────────────────────────────────────────── */}
+      {pickerState && (
+        <ImagePickerModal
+          open
+          onClose={() => setPickerState(null)}
+          onConfirm={handlePickerConfirm}
+          storageFolder={slug ? `images/tours/${slug}` : "images/tours"}
+          aspectRatio={
+            pickerState.field === "cover"
+              ? 16 / 9
+              : pickerState.field.startsWith("itinerary-")
+              ? 16 / 10
+              : 4 / 3
+          }
+          multiple={pickerState.multiple ?? false}
+          initialImageUrl={pickerState.initialUrl}
+          title={
+            pickerState.field === "cover"
+              ? "Select Hero Image"
+              : pickerState.field === "gallery-add"
+              ? "Add Gallery Images"
+              : pickerState.field.startsWith("gallery-edit-")
+              ? "Edit Gallery Image"
+              : pickerState.field.startsWith("highlight-")
+              ? "Select Highlight Image"
+              : pickerState.field.startsWith("accommodation-")
+              ? "Select Accommodation Image"
+              : "Select Day Image"
+          }
+        />
+      )}
+    </div>
   );
 }

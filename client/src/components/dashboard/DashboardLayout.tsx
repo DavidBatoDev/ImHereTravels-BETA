@@ -24,9 +24,12 @@ import NotificationDropdown from "@/components/notifications/NotificationDropdow
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
+  /** Remove max-w + padding constraints for full-viewport pages (e.g. page editors).
+   *  Register a route as full-width by passing fullWidth to DashboardLayout — no other changes needed. */
+  fullWidth?: boolean;
 }
 
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
+export default function DashboardLayout({ children, fullWidth = false }: DashboardLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchDialogOpen, setSearchDialogOpen] = useState(false);
@@ -314,11 +317,15 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
           )}
 
           {/* Page content */}
-          <main className="py-6">
-            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-              {children}
-            </div>
-          </main>
+          {fullWidth ? (
+            <main>{children}</main>
+          ) : (
+            <main className="py-6">
+              <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+                {children}
+              </div>
+            </main>
+          )}
         </div>
 
         {/* Fixed floating hamburger menu - only show when sidebar is collapsed on desktop */}

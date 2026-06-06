@@ -1,0 +1,4077 @@
+{
+  "philippine-sunrise": {
+    "seo": {
+      "title": "11 Days | Philippines Sunrise Getaway",
+      "description": "Experience the Philippines Sunrise Tour! Begin in Cebu with historical tours and vibrant nightlife, explore Moalboal's thrilling canyoneering and mesmerizing sardine run, then unwind in Siargao with surfing, island hopping, and stunning sunsets. This adventure promises unforgettable moments from start to finish!"
+    },
+    "details": {
+      "route": "Cebu → Moalboal → Siargao",
+      "tags": [
+        {
+          "label": "Cebu",
+          "icon": "location"
+        },
+        {
+          "label": "Moalboal",
+          "icon": "location"
+        },
+        {
+          "label": "Siargao",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Boat, Van, Plane"
+        },
+        {
+          "icon": "airport",
+          "label": "Flight",
+          "value": "Cebu to Siargao (included)"
+        },
+        {
+          "icon": "accommodation",
+          "label": "Accommodation",
+          "value": "10 nights in Hotel"
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": "City Tour, Canyoneering, Snorkeling, Sardine Run, Surf, Island Hopping, Roadtrip"
+        },
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "8 Breakfasts, 2 Lunches"
+        },
+        {
+          "icon": "team",
+          "label": "Team",
+          "value": "Trip Manager + Local Guides"
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Environmental fees & taxes",
+            "Local tourist taxes & fees"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/images/wp-content/uploads/2024/05/redplanet-accommodation.webp",
+          "name": "Red Planet (or similar)",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2024/05/lovesdiveresort-accommodation.webp",
+          "name": "Love's Dive Resort (or similar)",
+          "nights": "3 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2024/05/seasky-accommodation.webp",
+          "name": "Siargao Seasky (or similar)",
+          "nights": "5 nights in Hotel"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "The trip starts in Cebu and finishes in Siargao Island."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "Mactan-Cebu International Airport, or fly into Manila NAIA and then connect to Cebu. You can arrive at any time on Day 1, though the meet and greet dinner is at around 6pm."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "Philippine Peso."
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Tours cater to adventurous travelers aged 18-45, with most guests between 21-35 years old. Perfect for people of all different backgrounds to share travel experiences."
+        },
+        {
+          "question": "Which airport do I fly out from?",
+          "answer": "The tour finishes in Siargao Island. You'll need to book a flight out of Siargao to either Manila or Cebu to catch your flight home."
+        }
+      ],
+      "map": {
+        "image": "/tours/philippine-sunrise/map.jpg",
+        "embedUrl": "https://maps.google.com/maps?saddr=Cebu+City,+Philippines&daddr=Moalboal,+Cebu,+Philippines+to:Siargao+Island,+Surigao+del+Norte,+Philippines&output=embed"
+      }
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunrise-day-1.webp",
+        "accommodation": "Red Planet (or similar)",
+        "activities": "Meet and Greet (Dinner meals are not included)"
+      },
+      {
+        "day": 2,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunrise-day-2.webp",
+        "accommodation": "Red Planet (or similar)",
+        "activities": "City Tour"
+      },
+      {
+        "day": 3,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunrise-day-3.webp",
+        "accommodation": "Love's Dive Resort (or similar)",
+        "activities": "Beachside & poolside chill"
+      },
+      {
+        "day": 4,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunrise-day-4.webp",
+        "accommodation": "Love's Dive Resort (or similar)",
+        "activities": "Sardine run, Snorkeling",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 5,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunrise-day-5-1.webp",
+        "accommodation": "Love's Dive Resort (or similar)",
+        "activities": "Canyoneering",
+        "meals": "1 Breakfast, 1 Lunch"
+      },
+      {
+        "day": 6,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunrise-day-6.webp",
+        "accommodation": "Siargao Seasky (or similar)",
+        "activities": "Flight Cebu to Siargao",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 7,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunrise-day-7.webp",
+        "accommodation": "Siargao Seasky (or similar)",
+        "activities": "Surfing with instructor",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 8,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunrise-day-8.webp",
+        "accommodation": "Siargao Seasky (or similar)",
+        "activities": "Island Hopping with Trekking",
+        "meals": "1 Breakfast, 1 Lunch"
+      },
+      {
+        "day": 9,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunrise-day-9.webp",
+        "accommodation": "Siargao Seasky (or similar)",
+        "activities": "Roadtrip, Maasin River",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 10,
+        "image": "/images/wp-content/uploads/2024/05/siargao-day-6.webp",
+        "accommodation": "Siargao Seasky (or similar)",
+        "activities": "Free Day / Optional Activities",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 11,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunrise-day-11.webp",
+        "meals": "1 Breakfast"
+      }
+    ],
+    "highlightSubtitles": [
+      {
+        "text": "Canyoneering in Moalboal",
+        "subtitle": "Enjoy waterfalls and fresh water rivers"
+      },
+      {
+        "text": "Roadtrip up north of Siargao",
+        "subtitle": "See hidden gems and surf in paradise"
+      },
+      {
+        "text": "Sardine Run",
+        "subtitle": "See the spectacle marine life"
+      },
+      {
+        "text": "Surf in paradise",
+        "subtitle": "Catch some waves in crystal waters"
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/tours/philippine-sunrise/thumb-1.jpg",
+        "/tours/philippine-sunrise/thumb-2.jpg",
+        "/tours/philippine-sunrise/thumb-3.jpg",
+        "/tours/philippine-sunrise/thumb-4.jpg",
+        "/tours/philippine-sunrise/thumb-5.jpg",
+        "/tours/philippine-sunrise/thumb-6.jpg"
+      ]
+    }
+  },
+  "philippine-sunset": {
+    "seo": {
+      "title": "11 Days | Philippines Sunset Getaway",
+      "description": "Experience the Philippines Sunset Tour! Start in Manila with vibrant nightlife and rich history, then head to Port Barton and El Nido for island hopping, snorkeling, and stunning sunsets. Unwind with kayaking, ziplining, and cultural experiences, ending with unforgettable moments in serene Isla Darocoton and adventurous El Nido."
+    },
+    "details": {
+      "route": "Manila → Port Barton → El Nido → Isla Darocotan",
+      "tags": [
+        {
+          "label": "Manila",
+          "icon": "location"
+        },
+        {
+          "label": "Port Barton",
+          "icon": "location"
+        },
+        {
+          "label": "El Nido",
+          "icon": "location"
+        },
+        {
+          "label": "Isla Darocotan",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Boat, Van, Plane"
+        },
+        {
+          "icon": "accommodation",
+          "label": "Accommodation",
+          "value": "6 nights in Hotel, 4 nights in Beach Hut and Cottages"
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": "City Tour, Island Hopping, Zipline, Beach Day, Canopy Tour, Kayaking, Village Tour, Snorkeling, Cooking, Bonfire"
+        },
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "8 Breakfasts, 3 Lunches, 2 Dinners"
+        },
+        {
+          "icon": "team",
+          "label": "Team",
+          "value": "Trip Manager + Local Guides"
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Environmental fees & taxes",
+            "Local tourist taxes & fees",
+            "Tour Guide",
+            "Flight from Manila to Puerto Princesa"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/images/wp-content/uploads/2024/05/lubd-accommodation.webp",
+          "name": "Lub D Makati (or similar)",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/10/ferellee-beach-bront-inn-accommodation2.webp",
+          "name": "Ferellee Beach Front Inn (or similar)",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2024/05/isla-accommodation-1.webp",
+          "name": "Isla Experience",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/01/southanchorage-accommodation.webp",
+          "name": "South Anchorage (or similar)",
+          "nights": "4 nights in Hotel"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "The tour starts in Manila and ends in El Nido, Palawan."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "Manila NAIA International Airport"
+        },
+        {
+          "question": "Which airport do I need to fly out from?",
+          "answer": "The tour ends in El Nido - options include: (1) Fly from El Nido Airport to Manila or Cebu; (2) 6-hour van to Puerto Princesa then fly; (3) 5-6 hour ferry to Coron then fly from Coron Airport."
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Our tours cater to adventurous travelers aged 18-45, with most guests between 21-35 years old. It's perfect for people from diverse backgrounds to share travel experiences."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "Philippine Peso"
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-1.webp",
+        "accommodation": "Lub D Makati (or similar)",
+        "activities": "Meet and Greet (Dinner meals are not included)"
+      },
+      {
+        "day": 2,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-2.webp",
+        "accommodation": "Lub D Makati (or similar)",
+        "activities": "City Tour"
+      },
+      {
+        "day": 3,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-3.webp",
+        "accommodation": "Ferellee Beach Front Inn (or similar)"
+      },
+      {
+        "day": 4,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-4.webp",
+        "accommodation": "Ferellee Beach Front Inn (or similar)",
+        "activities": "Island Hopping",
+        "meals": "1 Breakfast, 1 Lunch"
+      },
+      {
+        "day": 5,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-5.webp",
+        "accommodation": "South Anchorage (or similar)",
+        "activities": "Sunset Chill",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 6,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-6.webp",
+        "accommodation": "South Anchorage (or similar)",
+        "activities": "Island Hopping, Kayaking in Small Lagoon",
+        "meals": "1 Breakfast, 1 Lunch"
+      },
+      {
+        "day": 7,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-7.webp",
+        "accommodation": "South Anchorage (or similar)",
+        "activities": "Sunset Zipline",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 8,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-8.webp",
+        "accommodation": "Isla Experience",
+        "activities": "Snorkeling",
+        "meals": "1 Breakfast, 1 Dinner"
+      },
+      {
+        "day": 9,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-9.webp",
+        "accommodation": "Isla Experience",
+        "activities": "Snorkeling, Village Tour, Cooking Demo",
+        "meals": "1 Breakfast, 1 Lunch, 1 Dinner"
+      },
+      {
+        "day": 10,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-10.webp",
+        "accommodation": "South Anchorage (or similar)",
+        "activities": "Free Day / Optional Activities",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 11,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-11.webp",
+        "meals": "1 Breakfast"
+      }
+    ],
+    "highlightSubtitles": [
+      {
+        "text": "El Nido Island Hopping",
+        "subtitle": "Beautiful islands, lagoons, & beaches"
+      },
+      {
+        "text": "Isla Experience",
+        "subtitle": "Enjoy the island under the stars"
+      },
+      {
+        "text": "Kayaking & Canoeing",
+        "subtitle": "Paddle through hidden lagoons"
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-1.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-2.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-3.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-4.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-5.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-7.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-9.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-triphighlight-1.webp"
+      ]
+    }
+  },
+  "philippine-sunset-with-jess": {
+    "seo": {
+      "title": "11 Days | Philippines Sunset with Jess",
+      "description": "Experience the Philippines Sunset Tour with Jess! Start in Manila with vibrant nightlife and rich history, then head to Port Barton and El Nido for island hopping, snorkeling, and stunning sunsets. Unwind with kayaking, ziplining, and cultural experiences, ending with unforgettable moments in serene Isla Darocoton and adventurous El Nido."
+    },
+    "details": {
+      "route": "Manila → Port Barton → El Nido → Isla Darocotan",
+      "tags": [
+        {
+          "label": "Manila",
+          "icon": "location"
+        },
+        {
+          "label": "Port Barton",
+          "icon": "location"
+        },
+        {
+          "label": "El Nido",
+          "icon": "location"
+        },
+        {
+          "label": "Isla Darocotan",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Boat, Van, Plane"
+        },
+        {
+          "icon": "accommodation",
+          "label": "Accommodation",
+          "value": "6 nights in Hotel, 4 nights in Beach Hut and Cottages"
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": "City Tour, Island Hopping, Zipline, Beach Day, Canopy Tour, Kayaking, Village Tour, Snorkeling, Cooking, Bonfire"
+        },
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "8 Breakfasts, 3 Lunches, 2 Dinners"
+        },
+        {
+          "icon": "team",
+          "label": "Team",
+          "value": "Trip Manager + Local Guides"
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Environmental fees & taxes",
+            "Local tourist taxes & fees",
+            "Tour Guide",
+            "Flight from Manila to Puerto Princesa"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/images/wp-content/uploads/2024/05/lubd-accommodation.webp",
+          "name": "Lub D Makati (or similar)",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/10/ferellee-beach-bront-inn-accommodation2.webp",
+          "name": "Ferellee Beach Front Inn (or similar)",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2024/05/isla-accommodation-1.webp",
+          "name": "Isla Experience",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/01/southanchorage-accommodation.webp",
+          "name": "South Anchorage (or similar)",
+          "nights": "4 nights in Hotel"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "The tour starts in Manila and ends in El Nido, Palawan."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "Manila NAIA International Airport"
+        },
+        {
+          "question": "Which airport do I need to fly out from?",
+          "answer": "The tour ends in El Nido - options include: (1) Fly from El Nido Airport to Manila or Cebu; (2) 6-hour van to Puerto Princesa then fly; (3) 5-6 hour ferry to Coron then fly from Coron Airport."
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Our tours cater to adventurous travelers aged 18-45, with most guests between 21-35 years old. It's perfect for people from diverse backgrounds to share travel experiences."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "Philippine Peso"
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-1.webp",
+        "accommodation": "Lub D Makati (or similar)",
+        "activities": "Meet and Greet (Dinner meals are not included)"
+      },
+      {
+        "day": 2,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-2.webp",
+        "accommodation": "Lub D Makati (or similar)",
+        "activities": "City Tour"
+      },
+      {
+        "day": 3,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-3.webp",
+        "accommodation": "Ferellee Beach Front Inn (or similar)"
+      },
+      {
+        "day": 4,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-4.webp",
+        "accommodation": "Ferellee Beach Front Inn (or similar)",
+        "activities": "Island Hopping",
+        "meals": "1 Breakfast, 1 Lunch"
+      },
+      {
+        "day": 5,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-5.webp",
+        "accommodation": "South Anchorage (or similar)",
+        "activities": "Sunset Chill",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 6,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-6.webp",
+        "accommodation": "South Anchorage (or similar)",
+        "activities": "Island Hopping, Kayaking in Small Lagoon",
+        "meals": "1 Breakfast, 1 Lunch"
+      },
+      {
+        "day": 7,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-7.webp",
+        "accommodation": "South Anchorage (or similar)",
+        "activities": "Sunset Zipline",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 8,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-8.webp",
+        "accommodation": "Isla Experience",
+        "activities": "Snorkeling",
+        "meals": "1 Breakfast, 1 Dinner"
+      },
+      {
+        "day": 9,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-9.webp",
+        "accommodation": "Isla Experience",
+        "activities": "Snorkeling, Village Tour, Cooking Demo",
+        "meals": "1 Breakfast, 1 Lunch, 1 Dinner"
+      },
+      {
+        "day": 10,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-10.webp",
+        "accommodation": "South Anchorage (or similar)",
+        "activities": "Free Day / Optional Activities",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 11,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-11.webp",
+        "meals": "1 Breakfast"
+      }
+    ],
+    "highlightSubtitles": [
+      {
+        "text": "El Nido Island Hopping",
+        "subtitle": "Beautiful islands, lagoons, & beaches"
+      },
+      {
+        "text": "Isla Experience",
+        "subtitle": "Enjoy the island under the stars"
+      },
+      {
+        "text": "Kayaking & Canoeing",
+        "subtitle": "Paddle through hidden lagoons"
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-1.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-2.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-3.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-4.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-5.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-7.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-9.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-triphighlight-1.webp"
+      ]
+    }
+  },
+  "philippine-sunset-with-roxana": {
+    "seo": {
+      "title": "11 Days | Philippines Sunset with Roxana",
+      "description": "Join Roxana on an unforgettable 11-day Philippines adventure filled with island hopping, snorkeling, and breathtaking sunsets. Full itinerary details coming soon — secure your spot at the early price."
+    },
+    "comingSoon": true,
+    "details": {
+      "route": "Manila → Port Barton → El Nido → Isla Darocotan",
+      "tags": [
+        {
+          "label": "Manila",
+          "icon": "location"
+        },
+        {
+          "label": "Port Barton",
+          "icon": "location"
+        },
+        {
+          "label": "El Nido",
+          "icon": "location"
+        },
+        {
+          "label": "Isla Darocotan",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Boat, Van, Plane"
+        },
+        {
+          "icon": "accommodation",
+          "label": "Accommodation",
+          "value": "6 nights in Hotel, 4 nights in Beach Hut and Cottages"
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": "City Tour, Island Hopping, Zipline, Beach Day, Canopy Tour, Kayaking, Village Tour, Snorkeling, Cooking, Bonfire"
+        },
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "8 Breakfasts, 3 Lunches, 2 Dinners"
+        },
+        {
+          "icon": "team",
+          "label": "Team",
+          "value": "Trip Manager + Local Guides"
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Environmental fees & taxes",
+            "Local tourist taxes & fees",
+            "Tour Guide",
+            "Flight from Manila to Puerto Princesa"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/images/wp-content/uploads/2024/05/lubd-accommodation.webp",
+          "name": "Lub D Makati (or similar)",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/10/ferellee-beach-bront-inn-accommodation2.webp",
+          "name": "Ferellee Beach Front Inn (or similar)",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2024/05/isla-accommodation-1.webp",
+          "name": "Isla Experience",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/01/southanchorage-accommodation.webp",
+          "name": "South Anchorage (or similar)",
+          "nights": "4 nights in Hotel"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "The tour starts in Manila and ends in El Nido, Palawan."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "Manila NAIA International Airport"
+        },
+        {
+          "question": "Which airport do I need to fly out from?",
+          "answer": "The tour ends in El Nido - options include: (1) Fly from El Nido Airport to Manila or Cebu; (2) 6-hour van to Puerto Princesa then fly; (3) 5-6 hour ferry to Coron then fly from Coron Airport."
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Our tours cater to adventurous travelers aged 18-45, with most guests between 21-35 years old. It's perfect for people from diverse backgrounds to share travel experiences."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "Philippine Peso"
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-1.webp",
+        "accommodation": "Lub D Makati (or similar)",
+        "activities": "Meet and Greet (Dinner meals are not included)"
+      },
+      {
+        "day": 2,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-2.webp",
+        "accommodation": "Lub D Makati (or similar)",
+        "activities": "City Tour"
+      },
+      {
+        "day": 3,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-3.webp",
+        "accommodation": "Ferellee Beach Front Inn (or similar)"
+      },
+      {
+        "day": 4,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-4.webp",
+        "accommodation": "Ferellee Beach Front Inn (or similar)",
+        "activities": "Island Hopping",
+        "meals": "1 Breakfast, 1 Lunch"
+      },
+      {
+        "day": 5,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-5.webp",
+        "accommodation": "South Anchorage (or similar)",
+        "activities": "Sunset Chill",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 6,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-6.webp",
+        "accommodation": "South Anchorage (or similar)",
+        "activities": "Island Hopping, Kayaking in Small Lagoon",
+        "meals": "1 Breakfast, 1 Lunch"
+      },
+      {
+        "day": 7,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-7.webp",
+        "accommodation": "South Anchorage (or similar)",
+        "activities": "Sunset Zipline",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 8,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-8.webp",
+        "accommodation": "Isla Experience",
+        "activities": "Snorkeling",
+        "meals": "1 Breakfast, 1 Dinner"
+      },
+      {
+        "day": 9,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-9.webp",
+        "accommodation": "Isla Experience",
+        "activities": "Snorkeling, Village Tour, Cooking Demo",
+        "meals": "1 Breakfast, 1 Lunch, 1 Dinner"
+      },
+      {
+        "day": 10,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-10.webp",
+        "accommodation": "South Anchorage (or similar)",
+        "activities": "Free Day / Optional Activities",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 11,
+        "image": "/images/wp-content/uploads/2024/05/philippinessunset-day-11.webp",
+        "meals": "1 Breakfast"
+      }
+    ],
+    "highlightSubtitles": [
+      {
+        "text": "El Nido Island Hopping",
+        "subtitle": "Beautiful islands, lagoons, & beaches"
+      },
+      {
+        "text": "Isla Experience",
+        "subtitle": "Enjoy the island under the stars"
+      },
+      {
+        "text": "Kayaking & Canoeing",
+        "subtitle": "Paddle through hidden lagoons"
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-1.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-2.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-3.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-4.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-5.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-7.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-day-9.webp",
+        "/images/wp-content/uploads/2024/05/philippinessunset-triphighlight-1.webp"
+      ]
+    }
+  },
+  "maldives-bucketlist": {
+    "seo": {
+      "title": "9 Days | Maldives Bucketlist: Dive, Explore, Unwind",
+      "description": "Experience the Maldives Island Adventure! Explore bustling Male City, dive into coral reefs in Rasdhoo, and unwind on an uninhabited island paradise. From thrilling underwater adventures to sunset paddling and dolphin cruises, this trip is packed with unforgettable moments!"
+    },
+    "details": {
+      "route": "Hulhumale → Rasdhoo → Ukulhas",
+      "tags": [
+        {
+          "label": "Maldives",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Speedboat transfers between islands, Van"
+        },
+        {
+          "icon": "accommodation",
+          "label": "Accommodation",
+          "value": "Hotel (8 nights)"
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": "Snorkeling, Diving, Stand Up Paddle Boarding"
+        },
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "8 Breakfasts, 2 Lunches, 6 Dinners"
+        },
+        {
+          "icon": "plus",
+          "label": "Add-on Activities",
+          "value": [
+            "Fun Diving and Discovery Diving",
+            "Lunch at Floating Resorts"
+          ]
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Airport and domestic transfer assistance",
+            "One way transfer by scheduled public speedboat to Rasdhoo",
+            "One way ferry transfer Rasdhoo — Ukulhas",
+            "One way transfer by scheduled public speedboat to Male or private speedboat transfer to resort",
+            "Tour Guide",
+            "All Local Tax (10% service charge, 16% GST and $3 Green Tax per person per night)"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/tours/maldives-bucketlist/oceangrand-accommodation.webp",
+          "name": "Hotel Ocean Grand",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/tours/maldives-bucketlist/tranquilamaldives-accommodation.webp",
+          "name": "Tranquila Maldives",
+          "nights": "3 nights in Hotel"
+        },
+        {
+          "image": "/tours/maldives-bucketlist/ostrovhotel-accommodation.webp",
+          "name": "Ostrov Hotel",
+          "nights": "3 nights in Hotel"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "Male — Velana International Airport."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "Male — Velana International Airport (MLE)."
+        },
+        {
+          "question": "What should I wear?",
+          "answer": "Cotton clothes suit the hot tropical climate. Tourists are expected to dress modestly on inhabited islands. Sandals are ideal as you may often go barefoot."
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Tours cater to adventurous travelers aged 18—45, with most guests between 21—35 years old."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "Maldivian Ruffiya, with USD also accepted."
+        },
+        {
+          "question": "Which airport do I fly out from?",
+          "answer": "Male — Velana International Airport (MLE)."
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/tours/maldives-bucketlist/maldives-day-1.webp",
+        "accommodation": "Ocean Grand",
+        "activities": "Welcome Dinner",
+        "meals": "1 Dinner"
+      },
+      {
+        "day": 2,
+        "image": "/tours/maldives-bucketlist/maldives-day-2.webp",
+        "accommodation": "Ocean Grand",
+        "activities": "Whole day Male tour",
+        "meals": "1 Breakfast, 1 Lunch"
+      },
+      {
+        "day": 3,
+        "image": "/tours/maldives-bucketlist/maldives-day-3.webp",
+        "accommodation": "Tranquila Maldives",
+        "activities": "Snorkeling",
+        "meals": "1 Breakfast, 1 Dinner"
+      },
+      {
+        "day": 4,
+        "image": "/tours/maldives-bucketlist/maldives-day-4.webp",
+        "accommodation": "Tranquila Maldives",
+        "activities": "Island Tour",
+        "meals": "1 Breakfast, 1 Dinner"
+      },
+      {
+        "day": 5,
+        "image": "/tours/maldives-bucketlist/maldives-day-5.webp",
+        "accommodation": "Tranquila Maldives",
+        "activities": "Visit to Uninhabited Island, Snorkeling",
+        "meals": "1 Breakfast, 1 Lunch"
+      },
+      {
+        "day": 6,
+        "image": "/tours/maldives-bucketlist/maldives-day-6.webp",
+        "accommodation": "Ostrov",
+        "activities": "Stand Up Paddle Boarding, Snorkeling",
+        "meals": "1 Breakfast, 1 Dinner"
+      },
+      {
+        "day": 7,
+        "image": "/tours/maldives-bucketlist/maldives-day-7.webp",
+        "accommodation": "Ostrov",
+        "activities": "Manta Ray Snorkeling Point and Sunset Cruise",
+        "meals": "1 Breakfast, 1 Dinner"
+      },
+      {
+        "day": 8,
+        "image": "/tours/maldives-bucketlist/maldives-day-8.webp",
+        "accommodation": "Ostrov",
+        "activities": "Snorkeling",
+        "meals": "1 Breakfast, 1 Dinner"
+      },
+      {
+        "day": 9,
+        "image": "/tours/maldives-bucketlist/maldives-day-9.webp",
+        "meals": "1 Breakfast"
+      }
+    ],
+    "highlightSubtitles": [
+      {
+        "text": "Sunset Paddle",
+        "subtitle": "Paddle under a colorful sunset"
+      },
+      {
+        "text": "Snorkeling",
+        "subtitle": "Enjoy the magical underwater world"
+      },
+      {
+        "text": "Floating Resorts",
+        "subtitle": "Stunning ocean views and floating resorts"
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/tours/maldives-bucketlist/maldives-header-2.webp",
+        "/tours/maldives-bucketlist/maldives-header-3.webp",
+        "/tours/maldives-bucketlist/maldives-header-4.webp",
+        "/tours/maldives-bucketlist/maldives-header-5.webp",
+        "/tours/maldives-bucketlist/maldives-header-6.webp",
+        "/tours/maldives-bucketlist/maldives-header-7.webp",
+        "/tours/maldives-bucketlist/maldives-header-8.webp"
+      ]
+    }
+  },
+  "bhutan-quest": {
+    "seo": {
+      "title": "Bhutan Quest — 7 Day Himalayan Adventure",
+      "description": "Join the 7-day Bhutan Quest: trek to Tiger's Nest, raft the Mo Chhu, visit Dzongs, and explore Thimphu. Small group, local guides, GBP £1,355."
+    },
+    "details": {
+      "route": "Punakha → Gangtey → Thimphu → Paro",
+      "tags": [
+        {
+          "label": "Bhutan",
+          "icon": "location"
+        },
+        {
+          "label": "Trekking",
+          "icon": "location"
+        },
+        {
+          "label": "Adventure",
+          "icon": "location"
+        },
+        {
+          "label": "Tiger's Nest",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "6 Breakfasts, 5 Lunches, 6 Dinners"
+        },
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Van"
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": [
+            "Sightseeing Dzongs",
+            "Trekking",
+            "White water rafting",
+            "Beer Tasting"
+          ]
+        },
+        {
+          "icon": "accommodation",
+          "label": "Stay",
+          "value": "Hotel (6 nights)"
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Airport and domestic transfer assistance",
+            "Tour Guide"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/images/wp-content/uploads/2025/08/river-valley-hotel-accommodation.webp",
+          "name": "River Valley Resort",
+          "nights": "1 night in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/08/abc-lodge-accommodation.webp",
+          "name": "ABC Lodge",
+          "nights": "1 night in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/08/damisa-hotel-accommodation.webp",
+          "name": "Damisa Bhutan",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/08/rema-resort-accommodation.webp",
+          "name": "Rema Resort",
+          "nights": "2 nights in Hotel"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "The trip starts at Punakha and finishes in Paro."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "Paro International Airport — Paro, Bhutan."
+        },
+        {
+          "question": "What should I wear?",
+          "answer": "Comfortable summer clothes: shorts, sunglasses, hat, sunscreen. Bring hiking/trekking attire for treks and appropriate clothing for temple visits. A pre-departure pack will provide full details."
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Our tours cater to adventurous travelers aged 18—45, with most guests between 21—35 years old."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "Bhutanese Ngultrum; Indian Rupee is also accepted. We recommend collecting cash from airport ATMs; ATMs are also available along the route."
+        },
+        {
+          "question": "Which airport do I fly out from?",
+          "answer": "Paro International Airport — Paro."
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/images/wp-content/uploads/2025/08/bhutan-day-1.webp",
+        "accommodation": "River Valley Resort",
+        "activities": "Meet and greet dinner",
+        "meals": "1 Dinner"
+      },
+      {
+        "day": 2,
+        "image": "/images/wp-content/uploads/2025/08/bhutan-day-2.webp",
+        "accommodation": "ABC Eco Lodge",
+        "activities": "Punakha Dzong, Suspension Bridge, White-water rafting",
+        "meals": "1 Breakfast, 1 Lunch, and 1 Dinner"
+      },
+      {
+        "day": 3,
+        "image": "/images/wp-content/uploads/2025/08/bhutan-day-3.webp",
+        "accommodation": "Damisa Bhutan",
+        "activities": "Visit Gangteng Monastery, Nature trail of the valley, Visit Tashichho Dzong",
+        "meals": "1 Breakfast, 1 Lunch, and 1 Dinner"
+      },
+      {
+        "day": 4,
+        "image": "/images/wp-content/uploads/2025/08/bhutan-day-4.webp",
+        "accommodation": "Damisa Bhutan",
+        "activities": "City tour, Memorial Chorten, Folk Heritage Museum, National Library of Bhutan",
+        "meals": "1 Breakfast, 1 Lunch, and 1 Dinner"
+      },
+      {
+        "day": 5,
+        "image": "/images/wp-content/uploads/2025/08/bhutan-day-5.webp",
+        "accommodation": "Rema Resort",
+        "activities": "National Museum of Bhutan, Paro Dzong, Namgay Artisanal Brewery",
+        "meals": "1 Breakfast, 1 Lunch, and 1 Dinner"
+      },
+      {
+        "day": 6,
+        "image": "/images/wp-content/uploads/2025/08/bhutan-day-6.webp",
+        "accommodation": "Rema Resort",
+        "activities": "Tiger's Nest, Farewell dinner",
+        "meals": "1 Breakfast, 1 Lunch, and 1 Dinner"
+      },
+      {
+        "day": 7,
+        "image": "/images/wp-content/uploads/2025/08/bhutan-day-7.webp",
+        "meals": "1 Breakfast"
+      }
+    ],
+    "highlightSubtitles": [
+      {
+        "text": "Punakha Dzong",
+        "subtitle": "Visit one of Bhutan's most beautiful and famous Dzongs"
+      },
+      {
+        "text": "White Water Rafting",
+        "subtitle": "Ride the white water rapids on Mo Chhu River followed by a beautiful riverside picnic"
+      },
+      {
+        "text": "Tiger's Nest Temple",
+        "subtitle": "Hike to Bhutan's iconic Tiger's Nest Temple in Paro for breathtaking views of the valley and river"
+      },
+      {
+        "text": "Dochula Pass",
+        "subtitle": "At 3000m, it's famed for 108 chortens honoring soldiers from the 2003 operation"
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/images/wp-content/uploads/2025/08/bhutan-day-1.webp",
+        "/images/wp-content/uploads/2025/08/bhutan-day-2.webp",
+        "/images/wp-content/uploads/2025/08/bhutan-day-3.webp",
+        "/images/wp-content/uploads/2025/08/bhutan-day-4.webp",
+        "/images/wp-content/uploads/2025/08/bhutan-day-5.webp",
+        "/images/wp-content/uploads/2025/08/bhutan-day-6.webp",
+        "/images/wp-content/uploads/2025/08/bhutan-triphighlight-12.webp"
+      ]
+    }
+  },
+  "nepal-horizons": {
+    "seo": {
+      "title": "Nepal Horizons — 9 Day Kathmandu to Pokhara Himalayan Adventure",
+      "description": "Join the 9-day Nepal Horizons tour: Kathmandu's sacred temples, Chitwan jungle safari, Bandipur village, and a hike to Australian Base Camp. GBP £1,099."
+    },
+    "details": {
+      "route": "Kathmandu → Chitwan → Bandipur → Pokhara",
+      "tags": [
+        {
+          "label": "Kathmandu",
+          "icon": "location"
+        },
+        {
+          "label": "Chitwan",
+          "icon": "location"
+        },
+        {
+          "label": "Bandipur",
+          "icon": "location"
+        },
+        {
+          "label": "Pokhara",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Private vehicle for all sightseeing transfers"
+        },
+        {
+          "icon": "accommodation",
+          "label": "Accommodation",
+          "value": "8 nights in Hotel"
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": "Visit Pashupatinath Temple, Visit Boudhanath Stupa, Bhaktapur Golden Gate, Village Walk & Sunset by Riverbank, Canoeing in Chitwan, Jeep Safari in Chitwan National Park, Hike to Ramkot Village, Boating on Phewa Lake, Visit Tal Barahi Temple, Hike to Australian Base Camp, Panoramic Annapurna & Fishtail Views"
+        },
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "8 Breakfasts, 2 Lunches, 4 Dinners"
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Airport and domestic transfer assistance",
+            "Tour Guide"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/images/wp-content/uploads/2025/08/hotel-ama-la-accommodation.webp",
+          "name": "Hotel Ama-La",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/08/landmark-forest-park-accommodation.webp",
+          "name": "Landmark Forest Park",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/08/hotel-durbar-himalaya-accommodation.webp",
+          "name": "Hotel Durbar Himalaya",
+          "nights": "1 night in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/08/hotel-landmark-pokhara-accommodation.webp",
+          "name": "Hotel Landmark Pokhara",
+          "nights": "3 nights in Hotel"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "The trip begins and ends in Kathmandu, Nepal, with arrivals and departures through Tribhuvan International Airport (KTM)."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "Kathmandu — Tribhuvan International Airport (KTM)."
+        },
+        {
+          "question": "What should I wear?",
+          "answer": "Pack comfortable trekking clothes and sturdy hiking shoes for daily activities. Bring layers including light jackets for cooler evenings and warmer gear for trekking days. Don't forget sun protection such as a hat, sunglasses, and sunscreen. When visiting temples, ensure you have modest clothing that covers shoulders and knees."
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Our tours cater to adventurous travelers aged 18–45, with most guests between 21–35 years old."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "The local currency is Nepalese Rupee (NPR). We advise guests to first collect cash from the airport ATMs; ATMs are also available along the way."
+        },
+        {
+          "question": "Which airport do I fly out from?",
+          "answer": "Kathmandu — Tribhuvan International Airport (KTM)."
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/images/wp-content/uploads/2025/08/nepal-day-1.webp",
+        "accommodation": "Hotel Ama-La",
+        "activities": "Meet & greet at the airport, Check in",
+        "meals": "1 Dinner"
+      },
+      {
+        "day": 2,
+        "image": "/images/wp-content/uploads/2025/08/nepal-day-2.webp",
+        "accommodation": "Hotel Ama-La",
+        "activities": "Pashupatinath Temple, Boudhanath Stupa, Kathmandu Durbar Square, transfer to Bhaktapur, Golden Gate & Palace of 55 Windows",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 3,
+        "image": "/images/wp-content/uploads/2025/08/nepal-day-3.webp",
+        "accommodation": "Hotel Landmark Forest Park",
+        "activities": "Transfer to Chitwan National Park, optional rafting on the Trishuli river",
+        "meals": "1 Breakfast, 1 Lunch & 1 Dinner"
+      },
+      {
+        "day": 4,
+        "image": "/images/wp-content/uploads/2025/08/nepal-day-4.webp",
+        "accommodation": "Hotel Landmark Forest Park",
+        "activities": "Canoeing, Jungle walk, Bird watching, Jeep safari & Tharu Tribal Dance",
+        "meals": "1 Breakfast, 1 Lunch & 1 Dinner"
+      },
+      {
+        "day": 5,
+        "image": "/images/wp-content/uploads/2025/08/nepal-day-5.webp",
+        "accommodation": "Hotel Durbar Himalaya",
+        "activities": "Transfer to Bandipur, Hike to Ramkot Village",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 6,
+        "image": "/images/wp-content/uploads/2025/08/nepal-day-6.webp",
+        "accommodation": "Hotel Landmark",
+        "activities": "Transfer to Pokhara, boating on Phewa Lake, Tal Barahi Temple visit",
+        "meals": "1 Breakfast & 1 Dinner"
+      },
+      {
+        "day": 7,
+        "image": "/images/wp-content/uploads/2025/08/nepal-day-7.webp",
+        "accommodation": "Hotel Landmark",
+        "activities": "Scenic trek to Australian Base Camp",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 8,
+        "image": "/images/wp-content/uploads/2025/08/nepal-day-8.webp",
+        "accommodation": "Hotel Landmark",
+        "activities": "(Optional) Souvenir Shopping, Cafe Hopping",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 9,
+        "image": "/images/wp-content/uploads/2025/08/nepal-day-9.webp",
+        "meals": "1 Breakfast"
+      }
+    ],
+    "highlightSubtitles": [
+      {
+        "text": "Sacred temples of Kathmandu",
+        "subtitle": "Explore Pashupatinath & Durbar Square, the spiritual heart of Nepal"
+      },
+      {
+        "text": "Jungle adventure in Chitwan",
+        "subtitle": "Jungle walk & jeep safari in search of rhinos, tigers & rare birds"
+      },
+      {
+        "text": "Cultural immersion in Bandipur",
+        "subtitle": "Charming bazaar streets for the authentic rural life"
+      },
+      {
+        "text": "Hike to Australian Base Camp",
+        "subtitle": "Scenic trek with panoramic views of Annapurna and Manaslu"
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/tours/nepal-horizons/thumb-1.webp",
+        "/tours/nepal-horizons/thumb-2.webp",
+        "/tours/nepal-horizons/thumb-3.webp",
+        "/tours/nepal-horizons/thumb-4.webp"
+      ]
+    }
+  },
+  "india-discovery-tour": {
+    "seo": {
+      "title": "India Discovery Tour — 13 Day Delhi to Agra Adventure",
+      "description": "Join the 13-day India Discovery Tour: Taj Mahal, Mehrangarh Fort, Lake Pichola cruise, Amer Fort, and a safari in Ranthambore National Park. GBP £1,099."
+    },
+    "details": {
+      "route": "New Delhi → Jodhpur → Udaipur → Jaipur → Sawai Madhopur → Agra",
+      "tags": [
+        {
+          "label": "New Delhi",
+          "icon": "location"
+        },
+        {
+          "label": "Jodhpur",
+          "icon": "location"
+        },
+        {
+          "label": "Udaipur",
+          "icon": "location"
+        },
+        {
+          "label": "Jaipur",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Van, Train"
+        },
+        {
+          "icon": "accommodation",
+          "label": "Accommodation",
+          "value": "12 nights in Hotel"
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": "Sightseeing Old and New Delhi, Visit Mehrangarh Fort, Visit Ranakpur Jain Temples, Cruise over Lake Pichola, Visit Amer Fort, Canter Safari into Ranthambhore National Park, Visit the Taj Mahal"
+        },
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "11 Breakfasts, 2 Lunches, 2 Dinners"
+        },
+        {
+          "icon": "team",
+          "label": "Team",
+          "value": "Trip Manager + Local Guides"
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Airport and domestic transfer assistance",
+            "Tour Guide"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/images/wp-content/uploads/2025/08/deventure-accommodation.webp",
+          "name": "Deventure Hotel",
+          "nights": "3 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/09/the-mandore-express-accommodation.webp",
+          "name": "Mandore Express Overnight Train",
+          "nights": "1 night on Train"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/01/devi-bhawan-boutique-hotel-accommodation.webp",
+          "name": "Devi Bhawan Boutique Hotel",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/01/aaram-mahal-udaipur-accommodation.webp",
+          "name": "Aaram Mahal Udaipur",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/01/ranthambore-heritage-haveli-accommodation.webp",
+          "name": "Ranthambore Heritage Haveli",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/01/hotel-mahal-khandela.webp",
+          "name": "Hotel Mahal Khandela",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/01/hotel-sun-ring-agra-accommodation.webp",
+          "name": "Hotel Sun Ring Agra",
+          "nights": "1 night in Hotel"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "The trip starts in New Delhi and finishes in New Delhi."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "Indira Gandhi International Airport, New Delhi."
+        },
+        {
+          "question": "What should I wear?",
+          "answer": "For summer (March—June): light breathable fabrics, comfortable sandals, sunglasses, hat, sunscreen. For cooler months (October—February): pack layers, light jacket or sweater, comfortable walking shoes, scarf for temple visits. Always bring a shawl for religious sites."
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Our tours cater to adventurous travelers aged 18—45, with most guests between 21—35 years old."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "The local currency is the Indian Rupee. We recommend collecting cash from the airport ATMs; ATMs are also available along the way."
+        },
+        {
+          "question": "Which airport do I fly out from?",
+          "answer": "Indira Gandhi International Airport, New Delhi."
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/images/wp-content/uploads/2025/01/india-header-3.webp",
+        "accommodation": "Deventure Hotel",
+        "activities": "Meet and Greet (Dinner meals are not included)"
+      },
+      {
+        "day": 2,
+        "image": "/images/wp-content/uploads/2025/01/india-day-2.webp",
+        "accommodation": "Mandore Express Overnight Train",
+        "activities": "Sightseeing — Jama Masjid, Raj Ghat, India Gate — Overnight Train",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 3,
+        "image": "/images/wp-content/uploads/2025/01/india-day-3.webp",
+        "accommodation": "Devi Bhawan Boutique Hotel",
+        "activities": "Mehrangarh Fort and Jaswant Thada",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 4,
+        "image": "/images/wp-content/uploads/2025/01/india-header-4.webp",
+        "accommodation": "Devi Bhawan Boutique Hotel",
+        "activities": "Visit Mehrangarh Fort — Jaswant Thada",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 5,
+        "image": "/images/wp-content/uploads/2025/01/india-day-5.webp",
+        "accommodation": "Aaram Mahal Udaipur",
+        "activities": "Ranakpur Jain Temples",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 6,
+        "image": "/images/wp-content/uploads/2025/01/india-header-6.webp",
+        "accommodation": "Aaram Mahal Udaipur",
+        "activities": "City Palace Complex — Sahelion-Ki-Bari — Lake Pichola",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 7,
+        "image": "/images/wp-content/uploads/2025/01/india-day-7.webp",
+        "accommodation": "Ranthambhore Heritage Haveli",
+        "activities": "Ranthambore National Park",
+        "meals": "1 Lunch, 1 Dinner"
+      },
+      {
+        "day": 8,
+        "image": "/images/wp-content/uploads/2025/01/india-header-7.webp",
+        "accommodation": "Ranthambhore Heritage Haveli",
+        "activities": "Ranthambore National Park Safari",
+        "meals": "1 Breakfast, 1 Lunch, 1 Dinner"
+      },
+      {
+        "day": 9,
+        "image": "/images/wp-content/uploads/2025/01/india-day-9.webp",
+        "accommodation": "Hotel Mahal Khandela",
+        "activities": "Optional activities — traditional cooking class",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 10,
+        "image": "/images/wp-content/uploads/2025/01/india-day-10.webp",
+        "accommodation": "Hotel Mahal Khandela",
+        "activities": "Amer Fort — City Palace Museum — Birla Temple",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 11,
+        "image": "/images/wp-content/uploads/2025/01/india-triphighlight-1.webp",
+        "accommodation": "Hotel Sun Ring Agra",
+        "activities": "Taj Mahal",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 12,
+        "image": "/images/wp-content/uploads/2025/01/india-header-2.webp",
+        "accommodation": "Deventure Hotel Delhi",
+        "activities": "Agra Fort",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 13,
+        "image": "/images/wp-content/uploads/2025/01/india-day-13.webp",
+        "meals": "1 Breakfast"
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/images/wp-content/uploads/2025/01/india-day-2.webp",
+        "/images/wp-content/uploads/2025/01/india-day-3.webp",
+        "/images/wp-content/uploads/2025/01/india-day-5.webp",
+        "/images/wp-content/uploads/2025/01/india-triphighlight-3.webp",
+        "/images/wp-content/uploads/2025/01/india-day-7.webp",
+        "/images/wp-content/uploads/2025/01/india-header-7.webp",
+        "/images/wp-content/uploads/2025/01/india-day-10.webp",
+        "/images/wp-content/uploads/2025/01/india-triphighlight-1.webp"
+      ]
+    }
+  },
+  "india-holi-festival-tour": {
+    "seo": {
+      "title": "13 Days | India Holi + Yoga with Dev — I'm Here Travels",
+      "description": "It's time to start exploring India. This tour is perfect for those first time travellers that have always wanted to explore the wonders of India but don't want to do it alone. Experience the Taj Mahal, Pink Palaces of Jaipur, Ranthambhore safari, and the colours of Holi."
+    },
+    "details": {
+      "tags": [
+        {
+          "label": "India",
+          "icon": "location"
+        },
+        {
+          "label": "Taj Mahal",
+          "icon": "location"
+        },
+        {
+          "label": "Safari",
+          "icon": "activities"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "11 Breakfasts, 2 Lunches, 2 Dinners"
+        },
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Van, Train"
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": "Sightseeing Old and New Delhi, Visit Mehrangarh Fort, Visit Ranakpur Jain Temples, Cruise over Lake Pichola, Visit Amer Fort, Canter Safari into Ranthambhore National Park, Visit the Taj Mahal"
+        },
+        {
+          "icon": "accommodation",
+          "label": "Stay",
+          "value": "Hotel (12 nights)"
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Airport and domestic transfer assistance",
+            "Tour Guide"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/images/wp-content/uploads/2026/05/the-exotica-grandeur-accommodation.webp",
+          "name": "The Exotica Grandeur",
+          "nights": "2 nights in hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2026/05/the-mandore-express-accommodation.webp",
+          "name": "Mandore Express Overnight Train",
+          "nights": "1 night in train"
+        },
+        {
+          "image": "/images/wp-content/uploads/2026/05/the-mandore-accommodation.webp",
+          "name": "The Mandore",
+          "nights": "2 nights in hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2026/05/aaram-mahal-udaipur-accommodation.webp",
+          "name": "Aaram Mahal Udaipur",
+          "nights": "2 nights in hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2026/05/ranthambore-heritage-haveli-accommodation.webp",
+          "name": "Ranthambore Heritage Haveli",
+          "nights": "2 nights in hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2026/05/hotel-mahal-khandela.webp",
+          "name": "Mahal Khandela",
+          "nights": "2 nights in hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2026/05/hotel-sun-ring-agra-accommodation.webp",
+          "name": "Hotel Sun Ring",
+          "nights": "1 night in hotel"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "The trip starts at New Delhi and finishes in New Delhi."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "To Indira Ghandi International Airport — New Delhi."
+        },
+        {
+          "question": "What should I wear?",
+          "answer": "Pack comfortable clothes suitable for summer: shorts, sunglasses, hat, and sunscreen. Bring beach attire and light jackets for cooler evenings. Don't forget appropriate clothing for mosque/temple visits, but not to worry a pre departure pack will provide all this info before your trip."
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Our tours cater to adventurous travelers aged 18-45, with most guests between 21-35 years old. It's perfect for people from diverse backgrounds to share travel experiences."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "The local currency in India is Indian Rupee. We do advise guests to first collect cash from the airport ATMs but there will also be various ATMs available along the way."
+        },
+        {
+          "question": "Which airport do I fly out from?",
+          "answer": "From Indira Ghandi International Airport — New Delhi."
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/tours/india-holi-festival-tour/india-day-1.webp",
+        "accommodation": "The Exotica Grandeur",
+        "activities": "Meet & greet at the airport, Check in"
+      },
+      {
+        "day": 2,
+        "image": "/tours/india-holi-festival-tour/india-day-2.webp",
+        "accommodation": "Mandore Express Overnight Train",
+        "meals": "Breakfast",
+        "activities": "Full-day sightseeing in Delhi, Raj Ghat and India Gate, Overnight Train"
+      },
+      {
+        "day": 3,
+        "image": "/tours/india-holi-festival-tour/india-day-3.webp",
+        "accommodation": "The Mandore",
+        "meals": "Breakfast",
+        "activities": "Jaswant Thada visit, Optional Bishnoi Village Safari"
+      },
+      {
+        "day": 4,
+        "image": "/tours/india-holi-festival-tour/india-day-4.webp",
+        "accommodation": "The Mandore",
+        "meals": "Breakfast",
+        "activities": "Mehrangarh Fort exploration, Blue City walking tour"
+      },
+      {
+        "day": 5,
+        "image": "/tours/india-holi-festival-tour/india-day-5.webp",
+        "accommodation": "Aaram Mahal Udaipur",
+        "meals": "Breakfast",
+        "activities": "Visit Ranakpur Jain Temples, Transfer to Udaipur"
+      },
+      {
+        "day": 6,
+        "image": "/tours/india-holi-festival-tour/india-day-6.webp",
+        "accommodation": "Aaram Mahal Udaipur",
+        "meals": "Breakfast",
+        "activities": "City Palace visit, Saheliyon-ki-Bari gardens, Lake Pichola cruise"
+      },
+      {
+        "day": 7,
+        "image": "/tours/india-holi-festival-tour/india-day-7.webp",
+        "accommodation": "Ranthambore Heritage Haveli",
+        "meals": "Lunch, Dinner",
+        "activities": "Ranthambore Fort exploration"
+      },
+      {
+        "day": 8,
+        "image": "/tours/india-holi-festival-tour/india-day-8.webp",
+        "accommodation": "Ranthambore Heritage Haveli",
+        "meals": "Breakfast, Lunch, Dinner",
+        "activities": "Morning wildlife safari"
+      },
+      {
+        "day": 9,
+        "image": "/tours/india-holi-festival-tour/india-day-9.webp",
+        "accommodation": "Hotel Mahal Khandela",
+        "meals": "Breakfast",
+        "activities": "Amer Fort, City Palace, Jantar Mantar, Hawa Mahal, Birla Temple, Optional traditional cooking class"
+      },
+      {
+        "day": 10,
+        "image": "/tours/india-holi-festival-tour/india-day-10.webp",
+        "accommodation": "Mahal Khandela",
+        "meals": "Breakfast",
+        "activities": "Amer Fort, City Palace, Jantar Mantar, Hawa Mahal, Birla Temple"
+      },
+      {
+        "day": 11,
+        "image": "/tours/india-holi-festival-tour/india-day-11.webp",
+        "accommodation": "Hotel Sun Ring",
+        "meals": "Breakfast",
+        "activities": "Taj Mahal visit"
+      },
+      {
+        "day": 12,
+        "image": "/tours/india-holi-festival-tour/india-day-12.webp",
+        "accommodation": "The Exotica Grandeur",
+        "meals": "Breakfast",
+        "activities": "Agra Fort visit, Transfer to Delhi"
+      },
+      {
+        "day": 13,
+        "image": "/tours/india-holi-festival-tour/india-day-13.webp",
+        "meals": "Breakfast",
+        "activities": "Airport transfer"
+      }
+    ],
+    "highlightSubtitles": [
+      {
+        "text": "Taj Mahal",
+        "subtitle": "Visit one of the 7 wonders of the world"
+      },
+      {
+        "text": "Canter Safari Ranthambhore National Park",
+        "subtitle": "Visit Ranthambhore National Park where you have the chance to witness Leopards, Sloth Bear and maybe even the majestic Tiger"
+      },
+      {
+        "text": "Cruise over Lake Pichola",
+        "subtitle": "Set off on a sunset cruise across Lake Pichola where expert guides will enhance your trip by explaining the rich history of Udaipur City"
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/images/wp-content/uploads/2025/01/india-day-2.webp",
+        "/images/wp-content/uploads/2025/01/india-day-3.webp",
+        "/images/wp-content/uploads/2025/01/india-day-5.webp",
+        "/images/wp-content/uploads/2025/01/india-triphighlight-3.webp",
+        "/images/wp-content/uploads/2025/01/india-day-7.webp",
+        "/images/wp-content/uploads/2025/01/india-header-7.webp",
+        "/images/wp-content/uploads/2025/01/india-day-9.webp",
+        "/images/wp-content/uploads/2025/01/india-triphighlight-1.webp"
+      ]
+    }
+  },
+  "sri-langka-wander-tour": {
+    "seo": {
+      "title": "11 Days | Sri Lanka Wander Tour",
+      "description": "Embark on the Sri Lanka Wander Tour and experience the island from Negombo to Mirissa. Explore the Dambulla Cave Temple, hike Pidurangala Rock, cycle through local villages, climb Sigiriya Rock Fortress, discover Kandy's temples and markets, ride the scenic train from Nanu Oya to Ella, and unwind with wildlife, surfing, and beach time along the south coast."
+    },
+    "details": {
+      "route": "Negombo → Sigiriya → Kandy → Ella → Yala → Mirissa",
+      "tags": [
+        {
+          "label": "Negombo",
+          "icon": "location"
+        },
+        {
+          "label": "Sigiriya",
+          "icon": "location"
+        },
+        {
+          "label": "Kandy",
+          "icon": "location"
+        },
+        {
+          "label": "Ella",
+          "icon": "location"
+        },
+        {
+          "label": "Yala",
+          "icon": "location"
+        },
+        {
+          "label": "Mirissa",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Van, Train, Boat, Bicycle"
+        },
+        {
+          "icon": "accommodation",
+          "label": "Accommodation",
+          "value": "Hotel (10 nights)"
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": "Dambulla Cave Temple, Pidurangala Rock, cycling tour, Sigiriya Rock Fortress, Kandy city tour, Nanu Oya to Ella train ride, Ella Rock, safari game drive, Galle city tour, surfing in Weligama"
+        },
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "10 Breakfasts"
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 Customer Support",
+            "Airport & Domestic Transfer Assistance (Excluding Airport Drop-Off)",
+            "Local Tour Guide"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/tours/sri-lanka-wander/beacon-beach.webp",
+          "name": "Beacon Beach - Negombo",
+          "nights": "1 night"
+        },
+        {
+          "image": "/tours/sri-lanka-wander/elysia-hotel.jpg",
+          "name": "Elysia Hotel Sigiriya - Habarana",
+          "nights": "2 nights"
+        },
+        {
+          "image": "/tours/sri-lanka-wander/swiss-residence.jpg",
+          "name": "Swiss Residence - Kandy",
+          "nights": "1 night"
+        },
+        {
+          "image": "/tours/sri-lanka-wander/oak-ray-ella.jpg",
+          "name": "Oak Ray Ella Gap - Ella",
+          "nights": "2 nights"
+        },
+        {
+          "image": "/tours/sri-lanka-wander/oak-ray-wild.jpg",
+          "name": "Oak Ray Wild - Yala",
+          "nights": "1 night"
+        },
+        {
+          "image": "/tours/sri-lanka-wander/silan-mo-mirissa.jpg",
+          "name": "Silan Mo Mirissa - Mirissa",
+          "nights": "3 nights"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "The trip starts in Negombo and finishes in Mirissa."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "Colombo Bandaranaike International Airport (CMB)"
+        },
+        {
+          "question": "Which airport do I need to fly out from?",
+          "answer": "Colombo Bandaranaike International Airport (CMB). They can organise a taxi back to Colombo at an additional cost (cheaper if shared with other guests)."
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Our tours cater to adventurous travelers aged 18-45, with most guests between 21-35 years old. It's perfect for people from diverse backgrounds to share travel experiences."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "Sri Lankan Rupee"
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/tours/sri-lanka-wander/srilanka-day-1.webp",
+        "accommodation": "Beacon Beach Hotel",
+        "activities": "Meet and Greet (Dinner meals are not included)"
+      },
+      {
+        "day": 2,
+        "image": "/tours/sri-lanka-wander/srilanka-day-2.webp",
+        "accommodation": "Elysia Hotel Sigiriya (or similar)",
+        "meals": "1 Breakfast",
+        "activities": "Dambulla Cave Temple, Sunset Hike at Pidurangala Rock"
+      },
+      {
+        "day": 3,
+        "image": "/tours/sri-lanka-wander/srilanka-day-3.webp",
+        "accommodation": "Elysia Hotel Sigiriya (or similar)",
+        "meals": "1 Breakfast",
+        "activities": "Cycling tour through local villages and rice fields, Traditional Sri Lankan rice & curry experience, Climb Sigiriya Rock Fortress"
+      },
+      {
+        "day": 4,
+        "image": "/tours/sri-lanka-wander/srilanka-day-4.webp",
+        "accommodation": "Swiss Residence (or similar)",
+        "meals": "1 Breakfast",
+        "activities": "Spice Garden visit in Matale, Kandy city tour, Temple of the Tooth Relic, Explore local markets, Evening cultural dance performance"
+      },
+      {
+        "day": 5,
+        "image": "/tours/sri-lanka-wander/srilanka-day-5.webp",
+        "accommodation": "Oak Ray Ella Gap (or similar)",
+        "meals": "1 Breakfast",
+        "activities": "Nuwara Eliya city tour, Scenic hill country drive, Famous train ride from Nanu Oya to Ella, Tea plantations and waterfall views"
+      },
+      {
+        "day": 6,
+        "image": "/tours/sri-lanka-wander/srilanka-day-6.webp",
+        "accommodation": "Oak Ray Ella Gap (or similar)",
+        "meals": "1 Breakfast",
+        "activities": "Ella Rock"
+      },
+      {
+        "day": 7,
+        "image": "/tours/sri-lanka-wander/srilanka-day-7.png",
+        "accommodation": "Oak Ray Wild (or similar)",
+        "meals": "1 Breakfast",
+        "activities": "Safari Game Drive"
+      },
+      {
+        "day": 8,
+        "image": "/tours/sri-lanka-wander/srilanka-day-8.webp",
+        "accommodation": "Silan Mo Mirissa (or similar)",
+        "meals": "1 Breakfast",
+        "activities": "Galle city tour, Surfing (optional)"
+      },
+      {
+        "day": 9,
+        "image": "/tours/sri-lanka-wander/srilanka-day-9.png",
+        "accommodation": "Silan Mo Mirissa (or similar)",
+        "activities": "Surfing",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 10,
+        "image": "/tours/sri-lanka-wander/srilanka-day-10.png",
+        "accommodation": "Silan Mo Mirissa (or similar)",
+        "meals": "1 Breakfast",
+        "activities": "Full Free Day, Optional surfing in Weligama"
+      },
+      {
+        "day": 11,
+        "image": "/tours/sri-lanka-wander/srilanka-day-11.png",
+        "meals": "1 Breakfast"
+      }
+    ],
+    "highlightSubtitles": [
+      {
+        "text": "Surfing in Weligama",
+        "subtitle": "Catch your first wave or improve your skills"
+      },
+      {
+        "text": "Safari Game Drive in Yala",
+        "subtitle": "Spot elephants, leopards, crocs & sloth bears"
+      },
+      {
+        "text": "Scenic Train Journey in Ella",
+        "subtitle": "Tea plantations, waterfalls & hill-country views"
+      },
+      {
+        "text": "Cultural Show in Kandy",
+        "subtitle": "Traditional music, dance & vibrant costumes"
+      },
+      {
+        "text": "Sunset Hike at Pidurangala Rock",
+        "subtitle": "Panoramic views over Sigiriya & the jungle"
+      },
+      {
+        "text": "Sigiriya Rock Fortress",
+        "subtitle": "Climb one of Sri Lanka's most iconic landmarks"
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/tours/sri-lanka-wander/srilanka-header-1.webp",
+        "/tours/sri-lanka-wander/srilanka-header-2.webp",
+        "/tours/sri-lanka-wander/srilanka-header-3.webp",
+        "/tours/sri-lanka-wander/srilanka-header-4.webp",
+        "/tours/sri-lanka-wander/srilanka-header-5.webp",
+        "/tours/sri-lanka-wander/srilanka-header-6.webp",
+        "/tours/sri-lanka-wander/srilanka-header-7.webp"
+      ]
+    }
+  },
+  "vietnam-expedition": {
+    "seo": {
+      "title": "11 Days | Vietnam North to South Expedition",
+      "description": "Journey through Vietnam from vibrant Hanoi and the limestone landscapes of Ninh Binh and Bai Tu Long Bay, to imperial Hue, lantern-lit Hoi An, and beachside Da Nang."
+    },
+    "details": {
+      "route": "Hanoi → Ninh Binh → Hue → Hoi An → Da Nang",
+      "tags": [
+        {
+          "label": "Hanoi",
+          "icon": "location"
+        },
+        {
+          "label": "Ninh Binh",
+          "icon": "location"
+        },
+        {
+          "label": "Hue",
+          "icon": "location"
+        },
+        {
+          "label": "Hoi An",
+          "icon": "location"
+        },
+        {
+          "label": "Da Nang",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Boat, Van"
+        },
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "8 Breakfasts, 2 Lunches, 1 Dinner"
+        },
+        {
+          "icon": "accommodation",
+          "label": "Accommodation",
+          "value": [
+            "8 nights in Hotel",
+            "1 night on Cruise Boat",
+            "1 night on Overnight Train"
+          ]
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": [
+            "Hanoi — Welcome Dinner",
+            "Hanoi City tour & street food tasting",
+            "Ninh Binh — Trang An boat trip",
+            "Bai Tu Long — cruise, kayaking & beach day",
+            "Hue — city tour by jeep",
+            "Hoi An walking tour",
+            "Da Nang — beach day & city tour"
+          ]
+        },
+        {
+          "icon": "plus",
+          "label": "Add-on Activities",
+          "value": [
+            "Hanoi — Visit Train Street",
+            "Hoi An — Tailor Shops",
+            "Da Nang — Marble Mountain"
+          ]
+        },
+        {
+          "icon": "team",
+          "label": "Team",
+          "value": "Tour Guide"
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Environmental fees and taxes",
+            "Local tourist taxes and fees",
+            "Airport pick up",
+            "Bai Tu Long → Hanoi → Hue overnight train transfer"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/tours/vietnam-expedition/San Premuim Hotel.png",
+          "name": "San Premium Hotel",
+          "nights": "2 nights in hotel"
+        },
+        {
+          "image": "/tours/vietnam-expedition/Tam Coc Botique Garden.png",
+          "name": "Tam Coc Botique Garden",
+          "nights": "1 night in hotel"
+        },
+        {
+          "image": "/tours/vietnam-expedition/verdure lotus cruise.png",
+          "name": "Verdure Lotus Cruise",
+          "nights": "1 night on cruise"
+        },
+        {
+          "image": "/tours/vietnam-expedition/overnight-train-accommodation.webp",
+          "name": "Overnight Train",
+          "nights": "1 night on sleeper train"
+        },
+        {
+          "image": "/tours/vietnam-expedition/Thanh Lich Hotel.png",
+          "name": "Thanh Lich Hotel",
+          "nights": "1 night in hotel"
+        },
+        {
+          "image": "/tours/vietnam-expedition/Kiman Hoi an.png",
+          "name": "Kiman Hoi An Hotel",
+          "nights": "2 nights in hotel"
+        },
+        {
+          "image": "/tours/vietnam-expedition/Sekong Dananng.png",
+          "name": "Sekong Hotel",
+          "nights": "2 nights in hotel"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "The trip starts in Hanoi and finishes in Da Nang."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "You can fly into Noi Bai International Airport Hanoi — code (HAN)."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "Local currency in Vietnam is Vietnamese Dong."
+        },
+        {
+          "question": "Which airport do I fly out from?",
+          "answer": "You can fly out of Da Nang International Airport — code (DAD)."
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/tours/vietnam-expedition/vietnam-day-1.webp",
+        "accommodation": "San Premium Hotel"
+      },
+      {
+        "day": 2,
+        "image": "/tours/vietnam-expedition/vietnam-day-2.jpg",
+        "accommodation": "San Premium Hotel",
+        "meals": "1 Breakfast",
+        "activities": "• Hanoi City Tour\n• Street food tasting"
+      },
+      {
+        "day": 3,
+        "image": "/tours/vietnam-expedition/vietnam-day-3.png",
+        "accommodation": "Tam Coc Botique Garden",
+        "meals": "1 Breakfast",
+        "activities": "• Trang An boat trip"
+      },
+      {
+        "day": 4,
+        "image": "/tours/vietnam-expedition/vietnam-day-4.png",
+        "accommodation": "Verdure Lotus Cruise",
+        "meals": "1 Lunch & 1 Dinner",
+        "activities": "• Cruise\n• Kayaking\n• Beach day"
+      },
+      {
+        "day": 5,
+        "image": "/tours/vietnam-expedition/vietnam-day-5.jpg",
+        "accommodation": "Overnight Train",
+        "meals": "1 Breakfast & 1 Lunch"
+      },
+      {
+        "day": 6,
+        "image": "/tours/vietnam-expedition/vietnam-day-6.jpeg",
+        "accommodation": "Thanh Lich Hotel",
+        "meals": "1 Breakfast",
+        "activities": "• City tour by jeep\n• Khai Dinh Tomb\n• Minh Mang Tomb\n• Hue Citadel"
+      },
+      {
+        "day": 7,
+        "image": "/tours/vietnam-expedition/vietnam-day-7.webp",
+        "accommodation": "Kiman Hoi An Hotel",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 8,
+        "image": "/tours/vietnam-expedition/vietnam-day-8.png",
+        "accommodation": "Kiman Hoi An Hotel",
+        "meals": "1 Breakfast",
+        "activities": "• Walking tour"
+      },
+      {
+        "day": 9,
+        "image": "/tours/vietnam-expedition/vietnam-day-9.png",
+        "accommodation": "Sekong Hotel",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 10,
+        "image": "/tours/vietnam-expedition/vietnam-day-10.png",
+        "accommodation": "Sekong Hotel",
+        "meals": "1 Breakfast",
+        "activities": "• City & historical tour\n• Marble Mountains\n• Son Tra Peninsula\n• Lady Buddha"
+      },
+      {
+        "day": 11,
+        "image": "/tours/vietnam-expedition/vietnam-day-11.png",
+        "meals": "1 Breakfast"
+      }
+    ],
+    "highlightSubtitles": [
+      {
+        "text": "Ninh Binh → Bai Tu Long",
+        "subtitle": "Cruise around Bai Tu Long Bay and experience the amazing views it has to offer."
+      },
+      {
+        "text": "Hue — Discover the city by jeep",
+        "subtitle": "Explore Hue's rich history and culture on a scenic jeep tour, visiting royal tombs and the Imperial Citadel and experiencing local coffee traditions."
+      },
+      {
+        "text": "Hoi An Walking Tour",
+        "subtitle": "Discover Hoi An's charm on a guided walking tour, exploring its ancient streets, iconic landmarks, and local flavors."
+      },
+      {
+        "text": "Da Nang City Tour",
+        "subtitle": "Explore Da Nang's highlights on a full-day city tour, from Marble Mountains and cultural sites to scenic Son Tra Peninsula and the iconic Lady Buddha."
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/tours/vietnam-expedition/vietnam-header-2.webp",
+        "/tours/vietnam-expedition/vietnam-header-3.webp",
+        "/tours/vietnam-expedition/vietnam-header-4.webp",
+        "/tours/vietnam-expedition/vietnam-header-5.webp",
+        "/tours/vietnam-expedition/vietnam-header-6.webp"
+      ]
+    }
+  },
+  "china-discovery": {
+    "seo": {
+      "title": "China Discovery — 10 Day Beijing to Shanghai Tour",
+      "description": "Join the 10-day China Discovery tour: Forbidden City, Mutianyu Great Wall, Shanghai Tower, Zhujiajiao Water Town. Small group, local guides, GBP £1,200."
+    },
+    "details": {
+      "route": "Beijing → Shanghai",
+      "tags": [
+        {
+          "label": "Beijing",
+          "icon": "location"
+        },
+        {
+          "label": "Shanghai",
+          "icon": "location"
+        },
+        {
+          "label": "Zhujiajiao",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Private vehicle, All sightseeing transfers"
+        },
+        {
+          "icon": "accommodation",
+          "label": "Accommodation",
+          "value": "9 nights in Hotel"
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": [
+            "Mutianyu Great Wall",
+            "Beijing City Tour",
+            "Tea Ceremony",
+            "Bullet Train",
+            "Shanghai Tower"
+          ]
+        },
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "9 Breakfasts"
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Airport and domestic transfer assistance",
+            "Tour Guide",
+            "Private vehicle for all transfers & sightseeing"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/images/wp-content/uploads/2025/10/long-ge-hotel-accommodation.webp",
+          "name": "Long Ge Hotel Beijing",
+          "nights": "5 nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/10/holiday-inn-express-accommodation.webp",
+          "name": "Holiday Inn Express Shanghai Gongkang",
+          "nights": "4 nights in Hotel"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "The trip begins in Beijing and ends in Shanghai."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "Beijing Capital International Airport (PEK)."
+        },
+        {
+          "question": "What should I wear?",
+          "answer": "Pack long pants, lighter pants or skirt/dress, tops long and short sleeved, sweater, light jacket, warmer jacket for Beijing nights, comfortable footwear, outfits for dinners, underwear, socks, sunglasses, scarf, hat. Temperatures vary between night and day — layering options are best."
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Our tours cater to adventurous travelers aged 18–45, with most guests between 21–35 years old. It's perfect for people from diverse backgrounds to share travel experiences."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "The local currency is the Chinese Yuan, also known as Renminbi (RMB). We advise guests to first collect cash from the airport ATMs; ATMs are also available along the route."
+        },
+        {
+          "question": "Which airport do I fly out from?",
+          "answer": "Shanghai Pudong International Airport (PVG)."
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/images/wp-content/uploads/2025/10/china-day-1.webp",
+        "accommodation": "Beijing Longge Hotel",
+        "activities": "Meet & greet at the airport, Check in"
+      },
+      {
+        "day": 2,
+        "image": "/images/wp-content/uploads/2025/10/china-day-2.webp",
+        "accommodation": "Beijing Longge Hotel",
+        "meals": "1 Breakfast",
+        "activities": "City Tour"
+      },
+      {
+        "day": 3,
+        "image": "/images/wp-content/uploads/2025/10/china-day-3.webp",
+        "accommodation": "Beijing Longge Hotel",
+        "meals": "1 Breakfast",
+        "activities": "Mutianyu Great Wall"
+      },
+      {
+        "day": 4,
+        "image": "/images/wp-content/uploads/2025/10/china-day-4.webp",
+        "accommodation": "Beijing Longge Hotel",
+        "meals": "1 Breakfast",
+        "activities": "Free Day"
+      },
+      {
+        "day": 5,
+        "image": "/images/wp-content/uploads/2025/10/china-day-5.webp",
+        "accommodation": "Beijing Longge Hotel",
+        "meals": "1 Breakfast",
+        "activities": "Free Day"
+      },
+      {
+        "day": 6,
+        "image": "/images/wp-content/uploads/2025/10/china-day-6.webp",
+        "accommodation": "Holiday Inn Express Shanghai Gongkang",
+        "meals": "1 Breakfast",
+        "activities": "High-speed Train, Bund Visit, River Cruise"
+      },
+      {
+        "day": 7,
+        "image": "/images/wp-content/uploads/2025/10/china-day-7.webp",
+        "accommodation": "Holiday Inn Express Shanghai Gongkang",
+        "meals": "1 Breakfast",
+        "activities": "Yu Garden, City God Market Temple, Shanghai Tower, Shanghai Museum"
+      },
+      {
+        "day": 8,
+        "image": "/images/wp-content/uploads/2025/10/china-day-8.webp",
+        "accommodation": "Holiday Inn Express Shanghai Gongkang",
+        "meals": "1 Breakfast",
+        "activities": "Zhujiajiao Water Town"
+      },
+      {
+        "day": 9,
+        "image": "/images/wp-content/uploads/2025/10/china-day-9.webp",
+        "accommodation": "Holiday Inn Express Shanghai Gongkang",
+        "meals": "Breakfast",
+        "activities": "Free Day"
+      },
+      {
+        "day": 10,
+        "image": "/images/wp-content/uploads/2025/10/china-day-10.webp",
+        "meals": "1 Breakfast",
+        "activities": "Check Out"
+      }
+    ],
+    "highlightSubtitles": [
+      {
+        "text": "Beijing City Tour",
+        "subtitle": "Explore Beijing and immerse yourself in the various popular landmarks the city has to offer including the Forbidden City"
+      },
+      {
+        "text": "Mutianyu Great Wall",
+        "subtitle": "Tick off one of the 7 wonders of the world — visit Mutianyu Great Wall either hiking along the wall or taking the cable car and admiring the views in comfort"
+      },
+      {
+        "text": "Shanghai Tower",
+        "subtitle": "Hop on the elevator to the top of China's tallest building to get those amazing views and pics"
+      },
+      {
+        "text": "Zhujiajiao Water Town",
+        "subtitle": "Explore the ancient Chinese city and experience the rich culture and beautiful architecture it has to offer"
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/tours/china-discovery/thumb-1.webp",
+        "/tours/china-discovery/thumb-2.webp",
+        "/tours/china-discovery/thumb-3.webp",
+        "/tours/china-discovery/thumb-4.webp",
+        "/tours/china-discovery/thumb-5.webp",
+        "/tours/china-discovery/thumb-6.webp"
+      ]
+    }
+  },
+  "japan-adventure": {
+    "seo": {
+      "title": "Japan Adventure — 10 Day Tokyo to Kyoto Tour",
+      "description": "Join the 10-day Japan Summer Adventure: Tokyo city tour, bullet train to Kyoto, traditional tea ceremony, and the scenic Atami coast. GBP £1,899."
+    },
+    "details": {
+      "route": "Tokyo → Atami → Kyoto",
+      "tags": [
+        {
+          "label": "Tokyo",
+          "icon": "location"
+        },
+        {
+          "label": "Atami",
+          "icon": "location"
+        },
+        {
+          "label": "Kyoto",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Private vehicle - All sightseeing transfers"
+        },
+        {
+          "icon": "accommodation",
+          "label": "Accommodation",
+          "value": "9 nights in Hotel"
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": "Meet & Greet at Tokyo international airport, City Tour, Tea Ceremony, Bullet Train"
+        },
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "9 Breakfasts"
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Airport and domestic transfer assistance",
+            "Tour Guide",
+            "Private vehicle for all transfers & sightseeing"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/tours/japan-adventure/Moxy.png",
+          "name": "Moxy Tokyo Kinshicho",
+          "nights": "3 Nights in Hotel"
+        },
+        {
+          "image": "/tours/japan-adventure/Prince_Inn.png",
+          "name": "Prince Smart Inn",
+          "nights": "3 Nights in Hotel"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/10/s-peria-hotel-accommodation.webp",
+          "name": "S-Peria Hotel",
+          "nights": "3 Nights in Hotel"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "The trip begins in Tokyo and ends in Kyoto."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "Tokyo Haneda Airport (HND)."
+        },
+        {
+          "question": "What should I wear?",
+          "answer": "Weather in February will be quite cold, so pack a warm windproof coat or insulated jacket, sweaters and thermal tops, long pants (jeans or lined trousers), scarf, gloves and a warm hat, comfortable waterproof walking shoes or boots, and layers (you'll be indoors a lot, where it's heated). Optional: light rain jacket or compact umbrella."
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Our tours cater to adventurous travelers aged 18-45, with most guests between 21-35 years old. It's perfect for people from diverse backgrounds to share travel experiences."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "Japanese Yen (JPY). Advised to collect cash from airport ATMs; ATMs also available along the way."
+        },
+        {
+          "question": "Which airport do I fly out from?",
+          "answer": "Kansai International Airport (KIX)"
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/images/wp-content/uploads/2025/10/japan-day-1.webp",
+        "accommodation": "Moxy Tokyo Kinshicho",
+        "activities": "Meet & greet at the airport, Check in"
+      },
+      {
+        "day": 2,
+        "image": "/tours/japan-adventure/japan-day-2.webp",
+        "accommodation": "Moxy Tokyo Kinshicho",
+        "activities": "City Tour",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 3,
+        "image": "/images/wp-content/uploads/2025/10/japan-day-3.webp",
+        "accommodation": "Moxy Tokyo Kinshicho",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 4,
+        "image": "/tours/japan-adventure/Enoshima.png",
+        "accommodation": "Prince Smart Inn",
+        "activities": "Kamakura/Enoshima Day Tour",
+        "meals": "1 Breakfast (Grab and Go)"
+      },
+      {
+        "day": 5,
+        "image": "/images/wp-content/uploads/2025/10/japan-day-5.webp",
+        "accommodation": "Prince Smart Inn",
+        "activities": "Day Tour",
+        "meals": "1 Breakfast (Grab and Go)"
+      },
+      {
+        "day": 6,
+        "image": "/images/wp-content/uploads/2025/10/japan-day-7.webp",
+        "accommodation": "Prince Smart Inn",
+        "activities": "Free Day",
+        "meals": "1 Breakfast (Grab and Go)"
+      },
+      {
+        "day": 7,
+        "image": "/images/wp-content/uploads/2025/10/japan-day-6.webp",
+        "accommodation": "S-Peria Hotel",
+        "activities": "Tea Ceremony",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 8,
+        "image": "/tours/japan-adventure/japan-day-8.webp",
+        "accommodation": "S-Peria Hotel",
+        "activities": "City Tour",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 9,
+        "image": "/tours/japan-adventure/japan-day-9.webp",
+        "accommodation": "S-Peria Hotel",
+        "activities": "Free Day",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 10,
+        "image": "/tours/japan-adventure/japan-day-10.webp",
+        "activities": "Check out",
+        "meals": "1 Breakfast"
+      }
+    ],
+    "highlightSubtitles": [
+      {
+        "text": "Tokyo City Tour",
+        "subtitle": "Explore Tokyo and immerse yourself in the various popular landmarks the capital has to offer"
+      },
+      {
+        "text": "Famous Bullet Train",
+        "subtitle": "Hop aboard the infamous bullet train and make your way to Kyoto"
+      },
+      {
+        "text": "Tea Ceremony in Kyoto",
+        "subtitle": "Experience the traditional tea ceremony and, if you're keen, try making some tea sweets."
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/tours/japan-adventure/japan-header-1.webp",
+        "/tours/japan-adventure/japan-header-2.webp",
+        "/tours/japan-adventure/japan-header-3.webp",
+        "/tours/japan-adventure/japan-header-4.webp",
+        "/tours/japan-adventure/japan-header-5.webp",
+        "/tours/japan-adventure/japan-header-7.webp"
+      ]
+    }
+  },
+  "japan-adventure-winter": {
+    "seo": {
+      "title": "Japan Adventure (Winter) — I'm Here Travels",
+      "description": "Experience the perfect blend of tradition and innovation on this unforgettable 10-day journey through Japan. From Tokyo to Nagano, discover Japan's dynamic cities, rich heritage, and stunning winter landscapes."
+    },
+    "details": {
+      "route": "Tokyo → Nagano",
+      "tags": [
+        {
+          "label": "Tokyo",
+          "icon": "location"
+        },
+        {
+          "label": "Nagano",
+          "icon": "location"
+        },
+        {
+          "label": "Kyoto",
+          "icon": "location"
+        },
+        {
+          "label": "Osaka",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Private vehicle - All sightseeing transfers"
+        },
+        {
+          "icon": "accommodation",
+          "label": "Accommodation",
+          "value": "9 nights in Hotel"
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": "Meet & Greet at Tokyo international airport, City Tour, Tea Ceremony, Bullet Train"
+        },
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "9 Breakfasts"
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Airport and domestic transfer assistance",
+            "Tour Guide",
+            "Private vehicle for all transfers & sightseeing"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/tours/japan-adventure-winter/Moxy.png",
+          "name": "Moxy Tokyo Kinshicho",
+          "nights": "3 Nights in Hotel"
+        },
+        {
+          "image": "/tours/japan-adventure-winter/Dormy-Inn.png",
+          "name": "Dormy Inn Nagano",
+          "nights": "2 Nights in Hotel"
+        },
+        {
+          "image": "/tours/japan-adventure-winter/S-Peria.webp",
+          "name": "S-Peria Hotel",
+          "nights": "3 Nights in Hotel"
+        },
+        {
+          "image": "/tours/japan-adventure-winter/Sarasa.png",
+          "name": "Sarasa Hotel Namba",
+          "nights": "1 Night in Hotel"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "The trip begins in Tokyo and ends in Osaka."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "Tokyo Haneda Airport (HND)"
+        },
+        {
+          "question": "What should I wear?",
+          "answer": "Weather in February will be quite cold, so pack a warm windproof coat or insulated jacket, sweaters and thermal tops, long pants (jeans or lined trousers), scarf, gloves and a warm hat, comfortable waterproof walking shoes or boots, and layers (you'll be indoors a lot, where it's heated). Optional: light rain jacket or compact umbrella."
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Our tours cater to adventurous travelers aged 18—45, with most guests between 21—35 years old. It's perfect for people from diverse backgrounds to share travel experiences."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "Japanese Yen (JPY). Advised to collect cash from airport ATMs; ATMs also available along the route."
+        },
+        {
+          "question": "Which airport do I fly out from?",
+          "answer": "Kansai International Airport (KIX)"
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/tours/japan-adventure-winter/japan-day-1.webp",
+        "accommodation": "Moxy Tokyo Kinshicho",
+        "activities": "Meet & greet at the airport, Check in"
+      },
+      {
+        "day": 2,
+        "image": "/tours/japan-adventure-winter/japan-day-2.webp",
+        "accommodation": "Moxy Tokyo Kinshicho",
+        "activities": "City Tour",
+        "meals": "Breakfast"
+      },
+      {
+        "day": 3,
+        "image": "/tours/japan-adventure-winter/japan-day-3.webp",
+        "accommodation": "Moxy Tokyo Kinshicho",
+        "activities": "Free Day",
+        "meals": "Breakfast"
+      },
+      {
+        "day": 4,
+        "image": "/tours/japan-adventure-winter/japan-day-4.webp",
+        "accommodation": "Dormy Inn Nagano",
+        "activities": "Zenkoji Temple and Nakamise Street Tour",
+        "meals": "Breakfast"
+      },
+      {
+        "day": 5,
+        "image": "/tours/japan-adventure-winter/japan-day-5.webp",
+        "accommodation": "Dormy Inn Nagano",
+        "activities": "Free Day",
+        "meals": "Breakfast"
+      },
+      {
+        "day": 6,
+        "image": "/tours/japan-adventure-winter/japan-day-6.webp",
+        "accommodation": "S-Peria Hotel",
+        "activities": "Tea Ceremony",
+        "meals": "Breakfast"
+      },
+      {
+        "day": 7,
+        "image": "/tours/japan-adventure-winter/japan-day-7.webp",
+        "accommodation": "S-Peria Hotel",
+        "activities": "City Tour",
+        "meals": "Breakfast"
+      },
+      {
+        "day": 8,
+        "image": "/tours/japan-adventure-winter/japan-header-2.webp",
+        "accommodation": "S-Peria Hotel",
+        "activities": "Free Day",
+        "meals": "Breakfast"
+      },
+      {
+        "day": 9,
+        "image": "/tours/japan-adventure-winter/japan-header-3.webp",
+        "accommodation": "Sarasa Hotel Namba",
+        "activities": "Nara Day tour",
+        "meals": "Breakfast"
+      },
+      {
+        "day": 10,
+        "image": "/tours/japan-adventure-winter/japan-day-9.webp",
+        "activities": "Check out",
+        "meals": "Breakfast"
+      }
+    ],
+    "highlightSubtitles": [
+      {
+        "text": "Tokyo City Tour",
+        "subtitle": "Explore Tokyo and immerse yourself in the various popular landmarks the capital has to offer"
+      },
+      {
+        "text": "Famous Bullet Train",
+        "subtitle": "Hop aboard the infamous bullet train and make your way to Kyoto"
+      },
+      {
+        "text": "Tea Ceremony in Kyoto",
+        "subtitle": "Experience the traditional tea ceremony and, if you're keen, try making some tea sweets"
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/tours/japan-adventure-winter/japan-header-6.webp",
+        "/tours/japan-adventure-winter/japan-header-1.webp",
+        "/tours/japan-adventure-winter/japan-header-2.webp",
+        "/tours/japan-adventure-winter/japan-header-3.webp",
+        "/tours/japan-adventure-winter/japan-header-4.webp",
+        "/tours/japan-adventure-winter/japan-header-5.webp",
+        "/tours/japan-adventure-winter/japan-header-7.webp"
+      ]
+    }
+  },
+  "tanzania-exploration": {
+    "seo": {
+      "title": "10 Days | Tanzania Exploration",
+      "description": "Have you always dreamed of visiting Tanzania, seeing Mount Kilimanjaro, going on a safari, and maybe even exploring Zanzibar? Now's your chance! This tour offers you the opportunity to experience all of that-mini trekking Kilimanjaro, guided game drives (safari) to witness the incredible wildlife, and marine life, followed by relaxing on the stunning beaches of Zanzibar. Join us for an unforgettable adventure and make lifelong friends along the way!"
+    },
+    "details": {
+      "route": "Kilimanjaro → Arusha → Karatu → Zanzibar",
+      "tags": [
+        {
+          "label": "Tanzania",
+          "icon": "location"
+        },
+        {
+          "label": "Safari",
+          "icon": "location"
+        },
+        {
+          "label": "Marine Safari",
+          "icon": "location"
+        },
+        {
+          "label": "Kilimanjaro",
+          "icon": "location"
+        },
+        {
+          "label": "Zanzibar",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Private tour bus, Domestic flight, Safari Land Cruiser"
+        },
+        {
+          "icon": "accommodation",
+          "label": "Accommodation",
+          "value": "9 nights in hotel"
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": [
+            "Hot Springs, Mount Kilimanjaro Day Hike, Tarangire National Park, Safari Game Drive, Sunset Cruise",
+            "Add on: Parasailing, Jetski, Kayaking, Stand Up Paddleboarding, Scuba Diving",
+            "Some options for the free day: Ferry Ride to Dar and Back, Zanzibar Submarine Experience, Turtle Sanctuary, Jambiani caves"
+          ]
+        },
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "9 breakfasts, 4 lunches, 3 dinners"
+        },
+        {
+          "icon": "team",
+          "label": "Team",
+          "value": "Local guides"
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Airport and domestic transfer assistance",
+            "Tour guide"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/tours/tanzania-exploration/kilimanjaro-crane-hotel-accommodation.webp",
+          "name": "Kilimanjaro Crane Hotel",
+          "nights": "2 Nights"
+        },
+        {
+          "image": "/tours/tanzania-exploration/njiro-legacy-accommodation.webp",
+          "name": "Njiro Legacy",
+          "nights": "2 Nights"
+        },
+        {
+          "image": "/tours/tanzania-exploration/omega-view-hotel-accommodation.webp",
+          "name": "Omega View Hotel",
+          "nights": "1 Night"
+        },
+        {
+          "image": "/tours/tanzania-exploration/demani-lodge-accommodation3.webp",
+          "name": "Demani Lodge",
+          "nights": "4 Nights"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "The trip starts in Moshi and finishes in Zanzibar."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "Moshi - Kilimanjaro Airport (JRO)"
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Our tours cater to adventurous travelers aged 18-45, with most guests between 21-35 years old. It's perfect for people from diverse backgrounds to share travel experiences."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "Tanzania Schilling (TSh)"
+        },
+        {
+          "question": "Which airport do I fly out from?",
+          "answer": "Zanzibar - Obeid Amani Karume International Airport (ZNZ)"
+        }
+      ],
+      "tips": [
+        {
+          "icon": "handshake",
+          "title": "Tipping guideline",
+          "description": "US$10.00pp per day"
+        },
+        {
+          "icon": "airport",
+          "title": "International flights",
+          "description": "International flights are not included"
+        },
+        {
+          "icon": "accommodation",
+          "title": "Pre and post nights",
+          "description": "Pre and post nights accommodation is not included"
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/tours/tanzania-exploration/tanzania-day-1.webp",
+        "accommodation": "Moshi",
+        "activities": "Meet and Greet",
+        "meals": "Welcome Dinner"
+      },
+      {
+        "day": 2,
+        "image": "/tours/tanzania-exploration/tanzania-day-2.webp",
+        "accommodation": "Kilimanjaro Crane Hotel",
+        "activities": "Visit Hot Springs",
+        "meals": "1 Breakfast, 1 Lunch & 1 Dinner"
+      },
+      {
+        "day": 3,
+        "image": "/tours/tanzania-exploration/tanzania-day-3.webp",
+        "accommodation": "Njiro Legacy",
+        "activities": "Minitrekking",
+        "meals": "1 Breakfast & 1 Lunch"
+      },
+      {
+        "day": 4,
+        "image": "/tours/tanzania-exploration/tanzania-day-4.webp",
+        "accommodation": "Omega View Hotel",
+        "activities": "Guided Game Drive",
+        "meals": "1 Breakfast, 1 Lunch & 1 Dinner"
+      },
+      {
+        "day": 5,
+        "image": "/tours/tanzania-exploration/tanzania-day-5.webp",
+        "accommodation": "Njiro Legacy",
+        "activities": "Early Game Drive (Safari)",
+        "meals": "1 Breakfast & 1 Lunch"
+      },
+      {
+        "day": 6,
+        "image": "/tours/tanzania-exploration/tanzania-day-6.webp",
+        "accommodation": "Demani Lodge",
+        "activities": "Flight to Zanzibar",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 7,
+        "image": "/tours/tanzania-exploration/tanzania-day-7.webp",
+        "accommodation": "Demani Lodge",
+        "activities": "Relax and Chill",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 8,
+        "image": "/tours/tanzania-exploration/tanzania-day-8.webp",
+        "accommodation": "Demani Lodge",
+        "activities": "Blue Lagoon Zanzibar and Sunset Cruise",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 9,
+        "image": "/tours/tanzania-exploration/tanzania-day-9.webp",
+        "accommodation": "Demani Lodge",
+        "activities": "Mnemba and Changuu Island",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 10,
+        "image": "/tours/tanzania-exploration/tanzania-day-10.webp",
+        "activities": "Checkout",
+        "meals": "1 Breakfast"
+      }
+    ],
+    "highlightSubtitles": [
+      {
+        "text": "Kilimanjaro Mini Day Hike",
+        "subtitle": "Experience a mini trek up a section of the famous Kilimanjaro"
+      },
+      {
+        "text": "Safari Game Drive",
+        "subtitle": "Experience two game drives at different times to"
+      },
+      {
+        "text": "Blue Lagoon",
+        "subtitle": "Experience the vibrant marine life Zanzibar has to offer"
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/tours/tanzania-exploration/tanzania-header-2.webp",
+        "/tours/tanzania-exploration/tanzania-header-3.webp",
+        "/tours/tanzania-exploration/tanzania-header-4.webp",
+        "/tours/tanzania-exploration/tanzania-header-5.webp",
+        "/tours/tanzania-exploration/tanzania-header-6.webp",
+        "/tours/tanzania-exploration/tanzania-header-7.webp"
+      ]
+    }
+  },
+  "danielleerintanzania": {
+    "seo": {
+      "title": "10 Days | Tanzania Exploration (Danielle & Erin)",
+      "description": "This tour will let you experience all of that with Mini Trekking Kilimanjaro, guided game drives to experience the vast wildlife and marine life and then finishing the tour off on the amazing beaches in Zanzibar. Join us to experience these amazing destinations and meet people who will become friend's for life!"
+    },
+    "bookingSlug": "tanzania-exploration-danielle-erin",
+    "details": {
+      "route": "Moshi -> Arusha -> Karatu -> Zanzibar",
+      "tags": [
+        {
+          "label": "Tanzania",
+          "icon": "location"
+        },
+        {
+          "label": "Safari",
+          "icon": "location"
+        },
+        {
+          "label": "Marine Safari",
+          "icon": "location"
+        },
+        {
+          "label": "Kilimanjaro",
+          "icon": "location"
+        },
+        {
+          "label": "Zanzibar",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "airport",
+          "label": "Flights",
+          "value": "One-way flight from Kilimanjaro to Zanzibar"
+        },
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "9 breakfasts, 4 lunches, 3 dinners"
+        },
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Private tour bus, Safari Land Cruiser, Airport transfer (excluding the airport drop-off on the last day)"
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": [
+            "Visit to Chemka Hotsprings",
+            "Day Tour on Mt Kilimanjaro",
+            "Game drives in Tarangire National Park",
+            "Game drives in Ngorongoro Crater",
+            "Blue Lagoon Snorkeling Zanzibar",
+            "Sunset Beach Party",
+            "Dolphin Tour",
+            "Swim with the Tortoise"
+          ]
+        },
+        {
+          "icon": "accommodation",
+          "label": "Stay",
+          "value": "Hostels and Hotel"
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Airport and domestic transfer assistance",
+            "Tour Guide"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/tours/tanzania-dan&erin/kilimanjaro-crane-hotel-accommodation.webp",
+          "name": "Kilimanjaro Crane Hotel",
+          "nights": "2 Nights"
+        },
+        {
+          "image": "/tours/tanzania-dan&erin/njiro-legacy-accommodation.webp",
+          "name": "Njiro Legacy",
+          "nights": "2 Nights"
+        },
+        {
+          "image": "/tours/tanzania-dan&erin/omega-view-hotel-accommodation.webp",
+          "name": "Omega View Hotel",
+          "nights": "1 Night"
+        },
+        {
+          "image": "/tours/tanzania-dan&erin/demani-lodge-accommodation-twin.webp",
+          "name": "Demani Lodge",
+          "nights": "3 Nights"
+        },
+        {
+          "image": "/tours/tanzania-dan&erin/lindrin-lodge-accommodation-twin.webp",
+          "name": "Lindrin Lodge",
+          "nights": "1 Night"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "The trip starts in Moshi and finishes in Zanzibar."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "Moshi - Kilimanjaro Airport (JRO)"
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Our tours cater to adventurous travelers aged 18-45, with most guests between 21-35 years old. Perfect for people of all different backgrounds to share travel experiences."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "Tanzania Schilling (TSh)"
+        },
+        {
+          "question": "Which airport do I fly out from?",
+          "answer": "Zanzibar - Obeid Amani Karume International Airport (ZNZ)"
+        }
+      ],
+      "tips": [
+        {
+          "icon": "handshake",
+          "title": "Tipping guideline",
+          "description": "US$10.00pp per day"
+        },
+        {
+          "icon": "airport",
+          "title": "International flights",
+          "description": "International flights are not included"
+        },
+        {
+          "icon": "accommodation",
+          "title": "Pre and post nights",
+          "description": "Pre and post nights accommodation is not included"
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/tours/tanzania-dan&erin/tanzania-day-1.webp",
+        "accommodation": "Kilimanjaro Crane Hotel",
+        "activities": "Welcome Dinner",
+        "meals": "Dinner"
+      },
+      {
+        "day": 2,
+        "image": "/tours/tanzania-dan&erin/tanzania-day-2.webp",
+        "accommodation": "Kilimanjaro Crane Hotel",
+        "activities": "Visit waterfalls",
+        "meals": "Breakfast, Lunch & Dinner"
+      },
+      {
+        "day": 3,
+        "image": "/tours/tanzania-dan&erin/tanzania-day-3.webp",
+        "accommodation": "Njiro Legacy",
+        "activities": "Minitrekking",
+        "meals": "Breakfast & Lunch"
+      },
+      {
+        "day": 4,
+        "image": "/tours/tanzania-dan&erin/tanzania-day-4.webp",
+        "accommodation": "Omega View Hotel",
+        "activities": "Guided Game Drive",
+        "meals": "Breakfast, Lunch & Dinner"
+      },
+      {
+        "day": 5,
+        "image": "/tours/tanzania-dan&erin/tanzania-day-5.webp",
+        "accommodation": "Njiro Legacy",
+        "activities": "Early Game Drive",
+        "meals": "Breakfast & Lunch"
+      },
+      {
+        "day": 6,
+        "image": "/tours/tanzania-dan&erin/tanzania-day-6.webp",
+        "accommodation": "Demani Lodge",
+        "activities": "Flight to Zanzibar",
+        "meals": "Breakfast"
+      },
+      {
+        "day": 7,
+        "image": "/tours/tanzania-dan&erin/tanzania-day-7.webp",
+        "accommodation": "Demani Lodge",
+        "activities": "Culture Tours",
+        "meals": "Breakfast"
+      },
+      {
+        "day": 8,
+        "image": "/tours/tanzania-dan&erin/tanzania-day-8.webp",
+        "accommodation": "Demani Lodge",
+        "activities": "Chill out and Relax",
+        "meals": "Breakfast"
+      },
+      {
+        "day": 9,
+        "image": "/tours/tanzania-dan&erin/tanzania-day-9.webp",
+        "accommodation": "Demani Lodge",
+        "activities": "Chill out and Relax",
+        "meals": "Breakfast"
+      },
+      {
+        "day": 10,
+        "image": "/tours/tanzania-dan&erin/tanzania-day-10.webp",
+        "activities": "Checkout",
+        "meals": "Breakfast"
+      }
+    ],
+    "highlightSubtitles": [
+      {
+        "text": "Kilimanjaro Mini Trekking",
+        "subtitle": "Experience a mini trek up a section of the famous Kilimanjaro"
+      },
+      {
+        "text": "Game Drive",
+        "subtitle": "Two unforgettable game drives across Tarangire and Ngorongoro"
+      },
+      {
+        "text": "Safari Blue Tour",
+        "subtitle": "Experience the vibrant marine life Zanzibar has to offer"
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/tours/tanzania-dan&erin/tanzania-header-2.webp",
+        "/tours/tanzania-dan&erin/tanzania-header-3.webp",
+        "/tours/tanzania-dan&erin/tanzania-header-4.webp",
+        "/tours/tanzania-dan&erin/tanzania-header-5.webp",
+        "/tours/tanzania-dan&erin/tanzania-header-6.webp",
+        "/tours/tanzania-dan&erin/tanzania-header-7.webp"
+      ]
+    }
+  },
+  "new-zealand-expedition": {
+    "seo": {
+      "title": "New Zealand Expedition — 15 Day Auckland to Queenstown Adventure",
+      "description": "Join the 15-day New Zealand Expedition: Auckland, Raglan surf, Waitomo glowworms, Rotorua, Milford Sound cruise, glacier adventures, and Queenstown thrills."
+    },
+    "details": {
+      "route": "North: Auckland → Raglan → Waitomo → Rotorua → Wellington",
+      "tags": [
+        {
+          "label": "Auckland",
+          "icon": "location"
+        },
+        {
+          "label": "Wellington",
+          "icon": "location"
+        },
+        {
+          "label": "Christchurch",
+          "icon": "location"
+        },
+        {
+          "label": "Queenstown",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Private Coach, Ferry (Wellington → Picton), Coastal Pacific Scenic Train (Picton → Christchurch)"
+        },
+        {
+          "icon": "accommodation",
+          "label": "Accommodation",
+          "value": "14 nights in shared hostel accommodation"
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": "Optional: Whakarewarewa Living Maori Village and Traditional Hangi Lunch, Lake Tarawera Water Taxi, Guided Hike & Natural Hot Pools, Kiwi Hatchery Conservation Experience, Time Tripper Underwater Experience, Milford Sound Day Trip"
+        },
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "15 Breakfasts, 1 Lunch, 1 Dinner"
+        },
+        {
+          "icon": "team",
+          "label": "Team",
+          "value": "Local Guides"
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Interislander Ferry",
+            "Tour Guide"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/images/wp-content/uploads/2025/05/haka-house-auckland-accommodation.webp",
+          "name": "Haka House Auckland",
+          "nights": "1 night in Dorm"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/05/raglan-backpackers-auckland-accommodation.webp",
+          "name": "Raglan Backpackers",
+          "nights": "1 night in Dorm"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/05/kwipaka-waitomo-auckland-accommodation.webp",
+          "name": "Kiwipaka Waitomo",
+          "nights": "1 night in Dorm"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/05/rock-solid-backpackers-auckland-accommodation.webp",
+          "name": "Rock Solid Backpackers Rotorua",
+          "nights": "2 nights in Dorm"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/05/haka-house-wellington-accommodation.webp",
+          "name": "Haka House Wellington",
+          "nights": "2 nights in Dorm"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/05/bealey-quarter-accommodation.webp",
+          "name": "The Bealey Christchurch",
+          "nights": "1 night in Dorm"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/05/rainforest-retreat-franz-josef-accommodation.webp",
+          "name": "Rainforest Retreat Franz Josef",
+          "nights": "2 nights in Dorm"
+        },
+        {
+          "image": "/images/wp-content/uploads/2025/05/haka-house-queenstown-accommodation.webp",
+          "name": "Haka House Queenstown",
+          "nights": "4 nights in Dorm"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "The trip starts in Auckland (Day 1 – Arrival and Hotel Check-in) and ends in Queenstown (Day 15 – Departure and Airport Transfers)."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "You need to fly into Auckland Airport (AKL) to start the tour. For departure, you'll fly out of Queenstown Airport (ZQN) at the end of the trip."
+        },
+        {
+          "question": "What should I wear?",
+          "answer": "In New Zealand during spring/summer, expect mild to warm temperatures with cooler evenings. Pack lightweight breathable clothing for daytime, warm layers (hoodies, fleece) and a windbreaker or waterproof jacket for evenings, sturdy walking/hiking shoes, swimwear, and smart casual for cultural evenings. Essentials: sunglasses, hat, sunscreen (UV is strong in NZ), daypack, reusable water bottle. Layering is key."
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Our tours cater to adventurous travelers aged 18–45, with most guests between 21–35 years old."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "The local currency is the New Zealand Dollar (NZD / NZ$). Credit and debit cards are widely accepted, but it's handy to have some cash for small purchases or remote areas."
+        },
+        {
+          "question": "Which airport do I fly out from?",
+          "answer": "You will fly out from Queenstown Airport (ZQN) at the end of the tour."
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/images/wp-content/uploads/2025/02/new-zealand-day-1.webp",
+        "accommodation": "Haka House Auckland",
+        "activities": "Meet and greet at the airport, check-in at the hotel"
+      },
+      {
+        "day": 2,
+        "image": "/images/wp-content/uploads/2025/05/new-zealand-day-22.webp",
+        "accommodation": "Raglan Backpackers",
+        "activities": "Optional: Surf lesson, Beach Time",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 3,
+        "image": "/images/wp-content/uploads/2025/05/new-zealand-day-32.webp",
+        "accommodation": "Kiwipaka Waitomo",
+        "activities": "Optional: Glowworm Cave Tour, Black Water Rafting",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 4,
+        "image": "/images/wp-content/uploads/2025/02/new-zealand-header-6.webp",
+        "accommodation": "Rock Solid Backpackers Rotorua",
+        "activities": "Optional: Kiwi Hatchery, Redwood Forest walk, Whakarewarewa Living Maori Village",
+        "meals": "1 Breakfast, 1 Lunch"
+      },
+      {
+        "day": 5,
+        "image": "/images/wp-content/uploads/2025/02/new-zealand-day-5.webp",
+        "accommodation": "Rock Solid Backpackers Rotorua",
+        "activities": "Optional: Tarawera Hike, Spa, Rafting, Ziplining",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 6,
+        "image": "/images/wp-content/uploads/2025/02/new-zealand-day-6.webp",
+        "accommodation": "Haka House Wellington",
+        "activities": "Drive from Rotorua to Wellington",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 7,
+        "image": "/images/wp-content/uploads/2025/05/new-zealand-day-72.webp",
+        "accommodation": "Haka House Wellington",
+        "activities": "Explore the Capital",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 8,
+        "image": "/images/wp-content/uploads/2025/05/new-zealand-day-82.webp",
+        "accommodation": "The Bealey Christchurch",
+        "activities": "Optional: Ferry ride, Coastal Pacific Train",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 9,
+        "image": "/images/wp-content/uploads/2025/02/new-zealand-day-9.webp",
+        "accommodation": "Rainforest Retreat Franz Josef",
+        "activities": "Arthur's Pass Scenic Drive",
+        "meals": "1 Breakfast, 1 Dinner"
+      },
+      {
+        "day": 10,
+        "image": "/images/wp-content/uploads/2025/02/new-zealand-day-10.webp",
+        "accommodation": "Rainforest Retreat Franz Josef",
+        "activities": "Optional: Heli-hiking, Kayaking, Guided Glacier Walk",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 11,
+        "image": "/images/wp-content/uploads/2025/02/new-zealand-day-11.webp",
+        "accommodation": "Haka House Queenstown",
+        "activities": "Lake Matheson walk",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 12,
+        "image": "/images/wp-content/uploads/2025/02/new-zealand-day-12.webp",
+        "accommodation": "Haka House Queenstown",
+        "activities": "Optional: Bungy, Skydive, Spa, Gondola Rides",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 13,
+        "image": "/images/wp-content/uploads/2025/02/new-zealand-day-13.webp",
+        "accommodation": "Haka House Queenstown",
+        "activities": "Optional: Milford Sound Day Cruise",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 14,
+        "image": "/images/wp-content/uploads/2025/02/new-zealand-day-14-1.webp",
+        "accommodation": "Haka House Queenstown",
+        "activities": "Optional: Winery Tour, Jet Boating, Souvenir Shopping",
+        "meals": "1 Breakfast"
+      },
+      {
+        "day": 15,
+        "image": "/images/wp-content/uploads/2025/05/new-zealand-day-15.webp",
+        "meals": "1 Breakfast"
+      }
+    ],
+    "highlightSubtitles": [
+      {
+        "text": "Raglan Beach",
+        "subtitle": "Catch your first waves in a beginner-friendly surf session"
+      },
+      {
+        "text": "Kuirau Park",
+        "subtitle": "Stroll through the park and witness bubbling, hissing geothermal wonders"
+      },
+      {
+        "text": "Arthur's Pass",
+        "subtitle": "Cross dramatic mountain ranges via Arthur's Pass to reach Franz Josef"
+      },
+      {
+        "text": "Lake Matheson",
+        "subtitle": "Breathtaking reflections of New Zealand's tallest mountains"
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/images/wp-content/uploads/2025/02/new-zealand-day-1.webp",
+        "/images/wp-content/uploads/2025/02/new-zealand-day-5.webp",
+        "/images/wp-content/uploads/2025/02/new-zealand-day-6.webp",
+        "/images/wp-content/uploads/2025/02/new-zealand-day-9.webp",
+        "/images/wp-content/uploads/2025/02/new-zealand-day-10.webp",
+        "/images/wp-content/uploads/2025/02/new-zealand-day-12.webp",
+        "/images/wp-content/uploads/2025/02/new-zealand-day-13.webp",
+        "/images/wp-content/uploads/2025/08/new-zealand-trip-highlight-4.webp"
+      ]
+    }
+  },
+  "argentinas-wonders": {
+    "seo": {
+      "title": "Argentina's Wonders — I'm Here Travels",
+      "description": "Discover the vibrant culture and breathtaking landscapes of Argentina on an epic 11-day adventure. Begin in Buenos Aires, where the energy of tango and rich local cuisine will sweep you off your feet."
+    },
+    "details": {
+      "tags": [
+        {
+          "label": "Argentina",
+          "icon": "location"
+        },
+        {
+          "label": "Patagonia",
+          "icon": "location"
+        },
+        {
+          "label": "Buenos Aires",
+          "icon": "location"
+        },
+        {
+          "label": "Chalten",
+          "icon": "location"
+        },
+        {
+          "label": "Calafate",
+          "icon": "location"
+        },
+        {
+          "label": "Iguazu",
+          "icon": "location"
+        },
+        {
+          "label": "Jujuy & Salta",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": [
+            "8 breakfasts",
+            "1 lunch"
+          ]
+        },
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": [
+            "Van",
+            "Plane",
+            "Bicycle"
+          ]
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": [
+            "Trekking",
+            "Bicycling",
+            "Wine Tasting",
+            "Tango",
+            "Chasing Waterfalls",
+            "Minitrekking at Perito Moreno Glacier"
+          ]
+        },
+        {
+          "icon": "plus",
+          "label": "Add-on Activities",
+          "value": [
+            "Tango Lessons",
+            "Trekking in Laguna de los 3"
+          ]
+        },
+        {
+          "icon": "accommodation",
+          "label": "Stay",
+          "value": [
+            "Hotel (10 nights)"
+          ]
+        },
+        {
+          "icon": "team",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Airport and domestic transfer assistance",
+            "Transfer to El Chalten, in the way: trekking in the petrified forest",
+            "Tour Guide"
+          ]
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/tours/argentinas-wonders/merit-santelmo-accommodation.webp",
+          "name": "Merit San Telmo",
+          "nights": "4 nights in hotel"
+        },
+        {
+          "image": "/tours/argentinas-wonders/verticalodge-accommodation.webp",
+          "name": "Hostería Vertical Lodge",
+          "nights": "1 night in hotel"
+        },
+        {
+          "image": "/tours/argentinas-wonders/tierratehuelche-accommodation.webp",
+          "name": "Hosteria Tierra Tehuelche",
+          "nights": "2 nights in hotel"
+        },
+        {
+          "image": "/tours/argentinas-wonders/jardiniguazu-accommodation.webp",
+          "name": "Jardin de Iguazu",
+          "nights": "3 nights in hotel"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "Start Point: Buenos Aires (Day 1 — Arrival and Welcome Dinner)\nEnd Point: Puerto Iguazú (Day 11 — Departure)"
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "Fly into Ezeiza International Airport (EZE) in Buenos Aires to start."
+        },
+        {
+          "question": "What should I wear?",
+          "answer": "It's February — summer in Argentina! Pack for variety:\n• Buenos Aires (20°C–30°C / 68°F–86°F): Light layers, comfy shoes, semi-formal for tango night.\n• El Chaltén & El Calafate (5°C–15°C / 41°F–59°F): Warm layers, waterproof jacket, trekking shoes for glacier fun.\n• Puerto Iguazú (25°C–35°C / 77°F–95°F): Breathable clothes, quick-dry gear for the boat trip, sunscreen.\n• Essentials: Sunglasses, hat, small backpack."
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Most activities suit adventurers 18–45 (typical guests 21–35). Minitrekking is for ages 8–65 only, with health restrictions (no exceptions)."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "In Buenos Aires and Calafate, the currency is Argentine Pesos (ARS), though US dollars are widely accepted. In Brazil, the currency is the Real (R$). Iguazu Falls straddles both countries, so you'll use pesos on the Argentine side and reais on the Brazilian side. Credit cards are accepted in most destinations throughout your trip."
+        },
+        {
+          "question": "Which airport do I fly out from?",
+          "answer": "Aeropuerto Internacional Cataratas del Iguazú (IGR). From here, you have three options:\n1. Fly to Rio de Janeiro and continue with the Brazil program.\n2. Return to Buenos Aires and take your flight home from there.\n3. Explore direct flight options between Iguazú and your home destination."
+        },
+        {
+          "question": "Optional Trip — Rio Carnival",
+          "answer": "The actual Carnival Parades run from February 28th to March 5th. For those interested in attending, we can assist with accommodations and parade tickets:\n\n• Double Sharing: GBP 1,200\n• Triple Sharing: GBP 1,100\n\nIncludes: 4 nights with breakfast at Regency Park Hotel, transfer between Hotel and Sambadrome, ticket for one night at the Carnival Parade (grandstand sector 5).\n\nAdd-on parade nights:\n• 2nd parade night ticket + transfer: GBP 150\n• 3 parade nights tickets + transfers: GBP 275"
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/tours/argentinas-wonders/argentina-day-1.webp",
+        "accommodation": "Merit San Telmo (Standard Room with Breakfast)",
+        "meals": "1x Dinner",
+        "activities": "• Meet & Greet at the airport\n• Afternoon at leisure\n• Welcome Dinner"
+      },
+      {
+        "day": 2,
+        "image": "/tours/argentinas-wonders/argentina-day-2.webp",
+        "accommodation": "Vertical Lodge (Standard Room with Breakfast)",
+        "meals": "1x Breakfast",
+        "activities": "• Flight to El Calafate\n• Transfer to El Chaltén"
+      },
+      {
+        "day": 3,
+        "image": "/tours/argentinas-wonders/argentina-day-3.webp",
+        "accommodation": "Hosteria Tierra Tehuelche (Standard Room with Breakfast)",
+        "meals": "1x Breakfast",
+        "activities": "• Day at leisure in El Chaltén\n• Transfer to El Calafate"
+      },
+      {
+        "day": 4,
+        "image": "/tours/argentinas-wonders/argentina-day-4.webp",
+        "accommodation": "Hosteria Tierra Tehuelche (Standard Room with Breakfast)",
+        "meals": "1x Breakfast",
+        "activities": "• Full-Day Minitrekking at Perito Moreno Glacier"
+      },
+      {
+        "day": 5,
+        "image": "/tours/argentinas-wonders/argentina-day-5.webp",
+        "accommodation": "Merit San Telmo (Standard Room with Breakfast)",
+        "meals": "1x Breakfast",
+        "activities": "• Flight to Buenos Aires\n• Half-Day Recoleta & Palermo Bike Tour"
+      },
+      {
+        "day": 6,
+        "image": "/tours/argentinas-wonders/argentina-day-6.webp",
+        "accommodation": "Merit San Telmo (Standard Room with Breakfast)",
+        "meals": "1x Breakfast, 1x Dinner",
+        "activities": "• Full-Day Buenos Aires City Tour\n• Half-Day Dinner & Tango Show"
+      },
+      {
+        "day": 7,
+        "image": "/tours/argentinas-wonders/argentina-day-7.webp",
+        "accommodation": "Merit San Telmo (Standard Room with Breakfast)",
+        "meals": "1x Breakfast",
+        "activities": "• Day at leisure in Buenos Aires"
+      },
+      {
+        "day": 8,
+        "image": "/tours/argentinas-wonders/argentina-day-8.webp",
+        "accommodation": "Jardin de Iguazu (Standard Room with Breakfast)",
+        "meals": "1x Breakfast",
+        "activities": "• Flight to Puerto Iguazú\n• Transfer to hotel"
+      },
+      {
+        "day": 9,
+        "image": "/tours/argentinas-wonders/argentina-day-9.webp",
+        "accommodation": "Jardin de Iguazu (Standard Room with Breakfast)",
+        "meals": "1x Breakfast",
+        "activities": "• Full-Day Iguazú Falls (Argentine Side)\n• Great Adventure Boat Trip"
+      },
+      {
+        "day": 10,
+        "image": "/tours/argentinas-wonders/argentina-day-10.webp",
+        "accommodation": "Jardin de Iguazu (Standard Room with Breakfast)",
+        "meals": "1x Breakfast",
+        "activities": "• Half-Day Iguazú Falls (Brazilian Side)"
+      },
+      {
+        "day": 11,
+        "image": "/tours/argentinas-wonders/argentina-day-11.webp",
+        "meals": "1x Breakfast",
+        "activities": "• Day at leisure\n• Departure"
+      }
+    ],
+    "highlightSubtitles": [
+      {
+        "text": "Trekking in Patagonia",
+        "subtitle": "See the glaciers in Perito Moreno"
+      },
+      {
+        "text": "Iguazu Waterfalls",
+        "subtitle": "Discover the Argentinian and Brazillian side of Iguazu!"
+      },
+      {
+        "text": "Biking around Buenos Aires",
+        "subtitle": "Experience the Argentinian culture by doing Tango and wine tasting in the country's capital!"
+      },
+      {
+        "text": "Laguna de los Tres",
+        "subtitle": "The majesty of Mount Fitz Roy, the lagoon of vibrant colors"
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/tours/argentinas-wonders/argentina-header-2.webp",
+        "/tours/argentinas-wonders/argentina-header-3.webp",
+        "/tours/argentinas-wonders/argentina-header-4.webp",
+        "/tours/argentinas-wonders/argentina-header-5.webp",
+        "/tours/argentinas-wonders/argentina-header-6.webp",
+        "/tours/argentinas-wonders/argentina-header-7.webp",
+        "/tours/argentinas-wonders/argentina-header-8.webp"
+      ]
+    }
+  },
+  "brazils-treasures": {
+    "seo": {
+      "title": "Brazil's Treasures — I'm Here Travels",
+      "description": "Get ready to fall in love with Brazil—loud, colorful, and alive at every turn. From exploring the vibrant city of São Paulo to wandering the cobbled charm of Paraty, this 10-day adventure is full of energy and discovery."
+    },
+    "details": {
+      "tags": [
+        {
+          "label": "São Paulo",
+          "icon": "location"
+        },
+        {
+          "label": "Rio de Janeiro",
+          "icon": "location"
+        }
+      ],
+      "inclusions": [
+        {
+          "icon": "transport",
+          "label": "Transport",
+          "value": "Private Van"
+        },
+        {
+          "icon": "accommodation",
+          "label": "Accommodation",
+          "value": "Hotel (6 nights)"
+        },
+        {
+          "icon": "activities",
+          "label": "Activities",
+          "value": "City Tours, Beaches, Sugarloaf & Christ the Redeemer Tour, Sambadrome Carnival Experience, Rio Helicopter Ride"
+        },
+        {
+          "icon": "meals",
+          "label": "Meals",
+          "value": "6 Breakfasts"
+        },
+        {
+          "icon": "plus",
+          "label": "Others",
+          "value": [
+            "24/7 customer experience assistance",
+            "Airport and domestic transfer assistance",
+            "Tour Guide",
+            "Entrance fees to all major attractions and sites",
+            "Private group experiences in Rio de Janeiro",
+            "Small group size to ensure personalized experiences",
+            "All taxes and service charges included"
+          ]
+        },
+        {
+          "icon": "info",
+          "label": "What's NOT included",
+          "value": "International flights to/from the destination, Travel insurance, Visas (if required), Personal expenses & optional activities"
+        }
+      ],
+      "accommodations": [
+        {
+          "image": "/tours/brazils-treasures/mercure-sao-paulo-paulista-accommodation.webp",
+          "name": "Mercure Sao Paulo Paulista",
+          "nights": "2 nights in Hotel"
+        },
+        {
+          "image": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1778577528672_Americas%20Copa.png?alt=media&token=e92a8a4c-2e00-4727-9b44-77f31781944a",
+          "name": "Americas Copacabana Hotel",
+          "nights": "4 nights in Hotel"
+        }
+      ],
+      "faqs": [
+        {
+          "question": "Where does the trip start & finish?",
+          "answer": "It starts at São Paulo and finishes in Rio de Janeiro."
+        },
+        {
+          "question": "Which airport do I need to fly into?",
+          "answer": "São Paulo/Guarulhos International Airport (GRU)."
+        },
+        {
+          "question": "What should I wear?",
+          "answer": "Pack comfortable clothes suitable for summer: shorts, sunglasses, hat, and sunscreen. Bring beach attire and light jackets for cooler evenings. Don't forget a semi-formal outfit for the tango night in Buenos Aires."
+        },
+        {
+          "question": "Do you have an age limit for tours?",
+          "answer": "Our tours cater to adventurous travelers aged 18—45, with most guests between 21—35 years old. It's perfect for people from diverse backgrounds to share travel experiences."
+        },
+        {
+          "question": "What is the local currency?",
+          "answer": "In Brazil, the currency is the Real (R$). However, credit cards are accepted in most destinations throughout your trip."
+        },
+        {
+          "question": "Which airport do I fly out from?",
+          "answer": "Rio de Janeiro/Galeão International Airport (GIG)."
+        }
+      ]
+    },
+    "itineraryEnrichment": [
+      {
+        "day": 1,
+        "image": "/tours/brazils-treasures/brazil-day-1.webp",
+        "accommodation": "Mercure Sao Paulo Paulista",
+        "meals": "0",
+        "activities": "Meet and greet dinner"
+      },
+      {
+        "day": 2,
+        "image": "/tours/brazils-treasures/brazil-day-2.webp",
+        "accommodation": "Mercure Sao Paulo Paulista",
+        "meals": "1 Breakfast",
+        "activities": "City tour "
+      },
+      {
+        "day": 3,
+        "image": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1778576632234_brazil-day-6.webp?alt=media&token=5afd50a1-f9a4-423f-910e-0ea3ee16000c",
+        "accommodation": "Americas Copacabana Hotel",
+        "meals": "1 Breakfast",
+        "activities": "Private Transfer to Rio "
+      },
+      {
+        "day": 4,
+        "image": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1778576883685_brazil-day-8.webp?alt=media&token=75452486-3208-4ba1-bd32-8080ec0e1bed",
+        "accommodation": "Americas Copacabana Hotel",
+        "meals": "1 Breakfast",
+        "activities": "Christ the Redeemer, Sugarloaf Mountain, Cathedral & Sambadrome"
+      },
+      {
+        "day": 5,
+        "image": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1778577100174_brazil-day-10%20(1)%20(1).webp?alt=media&token=3c071b51-e9f3-43eb-a0e7-cc488098ed82",
+        "accommodation": "Americas Copacabana Hotel",
+        "meals": "1 Breakfast",
+        "activities": "Helicopter Ride"
+      },
+      {
+        "day": 6,
+        "image": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1778577237930_brazil-day-11.webp?alt=media&token=9c1e0ff2-d97e-43e9-a2ec-c35a5057d8cd",
+        "accommodation": "Americas Copacabana Hotel",
+        "meals": "1 Breakfast",
+        "activities": "Sambadrome Carnival Parade Experience"
+      },
+      {
+        "day": 7,
+        "image": "https://firebasestorage.googleapis.com/v0/b/imheretravels-a3f81.firebasestorage.app/o/images%2F1778577378152_brazil-day-12.webp?alt=media&token=c256eb5e-b850-47ac-8430-baedce99ab9b",
+        "meals": "1 Breakfast",
+        "activities": "Check-out "
+      }
+    ],
+    "gallery": {
+      "thumbnails": [
+        "/tours/brazils-treasures/brazil-header-2.webp",
+        "/tours/brazils-treasures/brazil-header-3.webp",
+        "/tours/brazils-treasures/brazil-header-4.webp",
+        "/tours/brazils-treasures/brazil-header-5.webp",
+        "/tours/brazils-treasures/brazil-header-6.webp",
+        "/tours/brazils-treasures/brazil-header-7.webp",
+        "/tours/brazils-treasures/brazil-header-8.webp"
+      ]
+    }
+  }
+}

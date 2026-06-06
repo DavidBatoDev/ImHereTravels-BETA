@@ -106,14 +106,14 @@ export const searchCategories: CategoryConfig[] = [
     searchKeys: [
       { name: "tourCode", weight: 0.8 },
       { name: "name", weight: 0.7 },
-      { name: "location", weight: 0.5 },
+      { name: "destinations", weight: 0.5 },
       { name: "description", weight: 0.3 },
     ],
     threshold: 0.4,
     formatResult: (tour: any): SearchResult => ({
       id: tour.id,
       title: `${tour.tourCode} - ${tour.name}`,
-      subtitle: `${tour.location} • ${tour.pricing?.currency || "EUR"} ${
+      subtitle: `${tour.destinations?.[0] ?? "—"} • ${tour.pricing?.currency || "EUR"} ${
         tour.pricing?.original || 0
       }`,
       category: "tours",
