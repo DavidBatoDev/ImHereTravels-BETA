@@ -239,7 +239,10 @@ export default function BookingSection({ form }: BookingSectionProps) {
                   />
                 </FormControl>
                 <FormDescription className="font-body text-b4-desktop text-dark-gray">
-                  The booking CTA button href on the tour page.
+                  The booking CTA button href on the tour page. Leave blank to
+                  send travellers to the in-house reservation booking form
+                  (admin.imheretravels.com/reservation-booking-form) with this
+                  tour pre-selected.
                 </FormDescription>
                 <FormMessage />
               </FormItem>
