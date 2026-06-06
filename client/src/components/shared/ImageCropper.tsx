@@ -12,7 +12,8 @@ import "react-image-crop/dist/ReactCrop.css";
 interface ImageCropperProps {
   src: string;
   aspectRatio: number;
-  onCrop: (blob: Blob) => void;
+  /** blob is null when the crop covers the whole image (nothing was cropped) */
+  onCrop: (blob: Blob | null, isFullCrop: boolean) => void;
   isProcessing?: boolean;
   /** Increment to imperatively trigger the crop from the parent */
   triggerApply?: number;
@@ -86,6 +87,21 @@ export default function ImageCropper({
     const img = imgRef.current;
     if (!img || !completedCrop) return;
 
+    // If the crop region covers the whole image (within a small tolerance) there's
+    // no actual cropping — tell the parent so it can reuse the original instead of
+    // re-encoding and uploading a duplicate.
+    const tolX = Math.max(2, img.width * 0.005);
+    const tolY = Math.max(2, img.height * 0.005);
+    const isFullCrop =
+      completedCrop.x <= tolX &&
+      completedCrop.y <= tolY &&
+      completedCrop.width >= img.width - tolX &&
+      completedCrop.height >= img.height - tolY;
+    if (isFullCrop) {
+      onCrop(null, true);
+      return;
+    }
+
     const canvas = document.createElement("canvas");
     const scaleX = img.naturalWidth / img.width;
     const scaleY = img.naturalHeight / img.height;
@@ -100,7 +116,7 @@ export default function ImageCropper({
       completedCrop.width * scaleX, completedCrop.height * scaleY,
       0, 0, canvas.width, canvas.height
     );
-    canvas.toBlob((blob) => { if (blob) onCrop(blob); }, "image/jpeg", 0.92);
+    canvas.toBlob((blob) => { if (blob) onCrop(blob, false); }, "image/jpeg", 0.92);
   }, [triggerApply, completedCrop, onCrop]);
 
   const ratioLabel =

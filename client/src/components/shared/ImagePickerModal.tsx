@@ -193,7 +193,31 @@ export default function ImagePickerModal({
   // ── Crop confirm (single) ──────────────────────────────────────────────────
 
   const handleCropDone = useCallback(
-    async (blob: Blob) => {
+    async (blob: Blob | null, isFullCrop: boolean) => {
+      // The crop covers the whole image → nothing was actually cropped.
+      if (isFullCrop) {
+        // Existing stored image: reuse its URL instead of uploading a duplicate.
+        if (cropSrc && !cropSrc.startsWith("blob:")) {
+          onConfirm([cropSrc]);
+          onClose();
+          return;
+        }
+        // Brand-new local file at full size: upload the original as-is (no re-encode).
+        const original = pendingFileRef.current;
+        if (!original) return;
+        setUploading(true);
+        try {
+          const uploaded = await storageService.uploadImage(original, [], browsePath);
+          if (pendingUrlRef.current) { URL.revokeObjectURL(pendingUrlRef.current); pendingUrlRef.current = ""; }
+          pendingFileRef.current = null;
+          onConfirm([uploaded.url]);
+          onClose();
+        } catch { alert("Failed to upload image. Please try again."); }
+        finally { setUploading(false); }
+        return;
+      }
+
+      if (!blob) return;
       setUploading(true);
       try {
         const ext = blob.type === "image/png" ? "png" : "jpg";
@@ -208,15 +232,21 @@ export default function ImagePickerModal({
       } catch { alert("Failed to upload cropped image. Please try again."); }
       finally { setUploading(false); }
     },
-    [cropItem, onConfirm, onClose, browsePath]
+    [cropItem, cropSrc, onConfirm, onClose, browsePath]
   );
 
   // ── Bulk crop ──────────────────────────────────────────────────────────────
 
-  async function handleBulkCropDone(blob: Blob) {
+  async function handleBulkCropDone(blob: Blob | null, isFullCrop: boolean) {
+    const item = bulkQueue[bulkIndex];
+    // Whole-image crop on an existing gallery image → reuse its URL, no re-upload.
+    if (isFullCrop && item?.url) {
+      advanceBulk([...bulkResults, item.url]);
+      return;
+    }
+    if (!blob) { handleBulkSkip(); return; }
     setUploading(true);
     try {
-      const item = bulkQueue[bulkIndex];
       const ext = blob.type === "image/png" ? "png" : "jpg";
       const base = (item?.name ?? "image").replace(/\.[^.]+$/, "");
       const file = new File([blob], `${base}-cropped.${ext}`, { type: blob.type });
