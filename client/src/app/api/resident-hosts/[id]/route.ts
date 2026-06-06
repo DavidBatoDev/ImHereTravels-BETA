@@ -3,6 +3,7 @@ import { db } from "@/lib/firebase";
 import { doc, getDoc, updateDoc, deleteDoc, Timestamp } from "firebase/firestore";
 import { verifyRequestUserId } from "@/lib/firebase-admin-auth";
 import { encodeGallerySlides, decodeGallerySlides } from "@/lib/resident-hosts-gallery";
+import { revalidateWww } from "@/lib/revalidate-www";
 
 const RESIDENT_HOSTS_COLLECTION = "residentHost";
 
@@ -95,6 +96,8 @@ export async function PATCH(
 
     console.log(`✅ Updated resident host ${id}`);
 
+    await revalidateWww();
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error updating resident host:", error);
@@ -142,6 +145,8 @@ export async function DELETE(
     await deleteDoc(docRef);
 
     console.log(`✅ Deleted resident host ${id}`);
+
+    await revalidateWww();
 
     return NextResponse.json({ success: true });
   } catch (error) {

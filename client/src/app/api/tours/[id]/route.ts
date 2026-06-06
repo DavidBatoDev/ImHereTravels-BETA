@@ -8,6 +8,7 @@ import {
   Timestamp,
 } from "firebase/firestore";
 import { verifyRequestUserId } from "@/lib/firebase-admin-auth";
+import { revalidateWww } from "@/lib/revalidate-www";
 
 const TOURS_COLLECTION = "tourPackages";
 
@@ -192,6 +193,8 @@ export async function PATCH(
 
     console.log(`✅ Updated tour ${id}`);
 
+    await revalidateWww();
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Error updating tour:", error);
@@ -229,6 +232,8 @@ export async function DELETE(
     await deleteDoc(docRef);
 
     console.log(`✅ Deleted tour ${id}`);
+
+    await revalidateWww();
 
     return NextResponse.json({ success: true });
   } catch (error) {

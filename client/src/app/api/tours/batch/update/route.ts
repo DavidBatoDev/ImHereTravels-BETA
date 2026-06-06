@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
 import { doc, writeBatch, Timestamp } from "firebase/firestore";
+import { revalidateWww } from "@/lib/revalidate-www";
 
 const TOURS_COLLECTION = "tourPackages";
 
@@ -83,6 +84,8 @@ export async function POST(request: NextRequest) {
     await batch.commit();
 
     console.log(`✅ Batch updated ${updates.length} tours`);
+
+    await revalidateWww();
 
     return NextResponse.json({ success: true, count: updates.length });
   } catch (error) {

@@ -3,6 +3,7 @@ import { db } from "@/lib/firebase";
 import { collection, getDocs, addDoc, Timestamp } from "firebase/firestore";
 import { verifyRequestUserId } from "@/lib/firebase-admin-auth";
 import { encodeGallerySlides, decodeGallerySlides } from "@/lib/resident-hosts-gallery";
+import { revalidateWww } from "@/lib/revalidate-www";
 
 const RESIDENT_HOSTS_COLLECTION = "residentHost";
 
@@ -50,6 +51,8 @@ export async function POST(request: NextRequest) {
     );
 
     console.log(`✅ Created resident host with ID: ${docRef.id}`);
+
+    await revalidateWww();
 
     return NextResponse.json({ success: true, hostId: docRef.id });
   } catch (error) {

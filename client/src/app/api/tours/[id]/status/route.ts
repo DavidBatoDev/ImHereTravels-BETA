@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/firebase";
 import { doc, updateDoc, Timestamp } from "firebase/firestore";
+import { revalidateWww } from "@/lib/revalidate-www";
 
 const TOURS_COLLECTION = "tourPackages";
 
@@ -33,6 +34,8 @@ export async function PATCH(
     });
 
     console.log(`✅ Updated tour ${id} status to ${status}`);
+
+    await revalidateWww();
 
     return NextResponse.json({ success: true });
   } catch (error) {

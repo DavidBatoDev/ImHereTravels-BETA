@@ -13,6 +13,7 @@ import {
   DocumentSnapshot,
 } from "firebase/firestore";
 import { verifyRequestUserId } from "@/lib/firebase-admin-auth";
+import { revalidateWww } from "@/lib/revalidate-www";
 
 const TOURS_COLLECTION = "tourPackages";
 
@@ -136,6 +137,8 @@ export async function POST(request: NextRequest) {
     const docRef = await addDoc(collection(db, TOURS_COLLECTION), tourPackage);
 
     console.log(`✅ Created tour with ID: ${docRef.id}`);
+
+    await revalidateWww();
 
     return NextResponse.json({ success: true, tourId: docRef.id });
   } catch (error) {
