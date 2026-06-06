@@ -204,6 +204,10 @@ import {
   runMigration as runMigration059,
   rollbackMigration as rollbackMigration059,
 } from "./059-restore-keyfacts";
+import {
+  runMigration as runMigration060,
+  rollbackMigration as rollbackMigration060,
+} from "./060-seed-resident-hosts";
 import migration034 from "./034-initialize-columns-metadata";
 
 // ============================================================================
@@ -1784,6 +1788,39 @@ async function main() {
       if (rollbackResult059.details) {
         console.log(
           `📊 Details: ${rollbackResult059.details.removed} removed, ${rollbackResult059.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "060":
+      console.log("📊 Running migration: 060-seed-resident-hosts");
+      const result060 = await runMigration060(dryRun);
+      console.log(`\n🎯 ${result060.message}`);
+      if (result060.details) {
+        console.log(
+          `📊 Details: ${result060.details.created} created, ${result060.details.skipped} skipped, ${result060.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run060":
+      console.log("🔍 Running migration in DRY RUN mode: 060-seed-resident-hosts");
+      const dryRunResult060 = await runMigration060(true);
+      console.log(`\n🎯 ${dryRunResult060.message}`);
+      if (dryRunResult060.details) {
+        console.log(
+          `📊 Details: ${dryRunResult060.details.created} would be created, ${dryRunResult060.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "rollback060":
+      console.log("↩️ Rolling back migration: 060-seed-resident-hosts");
+      const rollbackResult060 = await rollbackMigration060();
+      console.log(`\n🎯 ${rollbackResult060.message}`);
+      if (rollbackResult060.details) {
+        console.log(
+          `📊 Details: ${rollbackResult060.details.deleted} deleted, ${rollbackResult060.details.errors} errors`,
         );
       }
       break;
