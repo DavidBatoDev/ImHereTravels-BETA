@@ -14,7 +14,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
   Save, ArrowLeft, Plus, X, Settings, Image as ImageIcon, Camera, Pencil,
-  Link2, Calendar, ArrowRight,
+  Link2, Calendar, ArrowRight, Undo2, Redo2, RotateCcw,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useUndoRedo } from "@/hooks/use-undo-redo";
 import { generateSlug } from "@/utils";
 
 import { ResidentHost, ResidentHostFormData, GalleryMediaItem } from "@/types/resident-hosts";
@@ -32,6 +33,7 @@ import { getAllTours } from "@/services/tours-service";
 import ImagePickerModal from "@/components/shared/ImagePickerModal";
 import ResidentHostSettingsPanel, { HostPickerField } from "./ResidentHostSettingsPanel";
 import GallerySlidesEditor from "./GallerySlidesEditor";
+import ResetChangesModal from "@/components/shared/ResetChangesModal";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -215,6 +217,7 @@ export default function ResidentHostForm({ onClose, onSubmit, host, isLoading = 
   const [galleryModalOpen, setGalleryModalOpen] = useState(false);
   const [gallerySlideIdx, setGallerySlideIdx] = useState(0);
   const [editorKey, setEditorKey] = useState(0);
+  const [resetOpen, setResetOpen] = useState(false);
 
   const [picker, setPicker] = useState<{ field: HostPickerField | `trip-${number}`; initialUrl?: string } | null>(null);
 
@@ -327,6 +330,51 @@ export default function ResidentHostForm({ onClose, onSubmit, host, isLoading = 
     setPicker(null);
   };
 
+  // ── Undo / redo / reset history ───────────────────────────────────────────────
+  // All content (including every image) lives in react-hook-form, so a snapshot is
+  // just the form values. Restore = form.reset + editorKey bump (remounts the
+  // inline editors so they re-read the restored values).
+  const history = useUndoRedo<any>({
+    getSnapshot: () => structuredClone(form.getValues()),
+    applySnapshot: (s) => {
+      form.reset(structuredClone(s));
+      setEditorKey((k) => k + 1);
+    },
+  });
+
+  // Record on any RHF change (text, add/remove, image setValue, gallery edits).
+  useEffect(() => {
+    const sub = form.watch(() => history.record());
+    return () => sub.unsubscribe();
+  }, [form, history.record]);
+
+  // Establish the baseline once a host has loaded (deferred so the just-reset form
+  // is readable). Reset reverts here; the load isn't an undo step.
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => history.rebase());
+    return () => cancelAnimationFrame(raf);
+  }, [host?.id, history.rebase]);
+
+  // Keyboard shortcuts — skip while typing so the browser's native text undo wins.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement as HTMLElement | null;
+      const typing = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+      if (typing || !(e.ctrlKey || e.metaKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === "z" && !e.shiftKey) { e.preventDefault(); history.undo(); }
+      else if ((key === "z" && e.shiftKey) || key === "y") { e.preventDefault(); history.redo(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [history.undo, history.redo]);
+
+  const handleResetConfirm = () => {
+    history.reset();
+    setResetOpen(false);
+    toast({ title: "Changes discarded", description: "The page was reverted to its last saved state." });
+  };
+
   // ── Submit ──────────────────────────────────────────────────────────────────
   const handleSubmit = async (data: any) => {
     setIsSubmitting(true);
@@ -337,6 +385,8 @@ export default function ResidentHostForm({ onClose, onSubmit, host, isLoading = 
         title: host ? "Saved" : "Created",
         description: host ? "Resident host updated successfully." : "New resident host created.",
       });
+      // Make the saved state the new baseline so "Reset" reverts to it.
+      requestAnimationFrame(() => history.rebase());
     } catch (err) {
       console.error(err);
       toast({ title: "Error", description: "Failed to save resident host.", variant: "destructive" });
@@ -385,6 +435,25 @@ export default function ResidentHostForm({ onClose, onSubmit, host, isLoading = 
               <Switch checked={w("comingSoon") ?? false} onCheckedChange={(v) => sv("comingSoon", v)}
                 className="scale-75 data-[state=checked]:bg-vivid-orange" />
               <span>Coming Soon</span>
+            </div>
+
+            {/* Undo / redo / reset */}
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => history.undo()} disabled={!history.canUndo}
+                title="Undo (Ctrl+Z)" aria-label="Undo"
+                className="flex items-center justify-center h-9 w-9 rounded-full border border-border text-midnight hover:bg-light-grey disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                <Undo2 className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={() => history.redo()} disabled={!history.canRedo}
+                title="Redo (Ctrl+Shift+Z)" aria-label="Redo"
+                className="flex items-center justify-center h-9 w-9 rounded-full border border-border text-midnight hover:bg-light-grey disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                <Redo2 className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={() => setResetOpen(true)} disabled={!history.canUndo && !history.canRedo}
+                title="Discard all changes" aria-label="Discard all changes"
+                className="flex items-center justify-center h-9 w-9 rounded-full border border-border text-midnight hover:bg-light-grey hover:text-crimson-red disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                <RotateCcw className="h-4 w-4" />
+              </button>
             </div>
 
             <button type="button" onClick={() => setPanelOpen((p) => !p)}
@@ -808,6 +877,13 @@ export default function ResidentHostForm({ onClose, onSubmit, host, isLoading = 
           }
         />
       )}
+
+      {/* Reset confirmation */}
+      <ResetChangesModal
+        open={resetOpen}
+        onClose={() => setResetOpen(false)}
+        onConfirm={handleResetConfirm}
+      />
     </div>
   );
 }

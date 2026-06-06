@@ -16,6 +16,7 @@ import {
   Copy, AlertCircle, Globe, Settings, ExternalLink, Plane,
   CheckCircle2, Utensils, Bus, Compass, HeartHandshake, Info,
   HelpCircle, Download, Camera, Luggage, ShieldCheck, Sun, Users, Pencil,
+  Undo2, Redo2, RotateCcw,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import {
 } from "@/components/ui/select";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { useUndoRedo } from "@/hooks/use-undo-redo";
 
 import { TourPackage, TourFormDataWithStringDates } from "@/types/tours";
 import {
@@ -46,6 +48,7 @@ import TourDatePicker from "./TourDatePicker";
 import ImagePickerModal from "@/components/shared/ImagePickerModal";
 import TourSettingsPanel from "./TourSettingsPanel";
 import TravelDatesModal from "./TravelDatesModal";
+import ResetChangesModal from "@/components/shared/ResetChangesModal";
 
 // ─── Zod helpers ──────────────────────────────────────────────────────────────
 
@@ -381,6 +384,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const [originalGallery, setOriginalGallery] = useState<string[]>([]);
   const [panelOpen, setPanelOpen] = useState(false);
   const [datesModalOpen, setDatesModalOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
   const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set([0]));
   const [expandedFaqs, setExpandedFaqs] = useState<Set<number>>(new Set());
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
@@ -613,6 +617,70 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
     setPickerState(null);
   };
 
+  // ── Undo / redo / reset history ───────────────────────────────────────────────
+  // Whole-form snapshots: react-hook-form values (serializable) plus the cover/
+  // gallery media state the picker writes outside RHF. coverBlob/galleryBlobs are
+  // the legacy direct-File path (normally empty with the picker flow) and are not
+  // snapshotted. Restore = form.reset + media setState + editorKey bump (remounts
+  // the inline editors so they re-read the restored values).
+  type TourSnapshot = { values: any; cover: string | null; gallery: string[]; activeIdx: number };
+
+  const history = useUndoRedo<TourSnapshot>({
+    getSnapshot: () => ({
+      values: structuredClone(form.getValues()),
+      cover: uploadedCover,
+      gallery: [...uploadedGallery],
+      activeIdx: activeGalleryIndex,
+    }),
+    applySnapshot: (s) => {
+      // Clone on apply too — RHF mutates arrays in place, which would otherwise
+      // corrupt the stored history entry.
+      form.reset(structuredClone(s.values));
+      setUploadedCover(s.cover);
+      setUploadedGallery([...s.gallery]);
+      setActiveGalleryIndex(s.activeIdx);
+      setEditorKey((k) => k + 1);
+    },
+  });
+
+  // Record on any RHF change (text, reorder, add/remove, image setValue).
+  useEffect(() => {
+    const sub = form.watch(() => history.record());
+    return () => sub.unsubscribe();
+  }, [form, history.record]);
+
+  // Record on cover/gallery changes (written outside RHF by the picker).
+  useEffect(() => {
+    history.record();
+  }, [uploadedCover, uploadedGallery, activeGalleryIndex, history.record]);
+
+  // Establish the baseline once a tour has loaded (deferred so the just-set form
+  // and media state are readable). Reset reverts here; the load isn't an undo step.
+  useEffect(() => {
+    const raf = requestAnimationFrame(() => history.rebase());
+    return () => cancelAnimationFrame(raf);
+  }, [tour?.id, history.rebase]);
+
+  // Keyboard shortcuts — skip while typing so the browser's native text undo wins.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = document.activeElement as HTMLElement | null;
+      const typing = !!el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable);
+      if (typing || !(e.ctrlKey || e.metaKey)) return;
+      const key = e.key.toLowerCase();
+      if (key === "z" && !e.shiftKey) { e.preventDefault(); history.undo(); }
+      else if ((key === "z" && e.shiftKey) || key === "y") { e.preventDefault(); history.redo(); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [history.undo, history.redo]);
+
+  const handleResetConfirm = () => {
+    history.reset();
+    setResetOpen(false);
+    toast({ title: "Changes discarded", description: "The tour was reverted to its last saved state." });
+  };
+
   // ── Submit ──────────────────────────────────────────────────────────────────
   const handleSubmit = async (data: any) => {
     setIsSubmitting(true);
@@ -661,6 +729,8 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
         toast({ title: "Created", description: "New tour package created." });
       }
       cleanupBlobUrls([...uploadedGallery, ...(uploadedCover ? [uploadedCover] : [])]);
+      // Make the saved state the new baseline so "Reset" reverts to it.
+      requestAnimationFrame(() => history.rebase());
     } catch (err) {
       console.error(err);
       toast({ title: "Error", description: "Failed to save tour.", variant: "destructive" });
@@ -713,6 +783,40 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                 className="scale-75 data-[state=checked]:bg-vivid-orange"
               />
               <span>Coming Soon</span>
+            </div>
+
+            {/* Undo / redo / reset */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => history.undo()}
+                disabled={!history.canUndo}
+                title="Undo (Ctrl+Z)"
+                aria-label="Undo"
+                className="flex items-center justify-center h-9 w-9 rounded-full border border-border text-midnight hover:bg-light-grey disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <Undo2 className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => history.redo()}
+                disabled={!history.canRedo}
+                title="Redo (Ctrl+Shift+Z)"
+                aria-label="Redo"
+                className="flex items-center justify-center h-9 w-9 rounded-full border border-border text-midnight hover:bg-light-grey disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <Redo2 className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setResetOpen(true)}
+                disabled={!history.canUndo && !history.canRedo}
+                title="Discard all changes"
+                aria-label="Discard all changes"
+                className="flex items-center justify-center h-9 w-9 rounded-full border border-border text-midnight hover:bg-light-grey hover:text-crimson-red disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </button>
             </div>
 
             <button
@@ -1588,6 +1692,13 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
           }
         />
       )}
+
+      {/* ── Reset confirmation ─────────────────────────────────────────── */}
+      <ResetChangesModal
+        open={resetOpen}
+        onClose={() => setResetOpen(false)}
+        onConfirm={handleResetConfirm}
+      />
     </div>
   );
 }
