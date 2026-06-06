@@ -212,6 +212,10 @@ import {
   runMigration as runMigration061,
   rollbackMigration as rollbackMigration061,
 } from "./061-flag-hosted-tours";
+import {
+  runMigration as runMigration062,
+  rollbackMigration as rollbackMigration062,
+} from "./062-roxana-sunset-from-normal";
 import migration034 from "./034-initialize-columns-metadata";
 
 // ============================================================================
@@ -1861,6 +1865,72 @@ async function main() {
         );
       }
       break;
+
+    case "062":
+      console.log("📊 Running migration: 062-roxana-sunset-from-normal");
+      const result062 = await runMigration062(dryRun);
+      console.log(`\n🎯 ${result062.message}`);
+      if (result062.details) {
+        console.log(
+          `📊 Details: ${result062.details.copied} copied, ${result062.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "dry-run062":
+      console.log("🔍 Running migration in DRY RUN mode: 062-roxana-sunset-from-normal");
+      const dryRunResult062 = await runMigration062(true);
+      console.log(`\n🎯 ${dryRunResult062.message}`);
+      if (dryRunResult062.details) {
+        console.log(`📊 Details: ${dryRunResult062.details.copied} would be copied`);
+      }
+      break;
+
+    case "rollback062":
+      console.log("↩️ Rolling back migration: 062-roxana-sunset-from-normal");
+      const rollbackResult062 = await rollbackMigration062();
+      console.log(`\n🎯 ${rollbackResult062.message}`);
+      if (rollbackResult062.details) {
+        console.log(
+          `📊 Details: ${rollbackResult062.details.restored} restored, ${rollbackResult062.details.errors} errors`,
+        );
+      }
+      break;
+
+    case "revalidate": {
+      const url =
+        process.env.WWW_REVALIDATE_URL ||
+        "https://www.imheretravels.com/api/revalidate";
+      const secret = process.env.REVALIDATE_SECRET;
+      if (!secret) {
+        console.error(
+          "❌ REVALIDATE_SECRET not set in .env.local — cannot revalidate www.",
+        );
+        process.exit(1);
+      }
+      console.log(`🔄 Triggering www revalidation at ${url}`);
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-revalidate-secret": secret,
+          },
+          body: JSON.stringify({ all: true }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok) {
+          console.log("✅ www revalidation triggered:", data);
+        } else {
+          console.error(`❌ Revalidation failed (${res.status}):`, data);
+          process.exit(1);
+        }
+      } catch (err) {
+        console.error("❌ Failed to reach www revalidation endpoint:", err);
+        process.exit(1);
+      }
+      break;
+    }
 
     case "help":
     case "--help":
