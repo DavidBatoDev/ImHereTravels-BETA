@@ -34,6 +34,14 @@ import {
 } from "@/utils/blob-image";
 import { generateSlug } from "@/utils";
 import { updateTourMedia, cleanupRemovedGalleryImages } from "@/services/tours-service";
+import {
+  SortableList,
+  SortableItem,
+  DragHandle,
+  verticalListSortingStrategy,
+  horizontalListSortingStrategy,
+  rectSortingStrategy,
+} from "./dnd/SortableList";
 import TourDatePicker from "./TourDatePicker";
 import ImagePickerModal from "@/components/shared/ImagePickerModal";
 import TourSettingsPanel from "./TourSettingsPanel";
@@ -425,17 +433,17 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const gv = (n: string) => form.getValues(n as any);
 
   // Field arrays
-  const { fields: tagFields, append: addTag, remove: rmTag } = useFieldArray({ control: form.control, name: "details.tags" });
-  const { fields: inclFields, append: addIncl, remove: rmIncl } = useFieldArray({ control: form.control, name: "details.inclusions" });
-  const { fields: hlFields, append: addHl, remove: rmHl } = useFieldArray({ control: form.control, name: "details.highlights" as any });
-  const { fields: iterFields, append: addIter, remove: rmIter } = useFieldArray({ control: form.control, name: "details.itinerary" });
-  const { fields: accomFields, append: addAccom, remove: rmAccom } = useFieldArray({ control: form.control, name: "details.accommodations" });
-  const { fields: faqFields, append: addFaq, remove: rmFaq } = useFieldArray({ control: form.control, name: "details.faqs" });
-  const { fields: ttkFields, append: addTtk, remove: rmTtk } = useFieldArray({ control: form.control, name: "details.thingsToKnow" });
-  const { fields: tipFields, append: addTip, remove: rmTip } = useFieldArray({ control: form.control, name: "details.tips" });
+  const { fields: tagFields, append: addTag, remove: rmTag, move: moveTag } = useFieldArray({ control: form.control, name: "details.tags" });
+  const { fields: inclFields, append: addIncl, remove: rmIncl, move: moveIncl } = useFieldArray({ control: form.control, name: "details.inclusions" });
+  const { fields: hlFields, append: addHl, remove: rmHl, move: moveHl } = useFieldArray({ control: form.control, name: "details.highlights" as any });
+  const { fields: iterFields, append: addIter, remove: rmIter, move: moveIter } = useFieldArray({ control: form.control, name: "details.itinerary" });
+  const { fields: accomFields, append: addAccom, remove: rmAccom, move: moveAccom } = useFieldArray({ control: form.control, name: "details.accommodations" });
+  const { fields: faqFields, append: addFaq, remove: rmFaq, move: moveFaq } = useFieldArray({ control: form.control, name: "details.faqs" });
+  const { fields: ttkFields, append: addTtk, remove: rmTtk, move: moveTtk } = useFieldArray({ control: form.control, name: "details.thingsToKnow" });
+  const { fields: tipFields, append: addTip, remove: rmTip, move: moveTip } = useFieldArray({ control: form.control, name: "details.tips" });
   const { fields: reqFields, append: addReq, remove: rmReq } = useFieldArray({ control: form.control, name: "details.requirements" as any });
   const { fields: dateFields, append: addDate, remove: rmDate } = useFieldArray({ control: form.control, name: "travelDates" });
-  const { fields: kfFields, append: addKf, remove: rmKf } = useFieldArray({ control: form.control, name: "details.keyFacts" as any });
+  const { fields: kfFields, append: addKf, remove: rmKf, move: moveKf } = useFieldArray({ control: form.control, name: "details.keyFacts" as any });
 
   // Watched values — only fields used for conditional rendering, computed values, or structural display
   const name = w("name") as string;          // toolbar display + slug auto-gen
@@ -553,6 +561,26 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
     if (uploadedGallery[i]?.startsWith("blob:")) revokeBlobUrl(uploadedGallery[i]);
     setUploadedGallery((p) => p.filter((_, j) => j !== i));
     setGalleryBlobs((p) => p.filter((_, j) => j !== i));
+  };
+
+  // Reorder gallery thumbnails (drag-and-drop). Keeps the parallel blob array in
+  // lockstep when present and remaps the active-thumb index to follow the move.
+  const moveGallery = (from: number, to: number) => {
+    const reorder = <T,>(arr: T[]): T[] => {
+      const next = arr.slice();
+      const [m] = next.splice(from, 1);
+      next.splice(to, 0, m);
+      return next;
+    };
+    const len = uploadedGallery.length;
+    setUploadedGallery((p) => reorder(p));
+    setGalleryBlobs((p) => (p.length === len ? reorder(p) : p));
+    setActiveGalleryIndex((idx) => {
+      if (idx === from) return to;
+      if (from < idx && to >= idx) return idx - 1;
+      if (from > idx && to <= idx) return idx + 1;
+      return idx;
+    });
   };
 
   // Called when the user confirms an image (or images) in the picker modal.
@@ -779,9 +807,12 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                           </>
                         )}
                       </div>
+                      <SortableList ids={galleryImages} strategy={horizontalListSortingStrategy} onReorder={moveGallery}>
                       <div className="pl-1 py-1 mt-4 flex gap-2 overflow-x-auto scrollbar-hide">
                         {galleryImages.map((img, idx) => (
-                          <div key={idx} className="relative group/thumb flex-shrink-0 w-[calc((100%-2.5rem)/6)]">
+                          <SortableItem key={img} id={img}>
+                            {({ setNodeRef, style, handle }) => (
+                          <div ref={setNodeRef} style={style} className="relative group/thumb flex-shrink-0 w-[calc((100%-2.5rem)/6)]">
                             <button type="button" onClick={() => setActiveGalleryIndex(idx)}
                               className={`block aspect-[4/3] w-full rounded-[16px] overflow-hidden transition-opacity ${idx === activeGalleryIndex ? "opacity-100 ring-2 ring-crimson-red" : "opacity-60 hover:opacity-80"}`}>
                               <img src={resolveImg(img)} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
@@ -797,13 +828,17 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                               className="absolute top-0.5 right-0.5 opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-crimson-red text-white rounded-full w-4 h-4 flex items-center justify-center">
                               <X className="h-2.5 w-2.5" />
                             </button>
+                            <DragHandle handle={handle} className="absolute top-0.5 left-0.5 z-10 opacity-0 group-hover/thumb:opacity-100 transition-opacity bg-white/90 hover:bg-white rounded-full p-0.5 shadow-small" />
                           </div>
+                            )}
+                          </SortableItem>
                         ))}
                         <button type="button" onClick={() => setPickerState({ field: "gallery-add", multiple: true })}
                           className="flex-shrink-0 w-[calc((100%-2.5rem)/6)] aspect-[4/3] rounded-[16px] border-2 border-dashed border-dark-gray/20 flex items-center justify-center cursor-pointer hover:border-crimson-red/40 hover:bg-crimson-red/5 transition-colors">
                           <Plus className="h-5 w-5 text-dark-gray/40" />
                         </button>
                       </div>
+                      </SortableList>
                     </>
                   );
                 })()}
@@ -830,16 +865,22 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   })()}
 
                   {/* Tags */}
+                  <SortableList ids={(tagFields as any[]).map((f) => f.id)} strategy={rectSortingStrategy} onReorder={(a, b) => moveTag(a, b)}>
                   <div className="mt-6 flex flex-wrap gap-2 items-center">
                     {(tagFields as any[]).map((field, i) => {
                       const tag = tags?.[i];
                       const TagIcon = ICON_COMPONENTS[tag?.icon ?? "location"] ?? MapPin;
                       return (
-                        <span key={field.id} className={`inline-flex items-center gap-2 rounded-full px-3 py-1 font-body font-medium text-sm ${TAG_PALETTE[i % 4]} group/tag`}>
+                        <SortableItem key={field.id} id={field.id}>
+                          {({ setNodeRef, style, handle }) => (
+                        <span ref={setNodeRef} style={style} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-body font-medium text-sm ${TAG_PALETTE[i % 4]} group/tag`}>
+                          <DragHandle handle={handle} className="-ml-1.5 shrink-0 opacity-0 group-hover/tag:opacity-100 transition-opacity !text-current" />
                           <TagIcon className="size-3.5 shrink-0" strokeWidth={2.75} />
                           <AutoSizeInput value={tag?.label ?? ""} onChange={(v) => sv(`details.tags.${i}.label`, v)} placeholder="Tag" className="font-body text-sm" compact />
                           <button type="button" onClick={() => rmTag(i)} className="w-0 overflow-hidden group-hover/tag:w-auto transition-all opacity-0 group-hover/tag:opacity-100"><X className="size-3" /></button>
                         </span>
+                          )}
+                        </SortableItem>
                       );
                     })}
                     <button type="button" onClick={() => (addTag as any)({ label: "", icon: "location" })}
@@ -847,6 +888,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                       <Plus className="size-3.5" /> Tag
                     </button>
                   </div>
+                  </SortableList>
 
                   {/* Description */}
                   <EditZone label="Description" className="mt-6 max-w-3xl">
@@ -885,12 +927,25 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                           </ul>
                         </div>
                       </li>
-                      {(kfFields as any[]).map((field, i) => {
-                        const kf = kfData?.[i];
-                        if (kf?.label === "Tour Dates") return null; // derived above, never edit as text
-                        const KfIcon = ICON_COMPONENTS[kf?.icon ?? "days"] ?? Calendar;
+                      {(() => {
+                        // Reorder only the editable facts; the derived "Tour Dates" row
+                        // stays pinned above. Map visible→actual index so moveKf is correct.
+                        const visible = (kfFields as any[])
+                          .map((f, i) => ({ f, i }))
+                          .filter(({ i }) => kfData?.[i]?.label !== "Tour Dates");
                         return (
-                          <li key={field.id} className="flex items-start gap-4 group/kf">
+                          <SortableList
+                            ids={visible.map((v) => v.f.id)}
+                            strategy={verticalListSortingStrategy}
+                            onReorder={(a, b) => moveKf(visible[a].i, visible[b].i)}
+                          >
+                            {visible.map(({ f: field, i }) => {
+                              const kf = kfData?.[i];
+                              const KfIcon = ICON_COMPONENTS[kf?.icon ?? "days"] ?? Calendar;
+                              return (
+                                <SortableItem key={field.id} id={field.id}>
+                                  {({ setNodeRef, style, handle }) => (
+                          <li ref={setNodeRef} style={style} className="flex items-start gap-4 group/kf">
                             <Select value={kf?.icon ?? "days"} onValueChange={(v) => sv(`details.keyFacts.${i}.icon`, v)}>
                               <SelectTrigger className="flex size-12 shrink-0 items-center justify-center rounded-full bg-light-grey border-0 p-0 [&>svg:last-child]:hidden hover:ring-2 hover:ring-crimson-red/20 transition-shadow">
                                 <KfIcon className="size-5 text-midnight" strokeWidth={2.75} />
@@ -906,13 +961,19 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                                 placeholder="Value (one per line)"
                                 className="mt-1 font-body text-b2-mobile md:text-b2-desktop text-dark-gray" />
                             </div>
+                            <DragHandle handle={handle} className="opacity-0 group-hover/kf:opacity-100 transition-opacity mt-3 shrink-0" />
                             <button type="button" onClick={() => rmKf(i)}
                               className="opacity-0 group-hover/kf:opacity-100 transition-opacity text-crimson-red mt-1 shrink-0">
                               <X className="h-4 w-4" />
                             </button>
                           </li>
+                                  )}
+                                </SortableItem>
+                              );
+                            })}
+                          </SortableList>
                         );
-                      })}
+                      })()}
                     </ul>
                     <button type="button" onClick={() => (addKf as any)({ icon: "days", label: "", values: [""] })}
                       className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
@@ -923,13 +984,16 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   {/* What's Included */}
                   <section className="mt-10 md:mt-14 w-full">
                     <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">What's Included</h2>
+                    <SortableList ids={(inclFields as any[]).map((f) => f.id)} strategy={rectSortingStrategy} onReorder={(a, b) => moveIncl(a, b)}>
                     <ul className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
                       {(inclFields as any[]).map((field, i) => {
                         const incl = inclusions?.[i];
                         const IncIcon = ICON_COMPONENTS[incl?.icon ?? "plus"] ?? CheckCircle2;
                         const rawValue: string = Array.isArray(incl?.value) ? incl.value.join("\n") : (incl?.value ?? "");
                         return (
-                          <li key={field.id} className="flex items-start gap-4 group/incl">
+                          <SortableItem key={field.id} id={field.id}>
+                            {({ setNodeRef, style, handle }) => (
+                          <li ref={setNodeRef} style={style} className="flex items-start gap-4 group/incl">
                             <Select value={incl?.icon ?? "plus"} onValueChange={(v) => sv(`details.inclusions.${i}.icon`, v)}>
                               <SelectTrigger className="flex size-12 shrink-0 items-center justify-center rounded-full bg-light-grey text-midnight border-0 p-0 [&>svg:last-child]:hidden hover:ring-2 hover:ring-crimson-red/20 transition-shadow">
                                 <IncIcon className="size-5" />
@@ -940,11 +1004,15 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                               <InlineInput value={incl?.label ?? ""} onChange={(v) => sv(`details.inclusions.${i}.label`, v)} placeholder="Label" className="font-hk-grotesk text-b2-desktop font-bold text-midnight" />
                               <InlineBulletTextarea value={rawValue} onChange={(v) => sv(`details.inclusions.${i}.value`, v)} placeholder="Detail (use - for bullets)" className="mt-1 font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
                             </div>
+                            <DragHandle handle={handle} className="opacity-0 group-hover/incl:opacity-100 transition-opacity mt-1 shrink-0" />
                             <button type="button" onClick={() => rmIncl(i)} className="opacity-0 group-hover/incl:opacity-100 transition-opacity text-crimson-red mt-1 shrink-0"><X className="h-4 w-4" /></button>
                           </li>
+                            )}
+                          </SortableItem>
                         );
                       })}
                     </ul>
+                    </SortableList>
                     <button type="button" onClick={() => (addIncl as any)({ icon: "plus", label: "", value: "" })}
                       className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
                       <Plus className="h-4 w-4" /> Add inclusion
@@ -968,11 +1036,14 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         </button>
                       </div>
                     </div>
+                    <SortableList ids={(hlFields as any[]).map((f) => f.id)} strategy={horizontalListSortingStrategy} onReorder={(a, b) => moveHl(a, b)}>
                     <div ref={hlScrollRef} className="mt-8 flex gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
                       {(hlFields as any[]).map((field, i) => {
                         const hl = highlights?.[i];
                         return (
-                          <div key={field.id} className="group/hl flex-shrink-0 w-[calc(50%-12px)] snap-start flex flex-col gap-4">
+                          <SortableItem key={field.id} id={field.id}>
+                            {({ setNodeRef, style, handle }) => (
+                          <div ref={setNodeRef} style={style} className="group/hl flex-shrink-0 w-[calc(50%-12px)] snap-start flex flex-col gap-4">
                             <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[24px] bg-light-grey group/hlimg">
                               {hl?.image ? (
                                 <>
@@ -999,14 +1070,18 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                             <div className="space-y-1">
                               <div className="flex items-start gap-2">
                                 <InlineTextarea value={hl?.text ?? ""} onChange={(v) => sv(`details.highlights.${i}`, { ...hl, text: v })} placeholder="Highlight text" className="font-hk-grotesk text-h6-mobile md:text-h6-desktop font-bold text-midnight flex-1" />
+                                <DragHandle handle={handle} className="flex-shrink-0 mt-1 opacity-0 group-hover/hl:opacity-100 transition-opacity" />
                                 <button type="button" onClick={() => rmHl(i)} className="text-crimson-red flex-shrink-0 mt-0.5"><X className="h-4 w-4" /></button>
                               </div>
                               <InlineInput value={hl?.subtitle ?? ""} onChange={(v) => sv(`details.highlights.${i}`, { ...hl, subtitle: v })} placeholder="Subtitle (optional)" className="font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
                             </div>
                           </div>
+                            )}
+                          </SortableItem>
                         );
                       })}
                     </div>
+                    </SortableList>
                     <button type="button" onClick={() => { (addHl as any)({ text: "", image: undefined, subtitle: undefined }); setTimeout(() => hlScrollRef.current?.scrollTo({ left: hlScrollRef.current.scrollWidth, behavior: "smooth" }), 50); }}
                       className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
                       <Plus className="h-4 w-4" /> Add highlight
@@ -1026,13 +1101,17 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   {/* Itinerary */}
                   <section className="mt-10 md:mt-14 w-full">
                     <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Itinerary</h2>
+                    <SortableList ids={(iterFields as any[]).map((f) => f.id)} strategy={verticalListSortingStrategy} onReorder={(a, b) => moveIter(a, b)}>
                     <ol className="mt-8 divide-y divide-light-grey border-t border-light-grey">
                       {(iterFields as any[]).map((field, i) => {
                         const day = itinerary?.[i];
                         const isOpen = expandedDays.has(i);
                         return (
-                          <li key={field.id} className="group/day">
+                          <SortableItem key={field.id} id={field.id}>
+                            {({ setNodeRef, style, handle }) => (
+                          <li ref={setNodeRef} style={style} className="group/day">
                             <div className="flex items-center gap-3 py-4">
+                              <DragHandle handle={handle} className="shrink-0 opacity-0 group-hover/day:opacity-100 transition-opacity" />
                               <span className="size-7 shrink-0 bg-crimson-red text-white rounded-full flex items-center justify-center font-hk-grotesk font-bold text-b4-desktop">{i + 1}</span>
                               <div className="flex-1 min-w-0 flex items-baseline gap-1.5">
                                 <span className="font-hk-grotesk text-h6-mobile md:text-h6-desktop font-bold text-midnight shrink-0">Day {i + 1}</span>
@@ -1136,9 +1215,12 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                               </div>
                             )}
                           </li>
+                            )}
+                          </SortableItem>
                         );
                       })}
                     </ol>
+                    </SortableList>
                     <button type="button" onClick={() => { addIter({ day: iterFields.length + 1, title: "", description: "", image: undefined, accommodation: undefined, activities: undefined, meals: undefined, details: [] }); setExpandedDays((p) => { const n = new Set(p); n.add(iterFields.length); return n; }); }}
                       className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
                       <Plus className="h-4 w-4" /> Add Day {iterFields.length + 1}
@@ -1162,11 +1244,14 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         </button>
                       </div>
                     </div>
+                    <SortableList ids={(accomFields as any[]).map((f) => f.id)} strategy={horizontalListSortingStrategy} onReorder={(a, b) => moveAccom(a, b)}>
                     <div ref={accomScrollRef} className="mt-8 flex gap-6 overflow-x-auto scrollbar-hide snap-x snap-mandatory">
                       {(accomFields as any[]).map((field, i) => {
                         const ac = accoms?.[i];
                         return (
-                          <div key={field.id} className="group/ac flex-shrink-0 w-[calc(50%-12px)] snap-start flex flex-col gap-4">
+                          <SortableItem key={field.id} id={field.id}>
+                            {({ setNodeRef, style, handle }) => (
+                          <div ref={setNodeRef} style={style} className="group/ac flex-shrink-0 w-[calc(50%-12px)] snap-start flex flex-col gap-4">
                             <div className="relative aspect-[4/3] overflow-hidden rounded-[24px] bg-light-grey group/acimg">
                               {ac?.image
                                 ? <img src={resolveImg(ac.image)} alt="" className="w-full h-full object-cover" />
@@ -1192,6 +1277,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                             <div className="space-y-1">
                               <div className="flex items-center gap-2">
                                 <InlineInput value={ac?.name ?? ""} onChange={(v) => sv(`details.accommodations.${i}.name`, v)} placeholder="Hotel name" className="font-hk-grotesk text-xl font-bold text-midnight flex-1" />
+                                <DragHandle handle={handle} className="shrink-0 opacity-0 group-hover/ac:opacity-100 transition-opacity" />
                                 <button type="button" onClick={() => rmAccom(i)} className="text-crimson-red shrink-0"><X className="h-4 w-4" /></button>
                               </div>
                               <InlineInput value={ac?.nights ?? ""} onChange={(v) => sv(`details.accommodations.${i}.nights`, v)} placeholder="e.g. 2 nights in hotel" className="font-body text-sm text-dark-gray" />
@@ -1201,9 +1287,12 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                               </div>
                             </div>
                           </div>
+                            )}
+                          </SortableItem>
                         );
                       })}
                     </div>
+                    </SortableList>
                     <button type="button" onClick={() => { (addAccom as any)({ name: "", nights: "", image: "" }); setTimeout(() => accomScrollRef.current?.scrollTo({ left: accomScrollRef.current.scrollWidth, behavior: "smooth" }), 50); }}
                       className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
                       <Plus className="h-4 w-4" /> Add accommodation
@@ -1223,12 +1312,15 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                       )}
                     </div>
                     {faqFields.length > 0 && (
+                      <SortableList ids={(faqFields as any[]).map((f) => f.id)} strategy={verticalListSortingStrategy} onReorder={(a, b) => moveFaq(a, b)}>
                       <dl className="mt-8">
                         {(faqFields as any[]).map((field, i) => {
                           const faq = faqs?.[i];
                           const isOpen = expandedFaqs.has(i);
                           return (
-                            <div key={field.id} className="border-b border-[#d7d6db] group/faq">
+                            <SortableItem key={field.id} id={field.id}>
+                              {({ setNodeRef, style, handle }) => (
+                            <div ref={setNodeRef} style={style} className="border-b border-[#d7d6db] group/faq">
                               <div className="flex w-full items-center justify-between gap-4 py-3">
                                 <InlineInput value={faq?.question ?? ""} onChange={(v) => sv(`details.faqs.${i}.question`, v)}
                                   placeholder="Question" className="font-hk-grotesk text-h6-mobile md:text-h6-desktop text-midnight flex-1" />
@@ -1237,6 +1329,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                                     className={`transition-transform ${isOpen ? "rotate-180" : ""}`}>
                                     <ChevronDown className="size-5 text-midnight" />
                                   </button>
+                                  <DragHandle handle={handle} className="opacity-0 group-hover/faq:opacity-100 transition-opacity" />
                                   <button type="button" onClick={() => rmFaq(i)} className="opacity-0 group-hover/faq:opacity-100 transition-opacity text-crimson-red"><X className="size-4" /></button>
                                 </div>
                               </div>
@@ -1247,9 +1340,12 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                                 </div>
                               )}
                             </div>
+                              )}
+                            </SortableItem>
                           );
                         })}
                       </dl>
+                      </SortableList>
                     )}
                     <button type="button" onClick={() => (addFaq as any)({ question: "", answer: "" })}
                       className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
@@ -1262,18 +1358,24 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                     <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Things to Know</h2>
                     {ttkFields.length > 0 ? (
                       <>
+                        <SortableList ids={(ttkFields as any[]).map((f) => f.id)} strategy={rectSortingStrategy} onReorder={(a, b) => moveTtk(a, b)}>
                         <ul className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
                           {(ttkFields as any[]).map((field, i) => {
                             const ttk = ttks?.[i];
                             const Icon = ICON_COMPONENTS[ttk?.icon ?? "info"] ?? Info;
                             return (
-                              <li key={field.id} className="flex flex-col gap-4 rounded-[24px] border border-light-grey p-6 md:p-8 group/ttk">
+                              <SortableItem key={field.id} id={field.id}>
+                                {({ setNodeRef, style, handle }) => (
+                              <li ref={setNodeRef} style={style} className="flex flex-col gap-4 rounded-[24px] border border-light-grey p-6 md:p-8 group/ttk">
                                 <div className="flex items-start justify-between">
                                   <Select value={ttk?.icon ?? "info"} onValueChange={(v) => sv(`details.thingsToKnow.${i}.icon`, v)}>
                                     <SelectTrigger className="flex size-14 items-center justify-center rounded-full bg-light-grey text-midnight border-0 p-0 [&>svg:last-child]:hidden"><Icon className="h-6 w-6 text-midnight" /></SelectTrigger>
                                     <SelectContent>{ALL_ICONS.map((k) => { const IC = ICON_COMPONENTS[k]; return <SelectItem key={k} value={k}><span className="flex items-center gap-2"><IC className="h-4 w-4" />{k}</span></SelectItem>; })}</SelectContent>
                                   </Select>
-                                  <button type="button" onClick={() => rmTtk(i)} className="text-crimson-red opacity-0 group-hover/ttk:opacity-100 transition-opacity"><X className="h-4 w-4" /></button>
+                                  <div className="flex items-center gap-2">
+                                    <DragHandle handle={handle} className="opacity-0 group-hover/ttk:opacity-100 transition-opacity" />
+                                    <button type="button" onClick={() => rmTtk(i)} className="text-crimson-red opacity-0 group-hover/ttk:opacity-100 transition-opacity"><X className="h-4 w-4" /></button>
+                                  </div>
                                 </div>
                                 <InlineInput value={ttk?.title ?? ""} onChange={(v) => sv(`details.thingsToKnow.${i}.title`, v)} placeholder="Title" className="font-hk-grotesk text-h5-mobile md:text-h5-desktop text-midnight" />
                                 <InlineTextarea value={ttk?.description ?? ""} onChange={(v) => sv(`details.thingsToKnow.${i}.description`, v)} placeholder="Description…" className="font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
@@ -1288,9 +1390,12 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                                   </div>
                                 </div>
                               </li>
+                                )}
+                              </SortableItem>
                             );
                           })}
                         </ul>
+                        </SortableList>
                         <button type="button" onClick={() => (addTtk as any)({ icon: "info", title: "", description: "", ctaLabel: "", ctaHref: "" })}
                           className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
                           <Plus className="h-4 w-4" /> Add card
@@ -1309,12 +1414,15 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                     <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Tips</h2>
                     {tipFields.length > 0 ? (
                       <>
+                        <SortableList ids={(tipFields as any[]).map((f) => f.id)} strategy={rectSortingStrategy} onReorder={(a, b) => moveTip(a, b)}>
                         <ul className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
                           {(tipFields as any[]).map((field, i) => {
                             const tip = tips?.[i];
                             const Icon = ICON_COMPONENTS[tip?.icon ?? "luggage"] ?? Luggage;
                             return (
-                              <li key={field.id} className="flex items-start gap-4 group/tip">
+                              <SortableItem key={field.id} id={field.id}>
+                                {({ setNodeRef, style, handle }) => (
+                              <li ref={setNodeRef} style={style} className="flex items-start gap-4 group/tip">
                                 <Select value={tip?.icon ?? "luggage"} onValueChange={(v) => sv(`details.tips.${i}.icon`, v)}>
                                   <SelectTrigger className="flex size-12 shrink-0 items-center justify-center rounded-full bg-light-grey text-midnight border-0 p-0 [&>svg:last-child]:hidden hover:ring-2 hover:ring-crimson-red/20 transition-shadow"><Icon className="size-5 text-midnight" /></SelectTrigger>
                                   <SelectContent>{ALL_ICONS.map((k) => { const IC = ICON_COMPONENTS[k]; return <SelectItem key={k} value={k}><span className="flex items-center gap-2"><IC className="h-4 w-4" />{k}</span></SelectItem>; })}</SelectContent>
@@ -1322,14 +1430,18 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-start gap-2">
                                     <InlineInput value={tip?.title ?? ""} onChange={(v) => sv(`details.tips.${i}.title`, v)} placeholder="Title" className="font-hk-grotesk text-b2-desktop font-bold text-midnight flex-1" />
+                                    <DragHandle handle={handle} className="opacity-0 group-hover/tip:opacity-100 transition-opacity mt-0.5" />
                                     <button type="button" onClick={() => rmTip(i)} className="text-crimson-red opacity-0 group-hover/tip:opacity-100 transition-opacity"><X className="h-4 w-4" /></button>
                                   </div>
                                   <InlineTextarea value={tip?.description ?? ""} onChange={(v) => sv(`details.tips.${i}.description`, v)} placeholder="Tip description…" className="mt-1 font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
                                 </div>
                               </li>
+                                )}
+                              </SortableItem>
                             );
                           })}
                         </ul>
+                        </SortableList>
                         <button type="button" onClick={() => (addTip as any)({ icon: "luggage", title: "", description: "" })}
                           className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
                           <Plus className="h-4 w-4" /> Add tip
