@@ -404,8 +404,10 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const [panelOpen, setPanelOpen] = useState(false);
   const [datesModalOpen, setDatesModalOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
-  const [expandedDays, setExpandedDays] = useState<Set<number>>(new Set([0]));
-  const [expandedFaqs, setExpandedFaqs] = useState<Set<number>>(new Set());
+  // Itinerary days & FAQs default to open; we track only what the user collapses
+  // (empty = all open), so loaded and newly-added entries are expanded by default.
+  const [collapsedDays, setCollapsedDays] = useState<Set<number>>(new Set());
+  const [collapsedFaqs, setCollapsedFaqs] = useState<Set<number>>(new Set());
   const [activeGalleryIndex, setActiveGalleryIndex] = useState(0);
 
   // Image picker modal state
@@ -1232,7 +1234,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                     <ol className="mt-8 divide-y divide-light-grey border-t border-light-grey">
                       {(iterFields as any[]).map((field, i) => {
                         const day = itinerary?.[i];
-                        const isOpen = expandedDays.has(i);
+                        const isOpen = !collapsedDays.has(i);
                         return (
                           <SortableItem key={field.id} id={field.id}>
                             {({ setNodeRef, style, handle }) => (
@@ -1244,7 +1246,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                                 <span className="font-hk-grotesk text-h6-mobile md:text-h6-desktop font-bold text-midnight shrink-0">Day {i + 1}</span>
                                 <InlineInput value={day?.title ?? ""} onChange={(v) => sv(`details.itinerary.${i}.title`, v)} placeholder="Day title…" className="font-hk-grotesk text-h6-mobile md:text-h6-desktop text-crimson-red" />
                               </div>
-                              <button type="button" onClick={() => setExpandedDays((p) => { const n = new Set(p); if (isOpen) { n.delete(i); } else { n.add(i); } return n; })}
+                              <button type="button" onClick={() => setCollapsedDays((p) => { const n = new Set(p); if (n.has(i)) { n.delete(i); } else { n.add(i); } return n; })}
                                 className={`size-5 shrink-0 text-midnight transition-transform ${isOpen ? "rotate-180" : ""}`}>
                                 <ChevronDown className="h-5 w-5" />
                               </button>
@@ -1348,7 +1350,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                       })}
                     </ol>
                     </SortableList>
-                    <button type="button" onClick={() => { addIter({ day: iterFields.length + 1, title: "", description: "", image: undefined, accommodation: undefined, activities: undefined, meals: undefined, details: [] }); setExpandedDays((p) => { const n = new Set(p); n.add(iterFields.length); return n; }); }}
+                    <button type="button" onClick={() => addIter({ day: iterFields.length + 1, title: "", description: "", image: undefined, accommodation: undefined, activities: undefined, meals: undefined, details: [] })}
                       className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
                       <Plus className="h-4 w-4" /> Add Day {iterFields.length + 1}
                     </button>
@@ -1432,9 +1434,9 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                       <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">FAQs</h2>
                       {faqFields.length > 0 && (
                         <button type="button"
-                          onClick={() => setExpandedFaqs(expandedFaqs.size === faqFields.length ? new Set() : new Set((faqFields as any[]).map((_, i) => i)))}
+                          onClick={() => setCollapsedFaqs(collapsedFaqs.size === 0 ? new Set((faqFields as any[]).map((_, i) => i)) : new Set())}
                           className="font-body text-b4-desktop text-crimson-red underline-offset-2 hover:underline">
-                          {expandedFaqs.size === faqFields.length ? "Collapse All" : "Expand All"}
+                          {collapsedFaqs.size === 0 ? "Collapse All" : "Expand All"}
                         </button>
                       )}
                     </div>
@@ -1443,7 +1445,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                       <dl className="mt-8">
                         {(faqFields as any[]).map((field, i) => {
                           const faq = faqs?.[i];
-                          const isOpen = expandedFaqs.has(i);
+                          const isOpen = !collapsedFaqs.has(i);
                           return (
                             <SortableItem key={field.id} id={field.id}>
                               {({ setNodeRef, style, handle }) => (
@@ -1452,7 +1454,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                                 <InlineInput value={faq?.question ?? ""} onChange={(v) => sv(`details.faqs.${i}.question`, v)}
                                   placeholder="Question" className="font-hk-grotesk text-h6-mobile md:text-h6-desktop text-midnight flex-1" />
                                 <div className="flex items-center gap-2 shrink-0">
-                                  <button type="button" onClick={() => setExpandedFaqs((prev) => { const next = new Set(prev); if (next.has(i)) { next.delete(i); } else { next.add(i); } return next; })}
+                                  <button type="button" onClick={() => setCollapsedFaqs((prev) => { const next = new Set(prev); if (next.has(i)) { next.delete(i); } else { next.add(i); } return next; })}
                                     className={`transition-transform ${isOpen ? "rotate-180" : ""}`}>
                                     <ChevronDown className="size-5 text-midnight" />
                                   </button>
