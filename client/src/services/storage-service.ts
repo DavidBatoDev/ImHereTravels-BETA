@@ -129,8 +129,8 @@ export class StorageService {
     return firebaseStorageService.createFolder(name, parentPath);
   }
 
-  async deleteFolder(id: string): Promise<void> {
-    return firebaseStorageService.deleteFolder(id);
+  async deleteFolder(path: string): Promise<void> {
+    return firebaseStorageService.deleteFolder(path);
   }
 
   // Get storage statistics from Firebase

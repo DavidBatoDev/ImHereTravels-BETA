@@ -18,6 +18,7 @@ import storageService from "@/services/storage-service";
 import type { ImageItem, StorageFolder } from "@/types/storage";
 import FileUpload from "./FileUpload";
 import CreateFolderModal from "./CreateFolderModal";
+import ConfirmDeleteFolderModal from "./ConfirmDeleteFolderModal";
 
 const ROOT = "images";
 
@@ -52,6 +53,8 @@ export default function FolderBrowser() {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set());
+  const [folderToDelete, setFolderToDelete] = useState<StorageFolder | null>(null);
+  const [deletingFolder, setDeletingFolder] = useState(false);
 
   // ── Load contents ─────────────────────────────────────────────────────────
 
@@ -93,10 +96,28 @@ export default function FolderBrowser() {
 
   // ── Delete folder ─────────────────────────────────────────────────────────
 
-  async function handleDeleteFolder(folder: StorageFolder) {
-    await storageService.deleteFolder(folder.id);
-    setFolders((prev) => prev.filter((f) => f.id !== folder.id));
-    toast({ title: "Folder deleted", description: `"${folder.name}" removed.` });
+  // Open the destructive confirmation modal.
+  function handleDeleteFolder(folder: StorageFolder) {
+    setFolderToDelete(folder);
+  }
+
+  async function confirmDeleteFolder() {
+    if (!folderToDelete) return;
+    setDeletingFolder(true);
+    try {
+      await storageService.deleteFolder(folderToDelete.path);
+      setFolders((prev) => prev.filter((f) => f.path !== folderToDelete.path));
+      toast({ title: "Folder deleted", description: `"${folderToDelete.name}" removed.` });
+      setFolderToDelete(null);
+    } catch (err: any) {
+      toast({
+        title: "Error",
+        description: err?.message ?? "Failed to delete folder.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeletingFolder(false);
+    }
   }
 
   // ── Image actions ─────────────────────────────────────────────────────────
@@ -559,6 +580,17 @@ export default function FolderBrowser() {
           currentPath={currentPath}
           onConfirm={handleCreateFolder}
           onClose={() => setShowCreateFolder(false)}
+        />
+      )}
+      {folderToDelete && (
+        <ConfirmDeleteFolderModal
+          folder={folderToDelete}
+          deleting={deletingFolder}
+          onConfirm={confirmDeleteFolder}
+          onClose={() => {
+            if (deletingFolder) return;
+            setFolderToDelete(null);
+          }}
         />
       )}
     </div>

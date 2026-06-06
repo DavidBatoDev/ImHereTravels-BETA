@@ -52,6 +52,8 @@ export class FirebaseStorageService {
   private readonly COLLECTION_NAME = "file_objects";
   private readonly STORAGE_PATH = "images";
   private readonly VIDEOS_STORAGE_PATH = "videos";
+  /** High private-use codepoint used as the upper bound for "starts-with" range queries. */
+  private readonly PREFIX_END = String.fromCharCode(0xf8ff);
 
   private constructor() {}
 
@@ -814,9 +816,79 @@ export class FirebaseStorageService {
     };
   }
 
-  /** Delete a folder document. Files inside are not deleted (they remain in Firestore). */
-  async deleteFolder(folderId: string): Promise<void> {
-    await deleteDoc(doc(db, "storage_folders", folderId));
+  /**
+   * Delete a folder and everything beneath it. Path-aware and recursive:
+   *  - removes every Cloud Storage object under `path` (and nested subfolders),
+   *  - removes matching `file_objects` metadata docs,
+   *  - removes `storage_folders` docs for this folder and any nested ones.
+   * Works for both real bucket folders (e.g. `images/tours`) and app-created
+   * folders. DESTRUCTIVE — the UI gates this behind a typed confirmation.
+   */
+  async deleteFolder(path: string): Promise<void> {
+    await this.deleteStoragePrefix(path);
+    await this.deleteFileDocsUnder(path);
+    await this.deleteFolderDocsUnder(path);
+  }
+
+  /** Recursively delete every Cloud Storage object beneath `path`. */
+  private async deleteStoragePrefix(path: string): Promise<void> {
+    const result = await listAll(ref(storage, path));
+    await Promise.all(
+      result.items.map(async (item) => {
+        try {
+          await deleteObject(item);
+        } catch (err: any) {
+          if (err?.code !== "storage/object-not-found") throw err;
+        }
+      })
+    );
+    for (const prefix of result.prefixes) {
+      await this.deleteStoragePrefix(prefix.fullPath);
+    }
+  }
+
+  /** Delete `file_objects` docs whose storagePath lives under `path/`. */
+  private async deleteFileDocsUnder(path: string): Promise<void> {
+    const prefix = path.endsWith("/") ? path : `${path}/`;
+    try {
+      const q = query(
+        collection(db, this.COLLECTION_NAME),
+        where("storagePath", ">=", prefix),
+        where("storagePath", "<", prefix + this.PREFIX_END)
+      );
+      const snap = await getDocs(q);
+      await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
+    } catch (err) {
+      console.warn("Could not clean up file_objects docs:", err);
+    }
+  }
+
+  /**
+   * Delete the `storage_folders` doc for `path` itself plus any nested folder
+   * docs under `path/` (app-created folders only; Storage-derived folders have
+   * no docs, which is harmless).
+   */
+  private async deleteFolderDocsUnder(path: string): Promise<void> {
+    const prefix = path.endsWith("/") ? path : `${path}/`;
+    try {
+      const [exact, nested] = await Promise.all([
+        getDocs(
+          query(collection(db, "storage_folders"), where("path", "==", path))
+        ),
+        getDocs(
+          query(
+            collection(db, "storage_folders"),
+            where("path", ">=", prefix),
+            where("path", "<", prefix + this.PREFIX_END)
+          )
+        ),
+      ]);
+      await Promise.all(
+        [...exact.docs, ...nested.docs].map((d) => deleteDoc(d.ref))
+      );
+    } catch (err) {
+      console.warn("Could not clean up storage_folders docs:", err);
+    }
   }
 
   /**
