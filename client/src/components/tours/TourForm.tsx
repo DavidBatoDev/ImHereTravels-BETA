@@ -285,8 +285,8 @@ function InlineTextarea({
  * textarea on click so the user can edit the `- ` prefix syntax directly.
  */
 function InlineBulletTextarea({
-  value, onChange, placeholder, className = "",
-}: { value: string; onChange: (v: string) => void; placeholder?: string; className?: string }) {
+  value, onChange, placeholder, className = "", bulleted = false,
+}: { value: string; onChange: (v: string) => void; placeholder?: string; className?: string; bulleted?: boolean }) {
   const [editing, setEditing] = useState(false);
   const [local, setLocal] = useState(value);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -328,6 +328,23 @@ function InlineBulletTextarea({
         className={`cursor-text px-1 -mx-1 rounded-sm text-dark-gray/30 hover:ring-2 hover:ring-crimson-red/20 transition-shadow ${className}`}>
         {placeholder}
       </p>
+    );
+  }
+
+  // For labels www auto-bullets (Activities/Others/Transport), mirror its
+  // WhatsIncluded rendering: split on newlines, the • char, and commas, then
+  // strip any leading - / * marker — so the preview matches the published page.
+  if (bulleted) {
+    const bulletItems = local
+      .split(/\r?\n|•/g)
+      .flatMap((part) => part.split(/\s*,\s*/g))
+      .map((part) => part.trim().replace(/^[-*]\s+/, ""))
+      .filter(Boolean);
+    return (
+      <ul onClick={() => setEditing(true)}
+        className={`cursor-text list-disc space-y-1 pl-4 marker:text-dark-gray px-1 -mx-1 rounded-sm hover:ring-2 hover:ring-crimson-red/20 transition-shadow ${className}`}>
+        {bulletItems.map((v, i) => <li key={i}>{v}</li>)}
+      </ul>
     );
   }
 
@@ -1106,7 +1123,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                             </Select>
                             <div className="flex-1 min-w-0">
                               <InlineInput value={incl?.label ?? ""} onChange={(v) => sv(`details.inclusions.${i}.label`, v)} placeholder="Label" className="font-hk-grotesk text-b2-desktop font-bold text-midnight" />
-                              <InlineBulletTextarea value={rawValue} onChange={(v) => sv(`details.inclusions.${i}.value`, v)} placeholder="Detail (use - for bullets)" className="mt-1 font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
+                              <InlineBulletTextarea value={rawValue} onChange={(v) => sv(`details.inclusions.${i}.value`, v)} placeholder="Detail (use - for bullets)" bulleted={/activities|others?|transport/i.test(incl?.label ?? "")} className="mt-1 font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
                             </div>
                             <DragHandle handle={handle} className="opacity-0 group-hover/incl:opacity-100 transition-opacity mt-1 shrink-0" />
                             <button type="button" onClick={() => rmIncl(i)} className="opacity-0 group-hover/incl:opacity-100 transition-opacity text-crimson-red mt-1 shrink-0"><X className="h-4 w-4" /></button>
