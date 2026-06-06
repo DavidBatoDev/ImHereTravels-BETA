@@ -262,7 +262,7 @@ function InlineTextarea({
       onBlur={(e) => { clearTimeout(timer.current); onChange(e.target.value); }}
       placeholder={placeholder}
       rows={1}
-      className={`bg-transparent border-none outline-none resize-none w-full px-1 -mx-1 rounded-sm
+      className={`bg-transparent border-none outline-none resize-none overflow-hidden w-full px-1 -mx-1 rounded-sm
         hover:ring-2 hover:ring-crimson-red/20 focus:ring-2 focus:ring-crimson-red/40 transition-shadow
         placeholder:text-dark-gray/30 ${className}`}
     />
@@ -304,7 +304,7 @@ function InlineBulletTextarea({
         onBlur={() => { clearTimeout(timer.current); onChange(local); setEditing(false); }}
         rows={1}
         placeholder={placeholder}
-        className={`bg-transparent border-none outline-none resize-none w-full px-1 -mx-1 rounded-sm
+        className={`bg-transparent border-none outline-none resize-none overflow-hidden w-full px-1 -mx-1 rounded-sm
           ring-2 ring-crimson-red/40 transition-shadow placeholder:text-dark-gray/30 ${className}`}
       />
     );
