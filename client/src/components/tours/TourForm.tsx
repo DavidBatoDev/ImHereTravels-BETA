@@ -21,6 +21,7 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -150,6 +151,14 @@ const schema = z.object({
     faqs: z.array(z.object({ question: z.string(), answer: z.string() })).optional(),
     thingsToKnow: z.array(z.object({ icon: z.string().optional(), title: z.string(), description: z.string(), ctaLabel: z.string(), ctaHref: z.string() })).optional(),
     tips: z.array(z.object({ icon: z.string().optional(), title: z.string(), description: z.string() })).optional(),
+    reviews: z.array(z.object({
+      rating: z.preprocess(toOptionalNumber, z.number().min(1).max(5).default(5)),
+      date: z.string(),
+      body: z.string(),
+      reviewerName: z.string(),
+      reviewerLocation: z.string(),
+      reviewerAvatar: z.string().optional(),
+    })).optional(),
     map: z.object({ image: z.string().optional(), embedUrl: z.string().optional() }).optional(),
   }),
 });
@@ -174,6 +183,67 @@ const TAG_PALETTE = [
 const CURRENCY_SYM: Record<string, string> = { USD: "$", EUR: "€", GBP: "£" };
 const ALL_ICONS = Object.keys(ICON_COMPONENTS);
 
+// ─── Reviews ─────────────────────────────────────────────────────────────────
+
+const PLACEHOLDER_REVIEWS = [
+  { rating: 5, date: "May 2023", body: "Had an amazing time on the trial tour! Action packed with lots of fun things on the itinerary, and a great bunch of people. Would definitely go again!", reviewerName: "Flynn Deanne", reviewerLocation: "London, United Kingdom" },
+  { rating: 5, date: "February 2024", body: "My experience has been amazing, I'll never forget it. I met extraordinary people and explored beautiful places. I definitely recommend to book a trip!", reviewerName: "Manuel Madonna", reviewerLocation: "Milan, Italy" },
+  { rating: 5, date: "July 2024", body: "I enjoyed the tour! Seamless coordination of transportation and accommodation made me feel like a VIP throughout the trip! LOVED every bit of it!! I highly recommend!", reviewerName: "Bella Millan", reviewerLocation: "Cagayan, Philippines" },
+];
+
+function StarRatingInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          className="text-lg leading-none focus:outline-none"
+          aria-label={`${n} star${n !== 1 ? "s" : ""}`}
+        >
+          <span className={n <= value ? "text-crimson-red" : "text-light-grey"}>★</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const CURRENT_YEAR = new Date().getFullYear();
+const YEARS = Array.from({ length: 10 }, (_, i) => CURRENT_YEAR - i);
+
+function MonthYearPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const parts = value ? value.split(" ") : [];
+  const selectedMonth = parts[0] ?? "";
+  const selectedYear = parts[1] ?? "";
+
+  const handleSelect = (month: string, year: string) => {
+    if (month && year) { onChange(`${month} ${year}`); setOpen(false); }
+  };
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button type="button" className="font-body text-b5-desktop text-dark-gray hover:text-midnight transition-colors">
+          {value || <span className="text-dark-gray/50">Month Year</span>}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent className="w-56 p-3 space-y-2" align="end">
+        <Select value={selectedMonth} onValueChange={(m) => handleSelect(m, selectedYear || String(CURRENT_YEAR))}>
+          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Month" /></SelectTrigger>
+          <SelectContent>{MONTHS.map((m) => <SelectItem key={m} value={m} className="text-xs">{m}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select value={selectedYear} onValueChange={(y) => handleSelect(selectedMonth || MONTHS[0], y)}>
+          <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Year" /></SelectTrigger>
+          <SelectContent>{YEARS.map((y) => <SelectItem key={y} value={String(y)} className="text-xs">{y}</SelectItem>)}</SelectContent>
+        </Select>
+      </PopoverContent>
+    </Popover>
+  );
+}
 
 // ─── Inline editing primitives ────────────────────────────────────────────────
 
@@ -448,7 +518,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
         itinerary: [{ day: 1, title: "", description: "", image: undefined, accommodation: undefined, activities: undefined, meals: undefined, details: [] }],
         requirements: [""],
         keyFacts: [], tags: [], inclusions: [], accommodations: [], faqs: [],
-        thingsToKnow: [], tips: [], map: { image: "", embedUrl: "" },
+        thingsToKnow: [], tips: [], reviews: [], map: { image: "", embedUrl: "" },
       },
     },
   });
@@ -466,6 +536,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const { fields: faqFields, append: addFaq, remove: rmFaq, move: moveFaq } = useFieldArray({ control: form.control, name: "details.faqs" });
   const { fields: ttkFields, append: addTtk, remove: rmTtk, move: moveTtk } = useFieldArray({ control: form.control, name: "details.thingsToKnow" });
   const { fields: tipFields, append: addTip, remove: rmTip, move: moveTip } = useFieldArray({ control: form.control, name: "details.tips" });
+  const { fields: reviewFields, append: addReview, remove: rmReview, move: moveReview } = useFieldArray({ control: form.control, name: "details.reviews" as any });
   const { fields: reqFields, append: addReq, remove: rmReq } = useFieldArray({ control: form.control, name: "details.requirements" as any });
   const { fields: dateFields, append: addDate, remove: rmDate } = useFieldArray({ control: form.control, name: "travelDates" });
   const { fields: kfFields, append: addKf, remove: rmKf, move: moveKf } = useFieldArray({ control: form.control, name: "details.keyFacts" as any });
@@ -485,6 +556,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const faqs = w("details.faqs") as any[] | undefined;
   const ttks = w("details.thingsToKnow") as any[] | undefined;
   const tips = w("details.tips") as any[] | undefined;
+  const reviews = w("details.reviews") as any[] | undefined;
   const kfData = w("details.keyFacts") as Array<{ icon: string; label: string; values: string[] }> | undefined;
   const travelDates = w("travelDates") as any[] | undefined; // Tour Dates key-fact display
   const mapData = w("details.map") as any;   // conditional render of map section
@@ -1661,6 +1733,117 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
               </div>
 
             </div>{/* end two-column */}
+
+            {/* ─── REVIEWS — full-width below two-column grid ──────────── */}
+            <section className="mt-10 md:mt-14">
+              <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">What people say about us</h2>
+
+              {/* Empty state — greyed-out placeholder cards */}
+              {reviewFields.length === 0 && (
+                <>
+                  <ul className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3 opacity-40 pointer-events-none select-none">
+                    {PLACEHOLDER_REVIEWS.map((r, i) => (
+                      <li key={i} className="rounded-[16px] bg-white shadow-low p-6 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex gap-0.5">
+                            {[1,2,3,4,5].map((n) => (
+                              <span key={n} className="text-lg leading-none text-crimson-red">★</span>
+                            ))}
+                          </div>
+                          <span className="font-body text-b5-desktop text-dark-gray">{r.date}</span>
+                        </div>
+                        <p className="font-body text-b4-desktop text-midnight">{r.body}</p>
+                        <div className="flex items-center gap-3 pt-2">
+                          <div className="size-10 rounded-full bg-light-grey shrink-0" />
+                          <div>
+                            <p className="font-body text-b4-desktop font-semibold text-midnight">{r.reviewerName}</p>
+                            <p className="font-body text-b5-desktop text-crimson-red">{r.reviewerLocation}</p>
+                          </div>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="mt-3 font-body text-b5-desktop text-dark-gray italic">
+                    No reviews yet — generic placeholder cards shown on www.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => (addReview as any)({ rating: 5, date: "", body: "", reviewerName: "", reviewerLocation: "" })}
+                    className="mt-4 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red"
+                  >
+                    <Plus className="h-4 w-4" /> Add review
+                  </button>
+                </>
+              )}
+
+              {/* Filled state — inline editable cards */}
+              {reviewFields.length > 0 && (
+                <>
+                  <SortableList ids={(reviewFields as any[]).map((f) => f.id)} strategy={rectSortingStrategy} onReorder={(a, b) => moveReview(a, b)}>
+                    <ul className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3">
+                      {(reviewFields as any[]).map((field, i) => {
+                        const review = reviews?.[i];
+                        return (
+                          <SortableItem key={field.id} id={field.id}>
+                            {({ setNodeRef, style, handle }) => (
+                              <li ref={setNodeRef} style={style} className="rounded-[16px] bg-white shadow-low p-6 space-y-3 group/review">
+                                <div className="flex items-center justify-between">
+                                  <StarRatingInput
+                                    value={review?.rating ?? 5}
+                                    onChange={(v) => sv(`details.reviews.${i}.rating`, v)}
+                                  />
+                                  <div className="flex items-center gap-1">
+                                    <MonthYearPicker
+                                      value={review?.date ?? ""}
+                                      onChange={(v) => sv(`details.reviews.${i}.date`, v)}
+                                    />
+                                    <DragHandle handle={handle} className="opacity-0 group-hover/review:opacity-100 transition-opacity" />
+                                    <button type="button" onClick={() => rmReview(i)} className="text-crimson-red opacity-0 group-hover/review:opacity-100 transition-opacity">
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                                <InlineTextarea
+                                  value={review?.body ?? ""}
+                                  onChange={(v) => sv(`details.reviews.${i}.body`, v)}
+                                  placeholder="Review text…"
+                                  className="font-body text-b4-desktop text-midnight"
+                                />
+                                <div className="flex items-center gap-3 pt-2">
+                                  <div className="size-10 rounded-full bg-light-grey shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <InlineInput
+                                      value={review?.reviewerName ?? ""}
+                                      onChange={(v) => sv(`details.reviews.${i}.reviewerName`, v)}
+                                      placeholder="Reviewer name"
+                                      className="font-body text-b4-desktop font-semibold text-midnight"
+                                    />
+                                    <InlineInput
+                                      value={review?.reviewerLocation ?? ""}
+                                      onChange={(v) => sv(`details.reviews.${i}.reviewerLocation`, v)}
+                                      placeholder="City, Country"
+                                      className="font-body text-b5-desktop text-crimson-red"
+                                    />
+                                  </div>
+                                </div>
+                              </li>
+                            )}
+                          </SortableItem>
+                        );
+                      })}
+                    </ul>
+                  </SortableList>
+                  <button
+                    type="button"
+                    onClick={() => (addReview as any)({ rating: 5, date: "", body: "", reviewerName: "", reviewerLocation: "" })}
+                    className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red"
+                  >
+                    <Plus className="h-4 w-4" /> Add review
+                  </button>
+                </>
+              )}
+            </section>
+
           </div>{/* end page container */}
         </form>
 

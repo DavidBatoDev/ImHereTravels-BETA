@@ -104,6 +104,7 @@ export interface TourDetails {
   faqs?: TourFaq[]; // FAQ section
   thingsToKnow?: TourThingToKnow[]; // "Things to Know" cards (per-tour override)
   tips?: TourTip[]; // Tips section (per-tour override)
+  reviews?: TourReview[]; // "What people say about us" section; falls back to generic placeholders on www when absent
   map?: { image?: string; embedUrl?: string }; // Map section
 }
 
@@ -136,6 +137,15 @@ export interface TourTip {
   icon?: string;
   title: string;
   description: string;
+}
+
+export interface TourReview {
+  rating: number;           // 1–5 stars
+  date: string;             // e.g. "May 2023"
+  body: string;             // Review text
+  reviewerName: string;     // e.g. "Flynn Deanne"
+  reviewerLocation: string; // e.g. "London, United Kingdom"
+  reviewerAvatar?: string;  // Optional URL / storage path
 }
 
 export interface TourItinerary {
