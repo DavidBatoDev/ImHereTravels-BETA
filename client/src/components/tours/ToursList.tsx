@@ -441,7 +441,7 @@ export default function ToursList() {
   return (
     <div className="space-y-6">
       {/* Statistics Cards with Add Button */}
-      <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_1fr_auto] gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-[1fr_1fr_1fr_auto] gap-4">
         {/* Total Tours */}
         <Card className="border border-border hover:border-crimson-red transition-all duration-300 hover:shadow-md">
           <CardContent className="p-5">
@@ -538,7 +538,7 @@ export default function ToursList() {
         </Card>
 
         {/* Most Selected Tour */}
-        <Card className="border border-border hover:border-crimson-red transition-all duration-300 hover:shadow-md">
+        <Card className="col-span-2 md:col-span-1 border border-border hover:border-crimson-red transition-all duration-300 hover:shadow-md">
           <CardContent className="p-5">
             <div className="flex items-center justify-between">
               <div className="flex-1">
@@ -618,7 +618,7 @@ export default function ToursList() {
         </Card>
 
         {/* Add Tour Button */}
-        <div className="flex items-center justify-center">
+        <div className="col-span-2 md:col-span-1 flex items-center justify-center">
           <Button
             onClick={openCreateForm}
             className="group h-20 w-20 rounded-full rounded-br-none bg-crimson-red hover:bg-royal-purple text-white transition-all duration-300 hover:scale-105 shadow-lg relative"
@@ -635,7 +635,7 @@ export default function ToursList() {
       {/* Filters */}
       <Card className="border border-royal-purple/20 dark:border-border shadow">
         <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex flex-col gap-2 md:flex-row md:gap-4">
             <div className="flex-1">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-royal-purple/60 h-4 w-4" />
@@ -657,29 +657,32 @@ export default function ToursList() {
                 )}
               </div>
             </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-full md:w-48 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
-                <Filter className="mr-2 h-4 w-4 text-royal-purple" />
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="archived">Archived</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              onClick={loadTours}
-              disabled={loading}
-              className="border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
-            >
-              <RefreshCw
-                className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`}
-              />
-              Refresh
-            </Button>
+            <div className="flex gap-2">
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="flex-1 md:w-48 border-royal-purple/20 focus:border-royal-purple focus:ring-royal-purple/20">
+                  <Filter className="mr-2 h-4 w-4 text-royal-purple" />
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                onClick={loadTours}
+                disabled={loading}
+                className="shrink-0 border-royal-purple/20 text-royal-purple hover:bg-royal-purple/10 hover:border-royal-purple transition-all duration-200"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 md:mr-2 ${loading ? "animate-spin" : ""}`}
+                />
+                <span className="hidden md:inline">Refresh</span>
+                <span className="sr-only md:hidden">Refresh</span>
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -716,7 +719,7 @@ export default function ToursList() {
               className="hover:shadow-lg transition-all duration-200 overflow-hidden border border-royal-purple/20 dark:border-border shadow hover:border-royal-purple/40 dark:hover:border-border flex flex-col h-full"
             >
               {/* Cover Image */}
-              <div className="relative w-full h-48 bg-muted">
+              <div className="relative w-full h-36 md:h-48 bg-muted">
                 {tour.media?.coverImage ? (
                   <Image
                     src={tour.media.coverImage}

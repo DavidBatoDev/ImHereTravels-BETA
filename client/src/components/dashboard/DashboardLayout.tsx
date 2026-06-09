@@ -93,7 +93,7 @@ export default function DashboardLayout({ children, fullWidth = false }: Dashboa
           }`}
         >
           {/* Mobile header - Professional design */}
-          <div className="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-x-3 border-b border-border bg-background dark:bg-sidebar data-[theme=dark]:bg-sidebar px-4 shadow-md lg:hidden">
+          <div className="flex h-16 shrink-0 items-center gap-x-3 border-b border-border bg-background dark:bg-sidebar data-[theme=dark]:bg-sidebar px-4 shadow-md lg:hidden">
             {/* Menu toggle button */}
             <Button
               variant="ghost"

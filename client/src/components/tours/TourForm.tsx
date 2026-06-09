@@ -848,31 +848,123 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
 
       {/* ── Editor toolbar ─────────────────────────────────────────────────── */}
       {/* DashboardLayout has a sticky h-16 navbar on both mobile and desktop — sit just below it */}
-      <div className="sticky top-16 z-30 bg-white border-b border-light-grey shadow-xsmall">
-        <div className="max-w-7xl mx-auto px-4 md:px-8 h-14 flex items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={() => leaveGuard.requestNav(onClose)}
-            className="flex items-center gap-2 font-body text-b4-desktop text-dark-gray hover:text-midnight transition-colors"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Back to Tours
-          </button>
+      <div className="sticky top-0 z-30 bg-white border-b border-light-grey shadow-xsmall">
+        <div className="max-w-7xl mx-auto px-4 md:px-8">
+          {/* Main row */}
+          <div className="h-12 md:h-14 flex items-center justify-between gap-2 md:gap-4">
+            <button
+              type="button"
+              onClick={() => leaveGuard.requestNav(onClose)}
+              className="flex items-center gap-2 font-body text-b4-desktop text-dark-gray hover:text-midnight transition-colors shrink-0"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="hidden sm:inline">Back to Tours</span>
+            </button>
 
-          <div className="flex items-center gap-3">
-            {/* Status badge */}
-            <Select value={w("status")} onValueChange={(v) => sv("status", v)}>
-              <SelectTrigger className="h-8 text-xs border-border w-28">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="archived">Archived</SelectItem>
-              </SelectContent>
-            </Select>
+            {/* Desktop: all controls in one row */}
+            <div className="hidden md:flex items-center gap-3">
+              {/* Status badge */}
+              <Select value={w("status")} onValueChange={(v) => sv("status", v)}>
+                <SelectTrigger className="h-8 text-xs border-border w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
+                </SelectContent>
+              </Select>
 
-            {/* Coming soon toggle */}
+              {/* Coming soon toggle */}
+              <div className="flex items-center gap-1.5 text-xs text-dark-gray">
+                <Switch
+                  checked={w("comingSoon") ?? false}
+                  onCheckedChange={(v) => sv("comingSoon", v)}
+                  className="scale-75 data-[state=checked]:bg-vivid-orange"
+                />
+                <span>Coming Soon</span>
+              </div>
+
+              {/* Undo / redo / reset */}
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => history.undo()}
+                  disabled={!history.canUndo}
+                  title="Undo (Ctrl+Z)"
+                  aria-label="Undo"
+                  className="flex items-center justify-center h-9 w-9 rounded-full border border-border text-midnight hover:bg-light-grey disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Undo2 className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => history.redo()}
+                  disabled={!history.canRedo}
+                  title="Redo (Ctrl+Shift+Z)"
+                  aria-label="Redo"
+                  className="flex items-center justify-center h-9 w-9 rounded-full border border-border text-midnight hover:bg-light-grey disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Redo2 className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setResetOpen(true)}
+                  disabled={!history.canUndo && !history.canRedo}
+                  title="Discard all changes"
+                  aria-label="Discard all changes"
+                  className="flex items-center justify-center h-9 w-9 rounded-full border border-border text-midnight hover:bg-light-grey hover:text-crimson-red disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                >
+                  <RotateCcw className="h-4 w-4" />
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setPanelOpen(p => !p)}
+                className={`flex items-center gap-1.5 h-9 px-4 rounded-full border font-body text-sm transition-colors ${panelOpen ? "border-crimson-red bg-crimson-red/5 text-crimson-red" : "border-border text-midnight hover:bg-light-grey"}`}
+              >
+                <Settings className="h-4 w-4" />
+                Settings
+              </button>
+
+              <Button
+                type="button"
+                disabled={isSubmitting}
+                onClick={form.handleSubmit(handleSubmit, (errs) => { console.error("Form validation errors:", errs); toast({ title: "Validation error", description: "Check required fields and try again.", variant: "destructive" }); })}
+                className="h-9 bg-crimson-red hover:bg-light-red text-white rounded-full px-5 font-body font-bold text-sm shadow-small"
+              >
+                <Save className="h-4 w-4 mr-1.5" />
+                {isSubmitting ? "Saving…" : tour ? "Save Changes" : "Create Tour"}
+              </Button>
+            </div>
+
+            {/* Mobile: status + save only */}
+            <div className="flex md:hidden items-center gap-2">
+              <Select value={w("status")} onValueChange={(v) => sv("status", v)}>
+                <SelectTrigger className="h-8 text-xs border-border w-24">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="draft">Draft</SelectItem>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="archived">Archived</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                disabled={isSubmitting}
+                onClick={form.handleSubmit(handleSubmit, (errs) => { console.error("Form validation errors:", errs); toast({ title: "Validation error", description: "Check required fields and try again.", variant: "destructive" }); })}
+                className="h-8 bg-crimson-red hover:bg-light-red text-white rounded-full px-4 font-body font-bold text-sm shadow-small"
+              >
+                <Save className="h-3.5 w-3.5 mr-1" />
+                {isSubmitting ? "Saving…" : "Save"}
+              </Button>
+            </div>
+          </div>
+
+          {/* Secondary row — mobile only: Coming Soon + Undo/Redo/Reset + Settings */}
+          <div className="flex md:hidden items-center justify-between gap-2 pb-2 border-t border-border/30 pt-1.5">
             <div className="flex items-center gap-1.5 text-xs text-dark-gray">
               <Switch
                 checked={w("comingSoon") ?? false}
@@ -881,8 +973,6 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
               />
               <span>Coming Soon</span>
             </div>
-
-            {/* Undo / redo / reset */}
             <div className="flex items-center gap-1">
               <button
                 type="button"
@@ -890,9 +980,9 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                 disabled={!history.canUndo}
                 title="Undo (Ctrl+Z)"
                 aria-label="Undo"
-                className="flex items-center justify-center h-9 w-9 rounded-full border border-border text-midnight hover:bg-light-grey disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center justify-center h-8 w-8 rounded-full border border-border text-midnight hover:bg-light-grey disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <Undo2 className="h-4 w-4" />
+                <Undo2 className="h-3.5 w-3.5" />
               </button>
               <button
                 type="button"
@@ -900,9 +990,9 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                 disabled={!history.canRedo}
                 title="Redo (Ctrl+Shift+Z)"
                 aria-label="Redo"
-                className="flex items-center justify-center h-9 w-9 rounded-full border border-border text-midnight hover:bg-light-grey disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center justify-center h-8 w-8 rounded-full border border-border text-midnight hover:bg-light-grey disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <Redo2 className="h-4 w-4" />
+                <Redo2 className="h-3.5 w-3.5" />
               </button>
               <button
                 type="button"
@@ -910,30 +1000,19 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                 disabled={!history.canUndo && !history.canRedo}
                 title="Discard all changes"
                 aria-label="Discard all changes"
-                className="flex items-center justify-center h-9 w-9 rounded-full border border-border text-midnight hover:bg-light-grey hover:text-crimson-red disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center justify-center h-8 w-8 rounded-full border border-border text-midnight hover:bg-light-grey hover:text-crimson-red disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
               >
-                <RotateCcw className="h-4 w-4" />
+                <RotateCcw className="h-3.5 w-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setPanelOpen(p => !p)}
+                aria-label="Settings"
+                className={`flex items-center justify-center h-8 w-8 rounded-full border font-body transition-colors ${panelOpen ? "border-crimson-red bg-crimson-red/5 text-crimson-red" : "border-border text-midnight hover:bg-light-grey"}`}
+              >
+                <Settings className="h-3.5 w-3.5" />
               </button>
             </div>
-
-            <button
-              type="button"
-              onClick={() => setPanelOpen(p => !p)}
-              className={`flex items-center gap-1.5 h-9 px-4 rounded-full border font-body text-sm transition-colors ${panelOpen ? "border-crimson-red bg-crimson-red/5 text-crimson-red" : "border-border text-midnight hover:bg-light-grey"}`}
-            >
-              <Settings className="h-4 w-4" />
-              Settings
-            </button>
-
-            <Button
-              type="button"
-              disabled={isSubmitting}
-              onClick={form.handleSubmit(handleSubmit, (errs) => { console.error("Form validation errors:", errs); toast({ title: "Validation error", description: "Check required fields and try again.", variant: "destructive" }); })}
-              className="h-9 bg-crimson-red hover:bg-light-red text-white rounded-full px-5 font-body font-bold text-sm shadow-small"
-            >
-              <Save className="h-4 w-4 mr-1.5" />
-              {isSubmitting ? "Saving…" : tour ? "Save Changes" : "Create Tour"}
-            </Button>
           </div>
         </div>
       </div>
@@ -955,7 +1034,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                 value={name}
                 onChange={(v) => sv("name", v)}
                 placeholder="Tour Name"
-                className="font-display text-h1-mobile md:text-h1-desktop font-bold text-midnight"
+                className="font-display text-h4-mobile md:text-h1-desktop font-bold text-midnight"
               />
             </EditZone>
 
