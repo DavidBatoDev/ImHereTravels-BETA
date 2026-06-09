@@ -16,7 +16,7 @@ import {
   Copy, AlertCircle, Globe, Settings, ExternalLink, Plane,
   CheckCircle2, Utensils, Bus, Compass, HeartHandshake, Info,
   HelpCircle, Download, Camera, Luggage, ShieldCheck, Sun, Users, Pencil,
-  Undo2, Redo2, RotateCcw,
+  Undo2, Redo2, RotateCcw, Eye, List,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -48,10 +48,12 @@ import {
 import TourDatePicker from "./TourDatePicker";
 import ImagePickerModal from "@/components/shared/ImagePickerModal";
 import TourSettingsPanel from "./TourSettingsPanel";
+import TourOutlinePanel from "./TourOutlinePanel";
 import TravelDatesModal from "./TravelDatesModal";
 import ResetChangesModal from "@/components/shared/ResetChangesModal";
 import ConfirmLeaveModal from "@/components/shared/ConfirmLeaveModal";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 // ─── Zod helpers ──────────────────────────────────────────────────────────────
 
@@ -474,6 +476,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const [panelOpen, setPanelOpen] = useState(false);
   const [datesModalOpen, setDatesModalOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
+  const [outlineOpen, setOutlineOpen] = useState(false);
   // Itinerary days & FAQs default to open; we track only what the user collapses
   // (empty = all open), so loaded and newly-added entries are expanded by default.
   const [collapsedDays, setCollapsedDays] = useState<Set<number>>(new Set());
@@ -544,6 +547,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   // Watched values — only fields used for conditional rendering, computed values, or structural display
   const name = w("name") as string;          // toolbar display + slug auto-gen
   const slug = (w("slug") as string) || (tour?.slug ?? "");
+  const previewUrl = (w("url") as string) || (slug ? `https://imheretravels.com/all-tours/${slug}` : null);
   const duration = w("duration") as string;  // durationLabel computed value
   const cardHeaderTitle = w("cardHeaderTitle") as string;
   const cardSubHeader = w("cardSubHeader") as string;
@@ -847,8 +851,8 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
       )}
 
       {/* ── Editor toolbar ─────────────────────────────────────────────────── */}
-      {/* DashboardLayout has a sticky h-16 navbar on both mobile and desktop — sit just below it */}
-      <div className="sticky top-0 z-30 bg-white border-b border-light-grey shadow-xsmall">
+      {/* Mobile nav scrolls with page; desktop navbar is sticky h-16 — sit flush on mobile, below navbar on desktop */}
+      <div className="sticky top-0 lg:top-16 z-30 bg-white border-b border-light-grey shadow-xsmall">
         <div className="max-w-7xl mx-auto px-4 md:px-8">
           {/* Main row */}
           <div className="h-12 md:h-14 flex items-center justify-between gap-2 md:gap-4">
@@ -927,6 +931,19 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                 <Settings className="h-4 w-4" />
                 Settings
               </button>
+
+              {previewUrl && (
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title="Preview on website"
+                  className="flex items-center gap-1.5 h-9 px-4 rounded-full border border-border text-midnight hover:bg-light-grey font-body text-sm transition-colors"
+                >
+                  <Eye className="h-4 w-4" />
+                  Preview
+                </a>
+              )}
 
               <Button
                 type="button"
@@ -1012,6 +1029,25 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
               >
                 <Settings className="h-3.5 w-3.5" />
               </button>
+              <button
+                type="button"
+                onClick={() => setOutlineOpen(true)}
+                aria-label="Contents"
+                className="flex items-center justify-center h-8 w-8 rounded-full border border-border text-midnight hover:bg-light-grey transition-colors"
+              >
+                <List className="h-3.5 w-3.5" />
+              </button>
+              {previewUrl && (
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Preview on website"
+                  className="flex items-center justify-center h-8 w-8 rounded-full border border-border text-midnight hover:bg-light-grey transition-colors"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                </a>
+              )}
             </div>
           </div>
         </div>
@@ -1038,8 +1074,13 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
               />
             </EditZone>
 
-            {/* ── Two-column grid ────────────────────────────────────────── */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px] lg:gap-8">
+            {/* ── Three-column grid ─────────────────────────────────────── */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[160px_1fr_360px] lg:gap-8">
+
+              {/* ─── OUTLINE PANEL (desktop only) ─────────────────────────── */}
+              <div className="hidden lg:block">
+                <TourOutlinePanel hasMap={!!(mapData?.image || mapData?.embedUrl)} />
+              </div>
 
               {/* ─── LEFT COLUMN ─────────────────────────────────────────── */}
               <div className="min-w-0">
@@ -1049,7 +1090,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   const galleryImages = uploadedGallery.filter(Boolean) as string[];
                   const activeImg = galleryImages[activeGalleryIndex] ?? uploadedCover;
                   return (
-                    <>
+                    <div id="section-gallery">
                       <div className="relative aspect-[4/3] md:aspect-video w-full overflow-hidden rounded-[24px] bg-light-grey group/hero">
                         {activeImg ? (
                           <img src={resolveImg(activeImg)} alt="Hero" className="w-full h-full object-cover" />
@@ -1119,12 +1160,12 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         </button>
                       </div>
                       </SortableList>
-                    </>
+                    </div>
                   );
                 })()}
 
                 {/* ── ONE main card: all content sections ──────────────────── */}
-                <div className="mt-6 rounded-[24px] bg-white px-5 py-8 md:px-10 md:py-10">
+                <div id="section-description" className="mt-6 rounded-[24px] bg-white px-5 py-8 md:px-10 md:py-10">
 
                   {/* Tour Header: duration | name — wraps naturally like www */}
                   {(() => {
@@ -1177,7 +1218,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   </EditZone>
 
                   {/* Key Facts */}
-                  <section className="mt-8 md:mt-10 w-full">
+                  <section id="section-key-facts" className="mt-8 md:mt-10 w-full">
                     <ul className="flex flex-col gap-6">
                       {/* Tour Dates — derived from travelDates; edited via modal */}
                       <li className="flex items-start gap-4 group/td">
@@ -1262,7 +1303,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   </section>
 
                   {/* What's Included */}
-                  <section className="mt-10 md:mt-14 w-full">
+                  <section id="section-inclusions" className="mt-10 md:mt-14 w-full">
                     <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">What's Included</h2>
                     <SortableList ids={(inclFields as any[]).map((f) => f.id)} strategy={rectSortingStrategy} onReorder={(a, b) => moveIncl(a, b)}>
                     <ul className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -1300,7 +1341,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   </section>
 
                   {/* Trip Highlights */}
-                  <section className="mt-10 md:mt-14 w-full">
+                  <section id="section-highlights" className="mt-10 md:mt-14 w-full">
                     <div className="flex items-center justify-between gap-4">
                       <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Trip Highlights</h2>
                       <div className="flex shrink-0 gap-2">
@@ -1370,7 +1411,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
 
                   {/* Map */}
                   {(mapData?.image || mapData?.embedUrl) && (
-                    <section className="mt-10 md:mt-14 w-full">
+                    <section id="section-map" className="mt-10 md:mt-14 w-full">
                       <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Map</h2>
                       <div className="mt-8 relative aspect-video w-full overflow-hidden rounded-[24px] bg-light-grey">
                         {mapData.embedUrl ? <iframe src={mapData.embedUrl} className="w-full h-full" /> : mapData.image ? <img src={resolveImg(mapData.image)} alt="Map" className="w-full h-full object-cover" /> : null}
@@ -1379,7 +1420,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   )}
 
                   {/* Itinerary */}
-                  <section className="mt-10 md:mt-14 w-full">
+                  <section id="section-itinerary" className="mt-10 md:mt-14 w-full">
                     <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Itinerary</h2>
                     <SortableList ids={(iterFields as any[]).map((f) => f.id)} strategy={verticalListSortingStrategy} onReorder={(a, b) => moveIter(a, b)}>
                     <ol className="mt-8 divide-y divide-light-grey border-t border-light-grey">
@@ -1508,7 +1549,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   </section>
 
                   {/* Where We Stay */}
-                  <section className="mt-10 md:mt-14 w-full">
+                  <section id="section-accommodations" className="mt-10 md:mt-14 w-full">
                     <div className="flex items-center justify-between gap-4">
                       <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Where We Stay</h2>
                       <div className="flex shrink-0 gap-2">
@@ -1580,7 +1621,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   </section>
 
                   {/* FAQs */}
-                  <section className="mt-10 md:mt-14 w-full">
+                  <section id="section-faqs" className="mt-10 md:mt-14 w-full">
                     <div className="flex items-center justify-between">
                       <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">FAQs</h2>
                       {faqFields.length > 0 && (
@@ -1634,7 +1675,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   </section>
 
                   {/* Things to Know */}
-                  <section className="mt-10 md:mt-14 w-full">
+                  <section id="section-things-to-know" className="mt-10 md:mt-14 w-full">
                     <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Things to Know</h2>
                     {ttkFields.length > 0 ? (
                       <>
@@ -1690,7 +1731,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   </section>
 
                   {/* Tips */}
-                  <section className="mt-10 md:mt-14 w-full">
+                  <section id="section-tips" className="mt-10 md:mt-14 w-full">
                     <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Tips</h2>
                     {tipFields.length > 0 ? (
                       <>
@@ -1814,7 +1855,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
             </div>{/* end two-column */}
 
             {/* ─── REVIEWS — full-width below two-column grid ──────────── */}
-            <section className="mt-10 md:mt-14">
+            <section id="section-reviews" className="mt-10 md:mt-14">
               <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">What people say about us</h2>
 
               {/* Empty state — greyed-out placeholder cards */}
@@ -1993,6 +2034,43 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
         onClose={leaveGuard.cancel}
         onConfirm={leaveGuard.confirm}
       />
+
+      {/* ── Outline navigation sheet (mobile) ─────────────────────────── */}
+      <Sheet open={outlineOpen} onOpenChange={setOutlineOpen}>
+        <SheetContent side="bottom" className="max-h-[70vh] overflow-y-auto rounded-t-2xl">
+          <SheetHeader className="pb-3">
+            <SheetTitle className="text-left font-hk-grotesk text-base">Jump to section</SheetTitle>
+          </SheetHeader>
+          <nav className="flex flex-col gap-1 pb-4">
+            {([
+              { id: "section-gallery", label: "Gallery" },
+              { id: "section-description", label: "Description" },
+              { id: "section-key-facts", label: "Key Facts" },
+              { id: "section-inclusions", label: "What's Included" },
+              { id: "section-highlights", label: "Trip Highlights" },
+              ...(mapData?.image || mapData?.embedUrl ? [{ id: "section-map", label: "Map" }] : []),
+              { id: "section-itinerary", label: "Itinerary" },
+              { id: "section-accommodations", label: "Where We Stay" },
+              { id: "section-faqs", label: "FAQs" },
+              { id: "section-things-to-know", label: "Things to Know" },
+              { id: "section-tips", label: "Tips" },
+              { id: "section-reviews", label: "Reviews" },
+            ] as { id: string; label: string }[]).map(({ id, label }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => {
+                  setOutlineOpen(false);
+                  setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
+                }}
+                className="text-left px-4 py-3 rounded-xl text-sm text-foreground hover:bg-muted transition-colors"
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
