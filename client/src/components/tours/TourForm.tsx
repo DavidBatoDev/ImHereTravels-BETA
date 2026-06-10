@@ -47,6 +47,14 @@ import {
 } from "./dnd/SortableList";
 import TourDatePicker from "./TourDatePicker";
 import ImagePickerModal from "@/components/shared/ImagePickerModal";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import TourSettingsPanel from "./TourSettingsPanel";
 import TravelDatesModal from "./TravelDatesModal";
 import ResetChangesModal from "@/components/shared/ResetChangesModal";
@@ -68,6 +76,9 @@ const WWW_BASE = "https://www.imheretravels.com";
 const resolveImg = (url: string | null | undefined): string => {
   if (!url) return "";
   if (url.startsWith("blob:") || url.startsWith("http")) return url;
+  // Review preset avatars are bundled in the admin app's own /public too, so serve
+  // them same-origin — no dependency on a www deploy to preview them.
+  if (url.startsWith("/reviews/")) return url;
   if (url.startsWith("/")) return `${WWW_BASE}${url}`;
   return url;
 };
@@ -185,11 +196,62 @@ const ALL_ICONS = Object.keys(ICON_COMPONENTS);
 
 // ─── Reviews ─────────────────────────────────────────────────────────────────
 
+// Generic reviewer profiles. Double as (a) the greyed-out placeholder cards shown
+// when a tour has no reviews and (b) presets the admin can pick to pre-fill a new
+// review card. Avatars live in www/public/reviews/avatars and are served from www.
 const PLACEHOLDER_REVIEWS = [
-  { rating: 5, date: "May 2023", body: "Had an amazing time on the trial tour! Action packed with lots of fun things on the itinerary, and a great bunch of people. Would definitely go again!", reviewerName: "Flynn Deanne", reviewerLocation: "London, United Kingdom" },
-  { rating: 5, date: "February 2024", body: "My experience has been amazing, I'll never forget it. I met extraordinary people and explored beautiful places. I definitely recommend to book a trip!", reviewerName: "Manuel Madonna", reviewerLocation: "Milan, Italy" },
-  { rating: 5, date: "July 2024", body: "I enjoyed the tour! Seamless coordination of transportation and accommodation made me feel like a VIP throughout the trip! LOVED every bit of it!! I highly recommend!", reviewerName: "Bella Millan", reviewerLocation: "Cagayan, Philippines" },
+  { rating: 5, date: "May 2023", body: "Had an amazing time on the trial tour! Action packed with lots of fun things on the itinerary, and a great bunch of people. Would definitely go again!", reviewerName: "Flynn Deanne", reviewerLocation: "London, United Kingdom", reviewerAvatar: "/reviews/avatars/flynn.jpg" },
+  { rating: 5, date: "February 2024", body: "My experience has been amazing, I'll never forget it. I met extraordinary people and explored beautiful places. I definitely recommend to book a trip!", reviewerName: "Manuel Madonna", reviewerLocation: "Milan, Italy", reviewerAvatar: "/reviews/avatars/manuel.jpg" },
+  { rating: 5, date: "July 2024", body: "I enjoyed the tour! Seamless coordination of transportation and accommodation made me feel like a VIP throughout the trip! LOVED every bit of it!! I highly recommend!", reviewerName: "Bella Millan", reviewerLocation: "Cagayan, Philippines", reviewerAvatar: "/reviews/avatars/bella.jpg" },
 ];
+
+// Profiles offered in the "Add review" menu. Selecting one pre-fills the card.
+const REVIEW_PRESETS = PLACEHOLDER_REVIEWS;
+const BLANK_REVIEW = { rating: 5, date: "", body: "", reviewerName: "", reviewerLocation: "", reviewerAvatar: "" };
+
+// "+ Add review" trigger with a menu to start blank or from a preset profile.
+function AddReviewMenu({
+  onAdd,
+  className,
+}: {
+  onAdd: (review: typeof BLANK_REVIEW) => void;
+  className?: string;
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className={`flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red ${className ?? ""}`}
+        >
+          <Plus className="h-4 w-4" /> Add review
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-72">
+        <DropdownMenuItem onClick={() => onAdd({ ...BLANK_REVIEW })}>
+          <Plus className="mr-2 h-4 w-4" /> Blank review
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-dark-gray">Use a profile</DropdownMenuLabel>
+        {REVIEW_PRESETS.map((preset) => (
+          <DropdownMenuItem
+            key={preset.reviewerName}
+            onClick={() => onAdd({ ...preset })}
+            className="gap-3 py-2"
+          >
+            <span className="size-9 shrink-0 overflow-hidden rounded-full bg-light-grey">
+              <img src={resolveImg(preset.reviewerAvatar)} alt="" className="h-full w-full object-cover" />
+            </span>
+            <span className="min-w-0">
+              <span className="block truncate font-medium text-midnight">{preset.reviewerName}</span>
+              <span className="block truncate text-xs text-dark-gray">{preset.reviewerLocation}</span>
+            </span>
+          </DropdownMenuItem>
+        ))}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 function StarRatingInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   return (
@@ -487,7 +549,8 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
     | `gallery-edit-${number}`
     | `highlight-${number}`
     | `accommodation-${number}`
-    | `itinerary-${number}`;
+    | `itinerary-${number}`
+    | `review-${number}`;
   const [pickerState, setPickerState] = useState<{
     field: PickerField;
     initialUrl?: string;
@@ -706,6 +769,9 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
     } else if (field.startsWith("itinerary-")) {
       const i = Number(field.replace("itinerary-", ""));
       sv(`details.itinerary.${i}.image`, urls[0]);
+    } else if (field.startsWith("review-")) {
+      const i = Number(field.replace("review-", ""));
+      sv(`details.reviews.${i}.reviewerAvatar`, urls[0]);
     }
 
     setPickerState(null);
@@ -1858,7 +1924,9 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         </div>
                         <p className="font-body text-b4-desktop text-midnight">{r.body}</p>
                         <div className="flex items-center gap-3 pt-2">
-                          <div className="size-10 rounded-full bg-light-grey shrink-0" />
+                          <span className="size-10 shrink-0 overflow-hidden rounded-full bg-light-grey">
+                            <img src={resolveImg(r.reviewerAvatar)} alt="" className="h-full w-full object-cover" />
+                          </span>
                           <div>
                             <p className="font-body text-b4-desktop font-semibold text-midnight">{r.reviewerName}</p>
                             <p className="font-body text-b5-desktop text-crimson-red">{r.reviewerLocation}</p>
@@ -1870,13 +1938,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   <p className="mt-3 font-body text-b5-desktop text-dark-gray italic">
                     No reviews yet — generic placeholder cards shown on www.
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => (addReview as any)({ rating: 5, date: "", body: "", reviewerName: "", reviewerLocation: "" })}
-                    className="mt-4 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red"
-                  >
-                    <Plus className="h-4 w-4" /> Add review
-                  </button>
+                  <AddReviewMenu onAdd={(r) => (addReview as any)(r)} className="mt-4" />
                 </>
               )}
 
@@ -1914,7 +1976,19 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                                   className="font-body text-b4-desktop text-midnight"
                                 />
                                 <div className="flex items-center gap-3 pt-2">
-                                  <div className="size-10 rounded-full bg-light-grey shrink-0" />
+                                  <button
+                                    type="button"
+                                    onClick={() => setPickerState({ field: `review-${i}`, initialUrl: resolveImg(review?.reviewerAvatar) || undefined })}
+                                    title={review?.reviewerAvatar ? "Change reviewer photo" : "Add reviewer photo"}
+                                    className="group/avatar relative size-10 shrink-0 overflow-hidden rounded-full bg-light-grey"
+                                  >
+                                    {review?.reviewerAvatar ? (
+                                      <img src={resolveImg(review.reviewerAvatar)} alt="" className="h-full w-full object-cover" />
+                                    ) : null}
+                                    <span className="absolute inset-0 flex items-center justify-center bg-midnight/40 opacity-0 transition-opacity group-hover/avatar:opacity-100">
+                                      <ImageIcon className="h-4 w-4 text-white" />
+                                    </span>
+                                  </button>
                                   <div className="flex-1 min-w-0">
                                     <InlineInput
                                       value={review?.reviewerName ?? ""}
@@ -1937,13 +2011,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                       })}
                     </ul>
                   </SortableList>
-                  <button
-                    type="button"
-                    onClick={() => (addReview as any)({ rating: 5, date: "", body: "", reviewerName: "", reviewerLocation: "" })}
-                    className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red"
-                  >
-                    <Plus className="h-4 w-4" /> Add review
-                  </button>
+                  <AddReviewMenu onAdd={(r) => (addReview as any)(r)} className="mt-6" />
                 </>
               )}
             </section>
@@ -1985,6 +2053,8 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
               ? 16 / 9
               : pickerState.field.startsWith("itinerary-")
               ? 16 / 10
+              : pickerState.field.startsWith("review-")
+              ? 1
               : 4 / 3
           }
           multiple={pickerState.multiple ?? false}
@@ -2000,6 +2070,8 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
               ? "Select Highlight Image"
               : pickerState.field.startsWith("accommodation-")
               ? "Select Accommodation Image"
+              : pickerState.field.startsWith("review-")
+              ? "Select Reviewer Photo"
               : "Select Day Image"
           }
         />
