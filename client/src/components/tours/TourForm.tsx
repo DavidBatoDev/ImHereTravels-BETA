@@ -16,7 +16,7 @@ import {
   Copy, AlertCircle, Globe, Settings, ExternalLink, Plane,
   CheckCircle2, Utensils, Bus, Compass, HeartHandshake, Info,
   HelpCircle, Download, Camera, Luggage, ShieldCheck, Sun, Users, Pencil,
-  Undo2, Redo2, RotateCcw, Eye, List,
+  Undo2, Redo2, RotateCcw, Eye,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -48,12 +48,10 @@ import {
 import TourDatePicker from "./TourDatePicker";
 import ImagePickerModal from "@/components/shared/ImagePickerModal";
 import TourSettingsPanel from "./TourSettingsPanel";
-import TourOutlinePanel from "./TourOutlinePanel";
 import TravelDatesModal from "./TravelDatesModal";
 import ResetChangesModal from "@/components/shared/ResetChangesModal";
 import ConfirmLeaveModal from "@/components/shared/ConfirmLeaveModal";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 // ─── Zod helpers ──────────────────────────────────────────────────────────────
 
@@ -476,7 +474,6 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const [panelOpen, setPanelOpen] = useState(false);
   const [datesModalOpen, setDatesModalOpen] = useState(false);
   const [resetOpen, setResetOpen] = useState(false);
-  const [outlineOpen, setOutlineOpen] = useState(false);
   // Itinerary days & FAQs default to open; we track only what the user collapses
   // (empty = all open), so loaded and newly-added entries are expanded by default.
   const [collapsedDays, setCollapsedDays] = useState<Set<number>>(new Set());
@@ -1029,14 +1026,6 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
               >
                 <Settings className="h-3.5 w-3.5" />
               </button>
-              <button
-                type="button"
-                onClick={() => setOutlineOpen(true)}
-                aria-label="Contents"
-                className="flex items-center justify-center h-8 w-8 rounded-full border border-border text-midnight hover:bg-light-grey transition-colors"
-              >
-                <List className="h-3.5 w-3.5" />
-              </button>
               {previewUrl && (
                 <a
                   href={previewUrl}
@@ -1074,13 +1063,8 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
               />
             </EditZone>
 
-            {/* ── Three-column grid ─────────────────────────────────────── */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[160px_1fr_360px] lg:gap-8">
-
-              {/* ─── OUTLINE PANEL (desktop only) ─────────────────────────── */}
-              <div className="hidden lg:block">
-                <TourOutlinePanel hasMap={!!(mapData?.image || mapData?.embedUrl)} />
-              </div>
+            {/* ── Two-column grid ───────────────────────────────────────── */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px] lg:gap-8">
 
               {/* ─── LEFT COLUMN ─────────────────────────────────────────── */}
               <div className="min-w-0">
@@ -2035,42 +2019,6 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
         onConfirm={leaveGuard.confirm}
       />
 
-      {/* ── Outline navigation sheet (mobile) ─────────────────────────── */}
-      <Sheet open={outlineOpen} onOpenChange={setOutlineOpen}>
-        <SheetContent side="bottom" className="max-h-[70vh] overflow-y-auto rounded-t-2xl">
-          <SheetHeader className="pb-3">
-            <SheetTitle className="text-left font-hk-grotesk text-base">Jump to section</SheetTitle>
-          </SheetHeader>
-          <nav className="flex flex-col gap-1 pb-4">
-            {([
-              { id: "section-gallery", label: "Gallery" },
-              { id: "section-description", label: "Description" },
-              { id: "section-key-facts", label: "Key Facts" },
-              { id: "section-inclusions", label: "What's Included" },
-              { id: "section-highlights", label: "Trip Highlights" },
-              ...(mapData?.image || mapData?.embedUrl ? [{ id: "section-map", label: "Map" }] : []),
-              { id: "section-itinerary", label: "Itinerary" },
-              { id: "section-accommodations", label: "Where We Stay" },
-              { id: "section-faqs", label: "FAQs" },
-              { id: "section-things-to-know", label: "Things to Know" },
-              { id: "section-tips", label: "Tips" },
-              { id: "section-reviews", label: "Reviews" },
-            ] as { id: string; label: string }[]).map(({ id, label }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => {
-                  setOutlineOpen(false);
-                  setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" }), 150);
-                }}
-                className="text-left px-4 py-3 rounded-xl text-sm text-foreground hover:bg-muted transition-colors"
-              >
-                {label}
-              </button>
-            ))}
-          </nav>
-        </SheetContent>
-      </Sheet>
     </div>
   );
 }
