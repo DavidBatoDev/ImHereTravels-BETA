@@ -214,6 +214,7 @@ export default function TourSettingsPanel({ open, onClose, form, tour, coverImag
                 <div className="mt-0.5 flex items-baseline gap-1">
                   <span className="font-display text-xl text-dark-gray">{sym}</span>
                   <input
+                    data-field="pricing.original"
                     type="text"
                     inputMode="decimal"
                     value={w("pricing.original") ?? ""}
@@ -229,6 +230,7 @@ export default function TourSettingsPanel({ open, onClose, form, tour, coverImag
                     <div className="flex items-baseline gap-1">
                       <span className="font-sans text-sm text-dark-gray">{sym}</span>
                       <input
+                        data-field="pricing.deposit"
                         type="text"
                         inputMode="decimal"
                         value={w("pricing.deposit") ?? ""}
@@ -238,7 +240,7 @@ export default function TourSettingsPanel({ open, onClose, form, tour, coverImag
                       />
                     </div>
                   </div>
-                  <div className="w-32 shrink-0">
+                  <div data-field="pricing.currency" className="w-32 shrink-0">
                     <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-dark-gray">Currency</label>
                     <Select value={w("pricing.currency") ?? "GBP"} onValueChange={v => sv("pricing.currency", v)}>
                       <SelectTrigger className="h-9 text-sm border-border w-full bg-white">
@@ -411,16 +413,16 @@ export default function TourSettingsPanel({ open, onClose, form, tour, coverImag
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
-                  <div>
+                  <div data-field="tourCode">
                     <FieldLabel>Tour Code</FieldLabel>
                     <TextInput value={w("tourCode") ?? ""} onChange={v => sv("tourCode", v)} placeholder="e.g. ARW" />
                   </div>
-                  <div>
+                  <div data-field="slug">
                     <FieldLabel>URL Slug</FieldLabel>
                     <TextInput value={w("slug") ?? ""} onChange={v => sv("slug", v)} placeholder="argentina-wonders" />
                   </div>
                 </div>
-                <div>
+                <div data-field="url">
                   <FieldLabel>Direct URL</FieldLabel>
                   <TextInput value={w("url") ?? ""} onChange={v => sv("url", v)} placeholder="https://…" type="url" />
                 </div>
@@ -439,7 +441,7 @@ export default function TourSettingsPanel({ open, onClose, form, tour, coverImag
                   ["Brochure", "brochureLink"],
                   ["Pre-Departure Pack", "preDeparturePack"],
                 ] as [string, string][]).map(([label, key]) => (
-                  <div key={key}>
+                  <div key={key} data-field={key}>
                     <FieldLabel>{label}</FieldLabel>
                     <TextInput
                       value={w(key) ?? ""}

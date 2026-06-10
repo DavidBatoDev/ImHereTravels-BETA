@@ -174,6 +174,64 @@ const schema = z.object({
   }),
 });
 
+// ─── Validation error messaging ─────────────────────────────────────────────
+// Turns react-hook-form's nested FieldErrors into a readable, field-named list.
+
+const FIELD_LABELS: Record<string, string> = {
+  name: "Tour name", slug: "URL slug", url: "Direct URL", tourCode: "Tour code",
+  description: "Description", duration: "Duration", status: "Status",
+  stripePaymentLink: "Stripe payment link", brochureLink: "Brochure link",
+  preDeparturePack: "Pre-departure pack link",
+  "pricing.original": "Original price", "pricing.discounted": "Discounted price",
+  "pricing.deposit": "Deposit", "pricing.currency": "Currency",
+};
+// URL-format fields fail validation only when non-empty and malformed.
+const URL_FIELDS = new Set(["url", "stripePaymentLink", "brochureLink", "preDeparturePack"]);
+// Fields edited inside the Settings panel — it must be opened before we scroll there.
+const PANEL_FIELDS = new Set([
+  "status", "slug", "tourCode", "url", "brochureLink", "preDeparturePack",
+  "pricing.original", "pricing.discounted", "pricing.deposit", "pricing.currency",
+]);
+// Friendly names for the repeatable `details.*` / `travelDates` array sections.
+const SECTION_LABELS: Record<string, string> = {
+  "details.itinerary": "Itinerary", "details.highlights": "Highlight",
+  "details.requirements": "Requirement", "details.faqs": "FAQ",
+  "details.accommodations": "Accommodation", "details.reviews": "Review",
+  "details.tags": "Tag", "details.inclusions": "Inclusion",
+  "details.thingsToKnow": "Things to know", "details.tips": "Tip",
+  "details.keyFacts": "Key fact", travelDates: "Travel date",
+};
+
+const titleCase = (s: string) =>
+  s.replace(/([A-Z])/g, " $1").replace(/^./, (c) => c.toUpperCase()).trim();
+
+// Walk RHF's nested FieldErrors; a leaf is any node carrying a string `message`.
+function collectErrors(node: any, prefix = "", out: { path: string; message: string }[] = []) {
+  if (!node || typeof node !== "object") return out;
+  if (typeof node.message === "string") { out.push({ path: prefix, message: node.message }); return out; }
+  for (const key of Object.keys(node)) {
+    if (key === "ref" || key === "type" || key === "message" || key === "root") continue;
+    collectErrors(node[key], prefix ? `${prefix}.${key}` : key, out);
+  }
+  return out;
+}
+
+function labelFor(path: string): string {
+  if (FIELD_LABELS[path]) return FIELD_LABELS[path];
+  // Array-item paths, e.g. "details.itinerary.0.title" → "Itinerary item 1 — Title".
+  const m = path.match(/^(.*?)\.(\d+)(?:\.(.+))?$/);
+  if (m) {
+    const [, base, idx, field] = m;
+    const section = SECTION_LABELS[base] ?? titleCase(base.split(".").pop() ?? base);
+    const n = Number(idx) + 1;
+    return field ? `${section} item ${n} — ${titleCase(field)}` : `${section} item ${n}`;
+  }
+  return titleCase(path.split(".").pop() ?? path);
+}
+
+const reasonFor = (path: string): string =>
+  URL_FIELDS.has(path.split(".")[0]) ? "must be a valid URL" : "is required";
+
 // ─── Icon map (matches www's Icon.tsx) ───────────────────────────────────────
 
 const ICON_COMPONENTS: Record<string, React.ComponentType<{ className?: string; strokeWidth?: number | string }>> = {
@@ -589,6 +647,42 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const w = form.watch;
   const sv = (n: string, v: any) => form.setValue(n as any, v);
   const gv = (n: string) => form.getValues(n as any);
+
+  // Smooth-scroll to a field by its `data-field` anchor and briefly flash it.
+  const scrollToField = (path: string) => {
+    const el = document.querySelector<HTMLElement>(`[data-field="${path}"]`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("ring-2", "ring-crimson-red", "rounded-md");
+    setTimeout(() => el.classList.remove("ring-2", "ring-crimson-red", "rounded-md"), 1500);
+  };
+
+  // Shared invalid-submit handler for both Save buttons — names each failing
+  // field instead of the old generic "check required fields" message.
+  const onInvalid = (errs: any) => {
+    console.error("Form validation errors:", errs);
+    const items = collectErrors(errs);
+    const labels = items.map((i) => `${labelFor(i.path)} ${reasonFor(i.path)}`);
+    const shown = labels.slice(0, 8);
+    toast({
+      title: "Please complete required fields",
+      description: labels.length ? (
+        <ul className="mt-1 list-disc space-y-0.5 pl-4">
+          {shown.map((l, i) => <li key={i}>{l}</li>)}
+          {labels.length > shown.length && <li>+{labels.length - shown.length} more…</li>}
+        </ul>
+      ) : (
+        "Some fields need attention. Please review and try again."
+      ),
+      variant: "destructive",
+    });
+    const first = items[0]?.path;
+    if (first) {
+      if (PANEL_FIELDS.has(first)) setPanelOpen(true);
+      // Two frames: let the panel mount (when just opened) before scrolling.
+      requestAnimationFrame(() => requestAnimationFrame(() => scrollToField(first)));
+    }
+  };
 
   // Field arrays
   const { fields: tagFields, append: addTag, remove: rmTag, move: moveTag } = useFieldArray({ control: form.control, name: "details.tags" });
@@ -1011,7 +1105,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
               <Button
                 type="button"
                 disabled={isSubmitting}
-                onClick={form.handleSubmit(handleSubmit, (errs) => { console.error("Form validation errors:", errs); toast({ title: "Validation error", description: "Check required fields and try again.", variant: "destructive" }); })}
+                onClick={form.handleSubmit(handleSubmit, onInvalid)}
                 className="h-9 bg-crimson-red hover:bg-light-red text-white rounded-full px-5 font-body font-bold text-sm shadow-small"
               >
                 <Save className="h-4 w-4 mr-1.5" />
@@ -1034,7 +1128,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
               <Button
                 type="button"
                 disabled={isSubmitting}
-                onClick={form.handleSubmit(handleSubmit, (errs) => { console.error("Form validation errors:", errs); toast({ title: "Validation error", description: "Check required fields and try again.", variant: "destructive" }); })}
+                onClick={form.handleSubmit(handleSubmit, onInvalid)}
                 className="h-8 bg-crimson-red hover:bg-light-red text-white rounded-full px-4 font-body font-bold text-sm shadow-small"
               >
                 <Save className="h-3.5 w-3.5 mr-1" />
@@ -1223,13 +1317,15 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                     return (
                       <EditZone label="Header">
                         <div className="flex items-start gap-x-1">
-                          <div className="flex items-baseline gap-x-1 flex-shrink-0">
+                          <div data-field="duration" className="flex items-baseline gap-x-1 flex-shrink-0">
                             <AutoSizeInput value={duration} onChange={(v) => sv("duration", v)} placeholder="11 days"
                               className={hClass} />
                             <span className={`${hClass} select-none`}> | </span>
                           </div>
-                          <InlineTextarea value={name} onChange={(v) => sv("name", v)} placeholder="Tour Name"
-                            className={`${hClass} flex-1 min-w-[8rem]`} />
+                          <div data-field="name" className="flex-1 min-w-[8rem]">
+                            <InlineTextarea value={name} onChange={(v) => sv("name", v)} placeholder="Tour Name"
+                              className={hClass} />
+                          </div>
                         </div>
                       </EditZone>
                     );
@@ -1263,8 +1359,10 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
 
                   {/* Description */}
                   <EditZone label="Description" className="mt-6 max-w-3xl">
-                    <InlineTextarea value={gv("description") ?? ""} onChange={(v) => sv("description", v)}
-                      placeholder="Describe the tour experience…" className="font-body text-b2-mobile md:text-b2-desktop text-dark-gray" />
+                    <div data-field="description">
+                      <InlineTextarea value={gv("description") ?? ""} onChange={(v) => sv("description", v)}
+                        placeholder="Describe the tour experience…" className="font-body text-b2-mobile md:text-b2-desktop text-dark-gray" />
+                    </div>
                   </EditZone>
 
                   {/* Key Facts */}
@@ -1873,7 +1971,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
 
                   {/* CTA */}
                   <div className="border-t border-light-grey px-6 py-5 space-y-3">
-                    <div className="flex items-center gap-2 border border-border rounded-md px-3 py-1.5">
+                    <div data-field="stripePaymentLink" className="flex items-center gap-2 border border-border rounded-md px-3 py-1.5">
                       <ExternalLink className="h-3.5 w-3.5 text-dark-gray flex-shrink-0" />
                       <InlineInput value={w("stripePaymentLink") ?? ""} onChange={(v) => sv("stripePaymentLink", v)} placeholder="Stripe payment link" className="font-body text-b4-desktop text-dark-gray" />
                     </div>
