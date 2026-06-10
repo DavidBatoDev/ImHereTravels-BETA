@@ -38,7 +38,7 @@ export default function TipsSection({ form }: TipsSectionProps) {
           {fields.map((field, index) => (
             <div
               key={field.id}
-              className="rounded-[16px] border border-light-grey bg-light-grey/30 p-4 space-y-3"
+              className="rounded-2xl border border-light-grey bg-light-grey/30 p-4 space-y-3"
             >
               <div className="flex items-center justify-between">
                 <span className="font-sans font-bold text-midnight text-xs">Tip {index + 1}</span>

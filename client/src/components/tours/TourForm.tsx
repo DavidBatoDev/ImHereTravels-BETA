@@ -267,6 +267,60 @@ const PLACEHOLDER_REVIEWS = [
 const REVIEW_PRESETS = PLACEHOLDER_REVIEWS;
 const BLANK_REVIEW = { rating: 5, date: "", body: "", reviewerName: "", reviewerLocation: "", reviewerAvatar: "" };
 
+// ─── "Things to Know" / "Tips" defaults ────────────────────────────────────────
+
+// Every tour starts with these cards/tips pre-filled (matching what www shows by
+// default). They're fully editable per-tour, and "Reset to default" restores them.
+const DEFAULT_THINGS_TO_KNOW = [
+  {
+    icon: "info",
+    title: "Travel Information",
+    description:
+      "Get ready for your trip! Find helpful links to everything you need from travel and health requirements to travel guides, visa information, and more here.",
+    ctaLabel: "Show more",
+    ctaHref: "https://www.imheretravels.com/travel-information",
+  },
+  {
+    icon: "faq",
+    title: "General FAQs",
+    description:
+      "Have more questions? Check out our FAQs as we might already have the answers.",
+    ctaLabel: "Show more",
+    ctaHref: "https://www.imheretravels.com/faqs",
+  },
+];
+
+const DEFAULT_TIPS = [
+  {
+    icon: "luggage",
+    title: "Pack smart",
+    description:
+      "Bring comfortable walking shoes, quick-dry clothing, a reusable water bottle, and a power adapter suited for your destination.",
+  },
+  {
+    icon: "shield",
+    title: "Travel insurance",
+    description:
+      "We require all travelers to have valid travel insurance covering medical, cancellation, and activity risks for the duration of the trip.",
+  },
+  {
+    icon: "sun",
+    title: "Beat the climate",
+    description:
+      "Sunscreen, a hat, and insect repellent go a long way. Stay hydrated and listen to your body, especially on active days.",
+  },
+  {
+    icon: "handshake",
+    title: "Respect local customs",
+    description:
+      "Dress modestly at temples, learn a few local greetings, and tip where appropriate — small gestures make a big difference.",
+  },
+];
+
+// Fresh deep copies so editing one tour never mutates the shared default arrays.
+const cloneThingsToKnow = () => DEFAULT_THINGS_TO_KNOW.map((c) => ({ ...c }));
+const cloneTips = () => DEFAULT_TIPS.map((t) => ({ ...t }));
+
 // "+ Add review" trigger with a menu to start blank or from a preset profile.
 function AddReviewMenu({
   onAdd,
@@ -639,7 +693,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
         itinerary: [{ day: 1, title: "", description: "", image: undefined, accommodation: undefined, activities: undefined, meals: undefined, details: [] }],
         requirements: [""],
         keyFacts: [], tags: [], inclusions: [], accommodations: [], faqs: [],
-        thingsToKnow: [], tips: [], reviews: [], map: { image: "", embedUrl: "" },
+        thingsToKnow: cloneThingsToKnow(), tips: cloneTips(), reviews: [], map: { image: "", embedUrl: "" },
       },
     },
   });
@@ -691,8 +745,8 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
   const { fields: iterFields, append: addIter, remove: rmIter, move: moveIter } = useFieldArray({ control: form.control, name: "details.itinerary" });
   const { fields: accomFields, append: addAccom, remove: rmAccom, move: moveAccom } = useFieldArray({ control: form.control, name: "details.accommodations" });
   const { fields: faqFields, append: addFaq, remove: rmFaq, move: moveFaq } = useFieldArray({ control: form.control, name: "details.faqs" });
-  const { fields: ttkFields, append: addTtk, remove: rmTtk, move: moveTtk } = useFieldArray({ control: form.control, name: "details.thingsToKnow" });
-  const { fields: tipFields, append: addTip, remove: rmTip, move: moveTip } = useFieldArray({ control: form.control, name: "details.tips" });
+  const { fields: ttkFields, append: addTtk, remove: rmTtk, move: moveTtk, replace: replaceTtk } = useFieldArray({ control: form.control, name: "details.thingsToKnow" });
+  const { fields: tipFields, append: addTip, remove: rmTip, move: moveTip, replace: replaceTip } = useFieldArray({ control: form.control, name: "details.tips" });
   const { fields: reviewFields, append: addReview, remove: rmReview, move: moveReview } = useFieldArray({ control: form.control, name: "details.reviews" as any });
   const { fields: reqFields, append: addReq, remove: rmReq } = useFieldArray({ control: form.control, name: "details.requirements" as any });
   const { fields: dateFields, append: addDate, remove: rmDate } = useFieldArray({ control: form.control, name: "travelDates" });
@@ -799,7 +853,10 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
           requirements: tour.details?.requirements?.filter(Boolean) ?? [""],
           keyFacts: d?.keyFacts ?? [], tags: d?.tags ?? [], inclusions: d?.inclusions ?? [],
           accommodations: d?.accommodations ?? [], faqs: d?.faqs ?? [],
-          thingsToKnow: d?.thingsToKnow ?? [], tips: d?.tips ?? [],
+          // Pre-fill with the defaults when a tour has none saved, so every tour
+          // shows the standard cards/tips (still editable + resettable per tour).
+          thingsToKnow: d?.thingsToKnow?.length ? d.thingsToKnow : cloneThingsToKnow(),
+          tips: d?.tips?.length ? d.tips : cloneTips(),
           map: d?.map ?? { image: "", embedUrl: "" },
         },
       });
@@ -1002,7 +1059,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
     <div key={editorKey} className="min-h-screen bg-light-grey">
       {/* Loading overlay */}
       {isLoading && (
-        <div className="fixed inset-0 z-[100] bg-white/80 backdrop-blur-sm flex items-center justify-center">
+        <div className="fixed inset-0 z-100 bg-white/80 backdrop-blur-sm flex items-center justify-center">
           <div className="w-12 h-12 border-4 border-crimson-red border-t-transparent rounded-full animate-spin" />
         </div>
       )}
@@ -1235,7 +1292,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   const activeImg = galleryImages[activeGalleryIndex] ?? uploadedCover;
                   return (
                     <div id="section-gallery">
-                      <div className="relative aspect-[4/3] md:aspect-video w-full overflow-hidden rounded-[24px] bg-light-grey group/hero">
+                      <div className="relative aspect-4/3 md:aspect-video w-full overflow-hidden rounded-3xl bg-light-grey group/hero">
                         {activeImg ? (
                           <img src={resolveImg(activeImg)} alt="Hero" className="w-full h-full object-cover" />
                         ) : (
@@ -1277,16 +1334,16 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         {galleryImages.map((img, idx) => (
                           <SortableItem key={img} id={img}>
                             {({ setNodeRef, style, handle }) => (
-                          <div ref={setNodeRef} style={style} className="relative group/thumb flex-shrink-0 w-[calc((100%-2.5rem)/6)]">
+                          <div ref={setNodeRef} style={style} className="relative group/thumb shrink-0 w-[calc((100%-2.5rem)/6)]">
                             <button type="button" onClick={() => setActiveGalleryIndex(idx)}
-                              className={`block aspect-[4/3] w-full rounded-[16px] overflow-hidden transition-opacity ${idx === activeGalleryIndex ? "opacity-100 ring-2 ring-crimson-red" : "opacity-60 hover:opacity-80"}`}>
+                              className={`block aspect-4/3 w-full rounded-2xl overflow-hidden transition-opacity ${idx === activeGalleryIndex ? "opacity-100 ring-2 ring-crimson-red" : "opacity-60 hover:opacity-80"}`}>
                               <img src={resolveImg(img)} alt={`Thumb ${idx + 1}`} className="w-full h-full object-cover" />
                             </button>
                             {/* Hover overlay: centered camera icon + corner delete */}
-                            <div className="absolute inset-0 rounded-[16px] opacity-0 group-hover/thumb:opacity-100 transition-opacity pointer-events-none bg-black/30" />
+                            <div className="absolute inset-0 rounded-2xl opacity-0 group-hover/thumb:opacity-100 transition-opacity pointer-events-none bg-black/30" />
                             <button type="button"
                               onClick={() => setPickerState({ field: `gallery-edit-${idx}`, initialUrl: resolveImg(img) || undefined })}
-                              className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity rounded-[16px]">
+                              className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/thumb:opacity-100 transition-opacity rounded-2xl">
                               <Camera className="h-4 w-4 text-white drop-shadow" />
                             </button>
                             <button type="button" onClick={() => { rmGallery(idx); if (activeGalleryIndex >= galleryImages.length - 1) setActiveGalleryIndex(Math.max(0, galleryImages.length - 2)); }}
@@ -1299,7 +1356,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                           </SortableItem>
                         ))}
                         <button type="button" onClick={() => setPickerState({ field: "gallery-add", multiple: true })}
-                          className="flex-shrink-0 w-[calc((100%-2.5rem)/6)] aspect-[4/3] rounded-[16px] border-2 border-dashed border-dark-gray/20 flex items-center justify-center cursor-pointer hover:border-crimson-red/40 hover:bg-crimson-red/5 transition-colors">
+                          className="shrink-0 w-[calc((100%-2.5rem)/6)] aspect-4/3 rounded-2xl border-2 border-dashed border-dark-gray/20 flex items-center justify-center cursor-pointer hover:border-crimson-red/40 hover:bg-crimson-red/5 transition-colors">
                           <Plus className="h-5 w-5 text-dark-gray/40" />
                         </button>
                       </div>
@@ -1309,7 +1366,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                 })()}
 
                 {/* ── ONE main card: all content sections ──────────────────── */}
-                <div id="section-description" className="mt-6 rounded-[24px] bg-white px-5 py-8 md:px-10 md:py-10">
+                <div id="section-description" className="mt-6 rounded-3xl bg-white px-5 py-8 md:px-10 md:py-10">
 
                   {/* Tour Header: duration | name — wraps naturally like www */}
                   {(() => {
@@ -1317,12 +1374,12 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                     return (
                       <EditZone label="Header">
                         <div className="flex items-start gap-x-1">
-                          <div data-field="duration" className="flex items-baseline gap-x-1 flex-shrink-0">
+                          <div data-field="duration" className="flex items-baseline gap-x-1 shrink-0">
                             <AutoSizeInput value={duration} onChange={(v) => sv("duration", v)} placeholder="11 days"
                               className={hClass} />
                             <span className={`${hClass} select-none`}> | </span>
                           </div>
-                          <div data-field="name" className="flex-1 min-w-[8rem]">
+                          <div data-field="name" className="flex-1 min-w-32">
                             <InlineTextarea value={name} onChange={(v) => sv("name", v)} placeholder="Tour Name"
                               className={hClass} />
                           </div>
@@ -1341,7 +1398,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         <SortableItem key={field.id} id={field.id}>
                           {({ setNodeRef, style, handle }) => (
                         <span ref={setNodeRef} style={style} className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-body font-medium text-sm ${TAG_PALETTE[i % 4]} group/tag`}>
-                          <DragHandle handle={handle} className="-ml-1.5 shrink-0 opacity-0 group-hover/tag:opacity-100 transition-opacity !text-current" />
+                          <DragHandle handle={handle} className="-ml-1.5 shrink-0 opacity-0 group-hover/tag:opacity-100 transition-opacity text-current!" />
                           <TagIcon className="size-3.5 shrink-0" strokeWidth={2.75} />
                           <AutoSizeInput value={tag?.label ?? ""} onChange={(v) => sv(`details.tags.${i}.label`, v)} placeholder="Tag" className="font-body text-sm" compact />
                           <button type="button" onClick={() => rmTag(i)} className="w-0 overflow-hidden group-hover/tag:w-auto transition-all opacity-0 group-hover/tag:opacity-100"><X className="size-3" /></button>
@@ -1375,7 +1432,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         </span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <p className="font-hk-grotesk text-b2-mobile md:text-b2-desktop !font-bold text-midnight">Tour Dates</p>
+                            <p className="font-hk-grotesk text-b2-mobile md:text-b2-desktop font-bold! text-midnight">Tour Dates</p>
                             <button type="button" onClick={() => setDatesModalOpen(true)}
                               className="flex items-center gap-1 text-xs text-crimson-red hover:text-light-red">
                               <Pencil className="h-3 w-3" /> Edit dates
@@ -1423,7 +1480,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                             </Select>
                             <div className="flex-1 min-w-0">
                               <InlineInput value={kf?.label ?? ""} onChange={(v) => sv(`details.keyFacts.${i}.label`, v)}
-                                placeholder="Label" className="font-hk-grotesk text-b2-mobile md:text-b2-desktop !font-bold text-midnight" />
+                                placeholder="Label" className="font-hk-grotesk text-b2-mobile md:text-b2-desktop font-bold! text-midnight" />
                               <InlineTextarea
                                 value={(kf?.values ?? []).join("\n")}
                                 onChange={(v) => sv(`details.keyFacts.${i}.values`, v.split("\n").filter(Boolean))}
@@ -1512,8 +1569,8 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         return (
                           <SortableItem key={field.id} id={field.id}>
                             {({ setNodeRef, style, handle }) => (
-                          <div ref={setNodeRef} style={style} className="group/hl flex-shrink-0 w-[calc(50%-12px)] snap-start flex flex-col gap-4">
-                            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-[24px] bg-light-grey group/hlimg">
+                          <div ref={setNodeRef} style={style} className="group/hl shrink-0 w-[calc(50%-12px)] snap-start flex flex-col gap-4">
+                            <div className="relative aspect-4/3 w-full overflow-hidden rounded-3xl bg-light-grey group/hlimg">
                               {hl?.image ? (
                                 <>
                                   <img src={resolveImg(hl.image)} alt="" className="w-full h-full object-cover" />
@@ -1539,8 +1596,8 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                             <div className="space-y-1">
                               <div className="flex items-start gap-2">
                                 <InlineTextarea value={hl?.text ?? ""} onChange={(v) => sv(`details.highlights.${i}`, { ...hl, text: v })} placeholder="Highlight text" className="font-hk-grotesk text-h6-mobile md:text-h6-desktop font-bold text-midnight flex-1" />
-                                <DragHandle handle={handle} className="flex-shrink-0 mt-1 opacity-0 group-hover/hl:opacity-100 transition-opacity" />
-                                <button type="button" onClick={() => rmHl(i)} className="text-crimson-red flex-shrink-0 mt-0.5"><X className="h-4 w-4" /></button>
+                                <DragHandle handle={handle} className="shrink-0 mt-1 opacity-0 group-hover/hl:opacity-100 transition-opacity" />
+                                <button type="button" onClick={() => rmHl(i)} className="text-crimson-red shrink-0 mt-0.5"><X className="h-4 w-4" /></button>
                               </div>
                               <InlineInput value={hl?.subtitle ?? ""} onChange={(v) => sv(`details.highlights.${i}`, { ...hl, subtitle: v })} placeholder="Subtitle (optional)" className="font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
                             </div>
@@ -1561,7 +1618,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   {(mapData?.image || mapData?.embedUrl) && (
                     <section id="section-map" className="mt-10 md:mt-14 w-full">
                       <h2 className="font-hk-grotesk text-h3-mobile md:text-h3-desktop text-midnight">Map</h2>
-                      <div className="mt-8 relative aspect-video w-full overflow-hidden rounded-[24px] bg-light-grey">
+                      <div className="mt-8 relative aspect-video w-full overflow-hidden rounded-3xl bg-light-grey">
                         {mapData.embedUrl ? <iframe src={mapData.embedUrl} className="w-full h-full" /> : mapData.image ? <img src={resolveImg(mapData.image)} alt="Map" className="w-full h-full object-cover" /> : null}
                       </div>
                     </section>
@@ -1595,11 +1652,11 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                             {isOpen && (
                               <div className="pb-5 grid grid-cols-1 gap-x-6 gap-y-4 md:grid-cols-[1fr_348px]">
                                 <InlineTextarea value={day?.description ?? ""} onChange={(v) => sv(`details.itinerary.${i}.description`, v)} placeholder="Describe this day…" className="font-body text-b4-mobile md:text-b4-desktop text-dark-gray" />
-                                <div className="relative aspect-[16/10] overflow-hidden rounded-[16px] bg-light-grey md:row-span-2 group/dayimg">
+                                <div className="relative aspect-16/10 overflow-hidden rounded-2xl bg-light-grey md:row-span-2 group/dayimg">
                                   {day?.image ? (
                                     <>
                                       <img src={resolveImg(day.image)} alt={`Day ${i + 1}`} className="w-full h-full object-cover" />
-                                      <div className="absolute inset-0 rounded-[16px] opacity-0 group-hover/dayimg:opacity-100 transition-opacity pointer-events-none bg-black/30" />
+                                      <div className="absolute inset-0 rounded-2xl opacity-0 group-hover/dayimg:opacity-100 transition-opacity pointer-events-none bg-black/30" />
                                       <button type="button"
                                         onClick={() => setPickerState({ field: `itinerary-${i}`, initialUrl: resolveImg(day?.image) || undefined })}
                                         className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/dayimg:opacity-100 transition-opacity">
@@ -1643,7 +1700,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                                                 sv(`details.itinerary.${i}.details`, arr);
                                               }}
                                               placeholder="Label"
-                                              className="font-hk-grotesk text-b4-mobile !font-bold text-midnight w-full"
+                                              className="font-hk-grotesk text-b4-mobile font-bold! text-midnight w-full"
                                             />
                                             <InlineBulletTextarea
                                               value={det?.value ?? ""}
@@ -1720,8 +1777,8 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         return (
                           <SortableItem key={field.id} id={field.id}>
                             {({ setNodeRef, style, handle }) => (
-                          <div ref={setNodeRef} style={style} className="group/ac flex-shrink-0 w-[calc(50%-12px)] snap-start flex flex-col gap-4">
-                            <div className="relative aspect-[4/3] overflow-hidden rounded-[24px] bg-light-grey group/acimg">
+                          <div ref={setNodeRef} style={style} className="group/ac shrink-0 w-[calc(50%-12px)] snap-start flex flex-col gap-4">
+                            <div className="relative aspect-4/3 overflow-hidden rounded-3xl bg-light-grey group/acimg">
                               {ac?.image
                                 ? <img src={resolveImg(ac.image)} alt="" className="w-full h-full object-cover" />
                                 : <button type="button" onClick={() => setPickerState({ field: `accommodation-${i}` })}
@@ -1835,7 +1892,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                             return (
                               <SortableItem key={field.id} id={field.id}>
                                 {({ setNodeRef, style, handle }) => (
-                              <li ref={setNodeRef} style={style} className="flex flex-col gap-4 rounded-[24px] border border-light-grey p-6 md:p-8 group/ttk">
+                              <li ref={setNodeRef} style={style} className="flex flex-col gap-4 rounded-3xl border border-light-grey p-6 md:p-8 group/ttk">
                                 <div className="flex items-start justify-between">
                                   <Select value={ttk?.icon ?? "info"} onValueChange={(v) => sv(`details.thingsToKnow.${i}.icon`, v)}>
                                     <SelectTrigger className="flex size-14 items-center justify-center rounded-full bg-light-grey text-midnight border-0 p-0 [&>svg:last-child]:hidden"><Icon className="h-6 w-6 text-midnight" /></SelectTrigger>
@@ -1865,16 +1922,28 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                           })}
                         </ul>
                         </SortableList>
-                        <button type="button" onClick={() => (addTtk as any)({ icon: "info", title: "", description: "", ctaLabel: "", ctaHref: "" })}
-                          className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
-                          <Plus className="h-4 w-4" /> Add card
-                        </button>
+                        <div className="mt-6 flex items-center gap-4">
+                          <button type="button" onClick={() => (addTtk as any)({ icon: "info", title: "", description: "", ctaLabel: "", ctaHref: "" })}
+                            className="flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
+                            <Plus className="h-4 w-4" /> Add card
+                          </button>
+                          <button type="button" onClick={() => replaceTtk(cloneThingsToKnow())}
+                            className="flex items-center gap-1 font-body text-b4-desktop text-dark-gray hover:text-midnight">
+                            <RotateCcw className="h-4 w-4" /> Reset to default
+                          </button>
+                        </div>
                       </>
                     ) : (
-                      <button type="button" onClick={() => (addTtk as any)({ icon: "info", title: "", description: "", ctaLabel: "", ctaHref: "" })}
-                        className="mt-4 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
-                        <Plus className="h-4 w-4" /> Add card
-                      </button>
+                      <div className="mt-4 flex items-center gap-4">
+                        <button type="button" onClick={() => (addTtk as any)({ icon: "info", title: "", description: "", ctaLabel: "", ctaHref: "" })}
+                          className="flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
+                          <Plus className="h-4 w-4" /> Add card
+                        </button>
+                        <button type="button" onClick={() => replaceTtk(cloneThingsToKnow())}
+                          className="flex items-center gap-1 font-body text-b4-desktop text-dark-gray hover:text-midnight">
+                          <RotateCcw className="h-4 w-4" /> Reset to default
+                        </button>
+                      </div>
                     )}
                   </section>
 
@@ -1911,16 +1980,28 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                           })}
                         </ul>
                         </SortableList>
-                        <button type="button" onClick={() => (addTip as any)({ icon: "luggage", title: "", description: "" })}
-                          className="mt-6 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
-                          <Plus className="h-4 w-4" /> Add tip
-                        </button>
+                        <div className="mt-6 flex items-center gap-4">
+                          <button type="button" onClick={() => (addTip as any)({ icon: "luggage", title: "", description: "" })}
+                            className="flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
+                            <Plus className="h-4 w-4" /> Add tip
+                          </button>
+                          <button type="button" onClick={() => replaceTip(cloneTips())}
+                            className="flex items-center gap-1 font-body text-b4-desktop text-dark-gray hover:text-midnight">
+                            <RotateCcw className="h-4 w-4" /> Reset to default
+                          </button>
+                        </div>
                       </>
                     ) : (
-                      <button type="button" onClick={() => (addTip as any)({ icon: "luggage", title: "", description: "" })}
-                        className="mt-4 flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
-                        <Plus className="h-4 w-4" /> Add tip
-                      </button>
+                      <div className="mt-4 flex items-center gap-4">
+                        <button type="button" onClick={() => (addTip as any)({ icon: "luggage", title: "", description: "" })}
+                          className="flex items-center gap-1 font-body text-b4-desktop text-crimson-red hover:text-light-red">
+                          <Plus className="h-4 w-4" /> Add tip
+                        </button>
+                        <button type="button" onClick={() => replaceTip(cloneTips())}
+                          className="flex items-center gap-1 font-body text-b4-desktop text-dark-gray hover:text-midnight">
+                          <RotateCcw className="h-4 w-4" /> Reset to default
+                        </button>
+                      </div>
                     )}
                   </section>
 
@@ -1928,8 +2009,8 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
               </div>{/* end left column */}
 
               {/* ─── RIGHT COLUMN: BookingCard ───────────────────────────── */}
-              <div className="mt-6 lg:mt-0 lg:sticky lg:top-[136px] self-start">
-                <div className="overflow-hidden rounded-[24px] bg-white shadow-medium">
+              <div className="mt-6 lg:mt-0 lg:sticky lg:top-34 self-start">
+                <div className="overflow-hidden rounded-3xl bg-white shadow-medium">
                   {/* Duration + route */}
                   <div className="px-6 pb-5 pt-6 md:px-7 md:pt-7">
                     <InlineTextarea value={cardHeaderTitle} onChange={(v) => sv("cardHeaderTitle", v)} placeholder={durationLabel || "11 Day Tour"} className="font-hk-grotesk text-h5-mobile md:text-h5-desktop font-bold text-midnight w-full" />
@@ -1972,7 +2053,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                   {/* CTA */}
                   <div className="border-t border-light-grey px-6 py-5 space-y-3">
                     <div data-field="stripePaymentLink" className="flex items-center gap-2 border border-border rounded-md px-3 py-1.5">
-                      <ExternalLink className="h-3.5 w-3.5 text-dark-gray flex-shrink-0" />
+                      <ExternalLink className="h-3.5 w-3.5 text-dark-gray shrink-0" />
                       <InlineInput value={w("stripePaymentLink") ?? ""} onChange={(v) => sv("stripePaymentLink", v)} placeholder="Stripe payment link" className="font-body text-b4-desktop text-dark-gray" />
                     </div>
                     <div className="inline-flex w-full items-center justify-center rounded-full bg-crimson-red px-6 py-3.5 font-body font-bold text-white shadow-small pointer-events-none select-none">
@@ -2011,7 +2092,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                 <>
                   <ul className="mt-8 grid grid-cols-1 gap-6 md:grid-cols-3 opacity-40 pointer-events-none select-none">
                     {PLACEHOLDER_REVIEWS.map((r, i) => (
-                      <li key={i} className="rounded-[16px] bg-white shadow-low p-6 space-y-3">
+                      <li key={i} className="rounded-2xl bg-white shadow-low p-6 space-y-3">
                         <div className="flex items-center justify-between">
                           <div className="flex gap-0.5">
                             {[1,2,3,4,5].map((n) => (
@@ -2050,7 +2131,7 @@ export default function TourForm({ onClose, onSubmit, tour, isLoading = false }:
                         return (
                           <SortableItem key={field.id} id={field.id}>
                             {({ setNodeRef, style, handle }) => (
-                              <li ref={setNodeRef} style={style} className="rounded-[16px] bg-white shadow-low p-6 space-y-3 group/review">
+                              <li ref={setNodeRef} style={style} className="rounded-2xl bg-white shadow-low p-6 space-y-3 group/review">
                                 <div className="flex items-center justify-between">
                                   <StarRatingInput
                                     value={review?.rating ?? 5}
